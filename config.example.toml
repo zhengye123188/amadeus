@@ -1,0 +1,33 @@
+# Copy to research.toml, then: uv run research --config research.toml
+# Only explicit --config is loaded. Never put API keys here.
+api = "responses" # or "chat" for a compatible endpoint
+model = "" # Your available model, or export RESEARCH_MODEL
+# base_url = "https://your-provider.example/v1"
+api_key_env = "OPENAI_API_KEY"
+permission = "ask" # read-only | ask | workspace-write
+execution = "disabled" # docker | local (UNSANDBOXED host process)
+allow_network = true # tool network policy; not the main model connection
+docker_image = "python:3.11-slim" # prepare yourself; digest recommended
+max_steps = 16
+max_turn_tokens = 60000
+max_output_tokens = 4096
+max_turn_seconds = 600
+context_chars = 80000
+tool_result_chars = 10000
+tool_timeout = 90
+max_job_seconds = 600
+max_job_output_bytes = 2000000
+# embedding_model = "your-embedding-model"
+# Token prices below are user-supplied USD per million, not current pricing claims.
+# input_price_per_million = 1.0
+# output_price_per_million = 3.0
+# max_turn_cost = 0.25 # requires BOTH prices; excludes embeddings/Jev/MCP
+
+# Optional trusted stdio server. Replace absolute paths before uncommenting.
+# Configuration authorizes starting this process; its tool calls require approval.
+# MCP server code itself is NOT sandboxed.
+# [[mcp]]
+# name = "demo"
+# command = "/absolute/path/to/project/.venv/bin/python"
+# args = ["/absolute/path/to/project/examples/mcp_server.py"]
+# env_names = [] # names only, never literal secrets

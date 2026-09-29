@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "research-terminal"
+version = "0.1.0"
+description = "An interactive, evidence-aware research and coding agent for the terminal"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+dependencies = [
+  "openai>=1.68,<3", "httpx>=0.27,<1", "pydantic>=2.9,<3",
+  "prompt-toolkit>=3.0.48,<4", "rich>=13.9,<15", "pypdf>=5,<7",
+  "jsonschema>=4.23,<5", "tomli>=2; python_version < '3.11'",
+]
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.9,<2"]
+jev = ["typesafe-sdk>=0.7.2,<0.8"]
+
+[dependency-groups]
+dev = ["pytest>=8,<9", "pytest-asyncio>=0.24,<2", "ruff>=0.11,<1", "build>=1.2", "pexpect>=4.9; sys_platform != 'win32'"]
+
+[project.scripts]
+research = "research_cli.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/research_cli"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

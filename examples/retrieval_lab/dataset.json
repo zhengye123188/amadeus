@@ -1,0 +1,32 @@
+{
+  "description": "Original synthetic retrieval fixture, not papers or a scientific benchmark. MIT license. Do not tune on the test split.",
+  "version": 1,
+  "documents": [
+    {"id": "d01", "text": "Research overview. Retrieval retrieval retrieval is one subject among classification segmentation image detection calibration optimization networks training regularization quantization biology mathematics chemistry physics astronomy finance education and language. Many topics appear here. This overview offers little specific evidence."},
+    {"id": "d02", "text": "BM25 retrieval ranks documents using term frequency and inverse document frequency with document length normalization."},
+    {"id": "d03", "text": "Dense retrieval maps queries and passages to learned embeddings. Cosine similarity compares their vectors."},
+    {"id": "d04", "text": "Reciprocal rank fusion merges lexical and dense retrieval rankings without calibrating the raw scores."},
+    {"id": "d05", "text": "Reliable experiments preserve a fixed data split and random seed. Report mean and variation across repeated runs."},
+    {"id": "d06", "text": "A container can disable network access and set memory CPU and process limits. Isolation requires explicit runtime configuration."},
+    {"id": "d07", "text": "Exact quotation verification checks that a quoted passage exists in a source. It does not prove that the passage supports the scientific claim."},
+    {"id": "d08", "text": "A public code repository should record the commit and license. Repository availability alone does not demonstrate successful paper reproduction."},
+    {"id": "d09", "text": "A score based reranker assigns a relevance value to each candidate. Compare its retrieval quality latency and cost with a lexical baseline."},
+    {"id": "d10", "text": "Precision measures the proportion of retrieved items that are relevant. Recall measures the proportion of relevant items that are retrieved."},
+    {"id": "d11", "text": "For scanned PDF documents optical character recognition is needed. Text extraction alone can miss equations figures tables and reading order."},
+    {"id": "d12", "text": "After an interrupted tool call the outcome can be unknown. Inspect existing side effects before retrying any operation."}
+  ],
+  "queries": [
+    {"id": "q01", "split": "dev", "query": "BM25 document length normalization", "relevant": ["d02"]},
+    {"id": "q02", "split": "dev", "query": "cosine embeddings dense retrieval", "relevant": ["d03"]},
+    {"id": "q03", "split": "dev", "query": "fixed seed repeated runs", "relevant": ["d05"]},
+    {"id": "q04", "split": "dev", "query": "container network CPU limits", "relevant": ["d06"]},
+    {"id": "q05", "split": "test", "query": "rank fusion lexical dense", "relevant": ["d04"]},
+    {"id": "q06", "split": "test", "query": "quotation scientific claim", "relevant": ["d07"]},
+    {"id": "q07", "split": "test", "query": "repository license commit reproduction", "relevant": ["d08"]},
+    {"id": "q08", "split": "test", "query": "scanned PDF equations tables", "relevant": ["d11"]},
+    {"id": "q09", "split": "test", "query": "interrupted tool side effects", "relevant": ["d12"]},
+    {"id": "q10", "split": "test", "query": "precise source quotes do not establish scientific truth", "relevant": ["d07"]},
+    {"id": "q11", "split": "test", "query": "retrieval term frequency", "relevant": ["d02"]},
+    {"id": "q12", "split": "test", "query": "retrieval quality latency cost", "relevant": ["d09"]}
+  ]
+}
