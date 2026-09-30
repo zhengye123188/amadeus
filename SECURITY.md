@@ -17,3 +17,7 @@ MCP 关闭会取消它拥有的实验。意外退出后的状态是 interrupted_
 PDF 解析使用线程，超时不能强制中止解析线程；不应导入恶意构造的 PDF。科研引用只校验原文子串，不能自动证明语义支持、作者代码身份、科学真实性或复现成功。
 
 问题报告应提供最小复现并去掉秘密和私有材料；如仓库启用 GitHub Private vulnerability reporting，使用该私密渠道。
+
+## Saved API settings
+
+`research configure` writes credentials to the user's config directory with mode 0600, using a temporary file and rename. Environment variables override saved settings. Credentials are not encrypted; filesystem access by the same OS user remains trusted. Built-in file tools and the Python workspace guard block the saved credential path, including symlink aliases. Bundles never include user config files. Standalone checksums detect corruption; they are not a substitute for publisher signatures or macOS notarization.

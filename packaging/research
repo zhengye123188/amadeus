@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+# Resolve the installed command symlink without depending on GNU readlink -f.
+entry=$0
+while [ -L "$entry" ]; do
+  parent=$(CDPATH= cd -P -- "$(dirname -- "$entry")" && pwd)
+  target=$(readlink "$entry")
+  case $target in /*) entry=$target ;; *) entry=$parent/$target ;; esac
+done
+bundle=$(CDPATH= cd -P -- "$(dirname -- "$entry")/.." && pwd)
+export RESEARCH_BUNDLE_ROOT="$bundle"
+export RESEARCH_PYTHON="$bundle/runtime/python/bin/python3"
+export PATH="$bundle/runtime/node/bin:$bundle/runtime/python/bin:$PATH"
+export PYTHONNOUSERSITE=1 PYTHONSAFEPATH=1 PYTHONDONTWRITEBYTECODE=1 PYTHONUTF8=1
+unset PYTHONHOME PYTHONPATH
+exec "$bundle/runtime/node/bin/node" "$bundle/app/bin/research.mjs" "$@"

@@ -9,6 +9,8 @@
 
 npm 包携带本项目 Python 后端源码及 uv.lock。`research setup` 用 uv 安装到独立缓存环境，不要求后端已发布到 PyPI。Pi 作为 npm 依赖安装，不复制进源码仓库。
 
+不希望用户预装 Node/uv 时，使用 [独立安装器](standalone.md)：它将 Node、Python、Pi 和 Python 依赖一起打入平台专用的 `.run` 文件。独立安装器通过单独的 standalone.yml 工作流构建，不经过 npm/PyPI 发布。
+
 ## 本地构建与安装验证
 
 ```bash

@@ -1,0 +1,27 @@
+{
+  "node_version": "22.23.1",
+  "python_version": "3.12.14",
+  "python_release": "20260929",
+  "targets": {
+    "darwin-arm64": {
+      "python_triple": "aarch64-apple-darwin",
+      "node_sha256": "ef28d8fab2c0e4314522d4bb1b7173270aa3937e93b92cb7de79c112ac1fa953",
+      "python_sha256": "1bb3e53d231ee2c8881e8daf6426f4dd95bff0dda496af0f3af300357aa998d0"
+    },
+    "darwin-x64": {
+      "python_triple": "x86_64-apple-darwin",
+      "node_sha256": "b8da981b8a0b1241b70249204916da76c63573ddf5814dbd2d1e41069105cb81",
+      "python_sha256": "62891cf4a32ed18b6b4174def999184b5186371422c52dd92d941401db0f0e41"
+    },
+    "linux-x64": {
+      "python_triple": "x86_64-unknown-linux-gnu",
+      "node_sha256": "7a8cb04b4a1df4eaf432125324b81b29a088e73570a23259a8de1c65d07fc129",
+      "python_sha256": "ef605200f8174e87ecfc308e52a88127543f85dd5c940dc5e92cab244b98a003"
+    },
+    "linux-arm64": {
+      "python_triple": "aarch64-unknown-linux-gnu",
+      "node_sha256": "543fa39e57d4c07855939459a323f4deb9a79dd1bb45e6e99458b0f2de10db8d",
+      "python_sha256": "706111f834ae1557314f48b7293ddc72cc96e952aa75c5d31f56c2b7ddeac3d3"
+    }
+  }
+}

@@ -5,6 +5,7 @@ import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { configPath, configure, loadApiConfig } from "./api-config.mjs";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
@@ -22,6 +23,7 @@ if (args.includes("--help") || args.includes("-h")) {
   console.log(`Research CLI ${pkg.version} — interactive research on Pi
 
 research setup [--jev]                 Install the Python backend using uv
+research configure                    Save API settings locally (hidden key input)
 research doctor                        Check runtimes and backend (no model API call)
 research [options]                     Open the interactive terminal
 research [options] -p "question"        Run a noninteractive prompt
@@ -47,6 +49,11 @@ Python prototype: research-legacy (separate command).
   process.exit(0);
 }
 
+try {
+  if (args[0] === "configure") { await configure(); process.exit(0); }
+  loadApiConfig();
+} catch (error) { console.error(error.message); process.exit(2); }
+
 const cacheEnv = join(process.env.XDG_CACHE_HOME || join(homedir(), ".cache"), "research-cli", "python", pkg.version);
 function pythonPath() {
   if (process.env.RESEARCH_PYTHON) return process.env.RESEARCH_PYTHON;
@@ -57,6 +64,10 @@ function checkBackend(python) {
   return spawnSync(python, ["-c", "import mcp; from research_cli import __version__; print(__version__)"], { encoding: "utf8", timeout: 15000 });
 }
 if (args[0] === "setup") {
+  if (process.env.RESEARCH_BUNDLE_ROOT && existsSync(join(process.env.RESEARCH_BUNDLE_ROOT, "bundle.json"))) {
+    console.log("Standalone installation already includes Python, MCP and Jev dependencies. Run research configure, then research.");
+    process.exit(0);
+  }
   const uv = spawnSync("uv", ["--version"], { encoding: "utf8" });
   if (uv.error || uv.status !== 0) {
     console.error("Install uv first: https://docs.astral.sh/uv/getting-started/installation/"); process.exit(2);
@@ -74,7 +85,7 @@ const python = pythonPath();
 const checked = checkBackend(python);
 if (args[0] === "doctor") {
   console.log(JSON.stringify({ version: pkg.version, pi: pkg.dependencies["@earendil-works/pi-coding-agent"], node: process.versions.node,
-    python, backend: checked.status === 0 ? checked.stdout.trim() : "missing; run research setup",
+    python, standalone: Boolean(process.env.RESEARCH_BUNDLE_ROOT), configFile: configPath(), backend: checked.status === 0 ? checked.stdout.trim() : "missing; run research setup",
     keysPresent: Object.fromEntries(["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GITHUB_TOKEN", "TYPESAFE_API_KEY"].map(k => [k, Boolean(process.env[k])])),
     verification: "Runtime/import checks only; model credentials and endpoint are not validated." }, null, 2));
   process.exit(checked.status === 0 && checked.stdout.trim() === pkg.version ? 0 : 2);

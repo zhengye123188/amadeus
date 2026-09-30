@@ -1,6 +1,7 @@
 import { createHmac, randomUUID } from "node:crypto";
 import { lstatSync, realpathSync, statSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { homedir } from "node:os";
 
 export type Permission = "read-only" | "ask" | "workspace-write";
 export type Effect = "read" | "write" | "execute" | "external";
@@ -28,6 +29,10 @@ function checkParts(path: string) {
 export function safePath(workspace: string, value: unknown, write = false): string {
   if (typeof value !== "string" || value.includes("\0")) throw new Error("Expected a regular workspace path");
   const root = realpathSync(workspace), target = resolve(root, value);
+  const credential = resolve(process.env.XDG_CONFIG_HOME || resolve(homedir(), ".config"), "research-cli", "api.json");
+  let realCredential = credential;
+  try { realCredential = realpathSync(credential); } catch { /* not configured yet */ }
+  if (target === credential || target === realCredential) throw new Error("Saved API credentials are blocked");
   const inside = (p: string) => { const r = relative(root, p); return r !== ".." && !r.startsWith(".." + sep) && !isAbsolute(r); };
   if (!inside(target)) throw new Error("Path is outside the workspace");
   checkParts(relative(root, target));
@@ -39,6 +44,7 @@ export function safePath(workspace: string, value: unknown, write = false): stri
     }
   }
   const real = realpathSync(ancestor);
+  if (real === realCredential) throw new Error("Saved API credentials are blocked");
   if (!inside(real)) throw new Error("Symlink escapes the workspace");
   checkParts(relative(root, real));
   if (ancestor === target) {

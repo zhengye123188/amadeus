@@ -6,7 +6,19 @@ v0.2 源码开发版 · macOS / Linux · Node ≥22.19 · Python ≥3.10 · MIT
 
 复用 [Pi](https://github.com/earendil-works/pi) 的终端、模型接入、工具循环、会话树和基础压缩。项目自己的工作集中在**可追溯科研记忆、论文/代码/实验关联、工具权限和可重复评测**。Pi 锁定为 `0.99.1`，不复制或修改其源码。
 
-> 发布状态：本仓库包含 v0.2 源码，当前版本尚未上传 npm / PyPI。请按下面的源码安装步骤运行。
+> 发布状态：本仓库包含 v0.2 源码和独立安装器构建脚本，当前版本尚未上传 npm / PyPI。可使用独立安装包或按下面的源码安装步骤运行。
+
+## 独立安装包（无需开发环境）
+
+独立 `.run` 安装器包含 Node、Python、Pi 和科研工具依赖；下载后安装无需联网。以 Apple Silicon Mac 为例：
+
+```bash
+sh ~/Downloads/research-cli-0.2.0-darwin-arm64.run
+"$HOME/.local/bin/research" configure
+"$HOME/.local/bin/research"
+```
+
+`configure` 会隐藏密钥输入，并将 API 地址、模型和密钥保存在本机，后续终端无需重新 export。默认安装在用户目录，不需要 sudo，不依赖 nvm。安装包由 GitHub 的 `Standalone installers` 手动工作流构建并保存在 Actions artifacts；尚未发布公开 Release 下载地址。平台选择、校验、更新和构建方法见 [独立安装指南](docs/standalone.md)。
 
 ## 快速开始
 
@@ -29,6 +41,8 @@ npm start
 # OPENAI_API_KEY 通过本机终端或密码管理器设置，不提交到仓库
 npm start -- --provider openai --model '你的可用模型 ID'
 ```
+
+OpenAI 兼容端点也可以通过 `node bin/research.mjs configure` 保存配置。配置文件位于 `~/.config/research-cli/api.json`（支持 XDG_CONFIG_HOME），权限为 0600；环境变量优先。文件工具会拒绝访问这份凭据文件。
 
 对于支持流式工具调用的 OpenAI 兼容服务：
 

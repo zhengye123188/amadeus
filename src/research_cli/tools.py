@@ -92,6 +92,13 @@ class Workspace:
 
     def path(self, value: str, write=False) -> Path:
         path = (self.root / value).resolve()
+        credentials = (
+            Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config")))
+            / "research-cli"
+            / "api.json"
+        ).resolve()
+        if path == credentials:
+            raise ValueError("Saved API credentials are blocked")
         if not path.is_relative_to(self.root):
             raise ValueError("Path is outside the workspace")
         parts = path.relative_to(self.root).parts

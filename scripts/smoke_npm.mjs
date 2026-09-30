@@ -8,7 +8,7 @@ import { join, resolve } from "node:path";
 const temp = mkdtempSync(join(tmpdir(), "research-npm-install-"));
 const tarball = resolve(process.argv[2] || "");
 if (!process.argv[2]) throw new Error("Pass the npm .tgz path");
-const env = { ...process.env, XDG_CACHE_HOME: join(temp, "cache") };
+const env = { ...process.env, RESEARCH_SKIP_CONFIG: "1", XDG_CACHE_HOME: join(temp, "cache") };
 delete env.RESEARCH_PYTHON;
 function run(cmd, args, cwd = temp) {
   const r = spawnSync(cmd, args, { cwd, env, encoding: "utf8", timeout: 180000 });

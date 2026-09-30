@@ -50,7 +50,7 @@ export default async function research(pi: ExtensionAPI) {
           ...(process.env.RESEARCH_CONFIG ? ["--config", process.env.RESEARCH_CONFIG] : [])],
         cwd: ctx.cwd, exposure: "direct", timeout: 120,
         env: { RESEARCH_APPROVAL_SECRET: secret,
-          ...Object.fromEntries(["GITHUB_TOKEN", "OPENAI_API_KEY", "OPENAI_BASE_URL", "TYPESAFE_API_KEY"].filter(k => process.env[k]).map(k => [k, process.env[k]!])) },
+          ...Object.fromEntries(["GITHUB_TOKEN", "OPENAI_API_KEY", "OPENAI_BASE_URL", "TYPESAFE_API_KEY", "XDG_CONFIG_HOME"].filter(k => process.env[k]).map(k => [k, process.env[k]!])) },
       }}],
     }),
   })(pi);

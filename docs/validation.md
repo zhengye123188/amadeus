@@ -4,13 +4,21 @@
 
 ## 实际运行结果
 
-- Python：67 项通过，覆盖原型、来源、引用、记忆修订、MCP stdio、并发实验去重、退出时取消进程与释放工作区锁。
-- TypeScript：类型检查通过；7 项测试通过，其中 5 项启动真实 Pi CLI。覆盖 HTTP 认证头、MCP 工具调用、引文保存、项目记忆、压缩、退出恢复、分支、实验取消/去重、步数预算、权限批准与拒绝。
+- Python：68 项通过，覆盖原型、来源、引用、记忆修订、MCP stdio、并发实验去重、退出时取消进程与释放工作区锁，以及保存的 API 凭据访问保护。
+- JavaScript / TypeScript：类型检查通过；10 项测试通过，其中 5 项启动真实 Pi CLI。覆盖 HTTP 认证头、MCP 工具调用、引文保存、项目记忆、压缩、退出恢复、分支、实验取消/去重、步数预算、权限批准与拒绝、配置持久化和凭据访问保护。
 - 实际 Pi TUI：伪终端启动成功，执行 /research-status 显示项目统计，Ctrl-D 正常退出，退出码 0。
 - npm tarball：在源码目录之外的临时 prefix 安装，research setup 成功建立独立 Python 缓存环境，doctor 确认版本一致；安装后的真实 Pi 能加载科研扩展命令。
 - Python wheel / sdist：构建成功，Twine strict 元数据与 README 检查通过；独立 uv tool 环境安装 wheel[mcp] 后，research-mcp / research-legacy 版本检查及实际文件工具调用通过。
 - 发布包文件清单检查：npm 不含 node_modules、Python 字节码、研究数据或秘密配置；Python 构建产物也按清单检查。
 - ruff 检查和格式检查通过。
+
+### 独立安装器验证
+
+macOS ARM64 实际构建并安装 `.run`，内置 Node 22.23.1 和可搬移的 Python 3.12.14。`scripts/smoke_standalone.py` 在临时目录隔离配置，将 PATH 中外部 node/npm/npx/uv/python/python3 替换为立即失败的命令；安装、doctor 和科研工具循环均成功。
+
+验证包括中文与空格安装路径、Python SSL/SQLite/原生模块导入、伪终端隐藏输入密钥、0600 配置权限、新进程自动读取配置、真实 Pi 文件读取和 MCP project_status 调用、交互界面中的 /research-status 与正常退出、重复安装保留配置与研究数据、拒绝覆盖其他程序，以及拒绝损坏安装包。模型由本机 HTTP 服务模拟并验证认证头，不调用真实付费 API。
+
+另外三个平台由 `Standalone installers` 工作流原生构建和执行同一测试，结果以对应 Actions 运行记录为准。没有进行 macOS 签名、公证或其他 Mac 实机下载验证。
 
 测试中的模型由本机 HTTP 服务模拟；Pi、MCP、SQLite、本地进程和终端真实运行。没有调用真实付费模型、embedding 或 Jev，也没有 Docker 实机验证。Docker 当前是启动参数与策略测试。
 

@@ -34,3 +34,20 @@ test("read-only wins over experiment opt-in; tokens bind full arguments", () => 
   assert.equal(payload.arguments.text, "CPU only");
   assert.equal(payload.name, "remember_research");
 });
+
+test("saved API credentials remain protected inside the workspace", () => {
+  const root = mkdtempSync(join(tmpdir(), "research-credential-policy-"));
+  const previous = process.env.XDG_CONFIG_HOME;
+  try {
+    process.env.XDG_CONFIG_HOME = join(root, "config");
+    mkdirSync(join(root, "config/research-cli"), { recursive: true });
+    writeFileSync(join(root, "config/research-cli/api.json"), "fixture");
+    symlinkSync(join(root, "config/research-cli/api.json"), join(root, "alias.json"));
+    assert.throws(() => safePath(root, "config/research-cli/api.json"), /credentials/);
+    assert.throws(() => safePath(root, "alias.json"), /credentials/);
+  } finally {
+    if (previous === undefined) delete process.env.XDG_CONFIG_HOME;
+    else process.env.XDG_CONFIG_HOME = previous;
+    rmSync(root, { recursive: true, force: true });
+  }
+});
