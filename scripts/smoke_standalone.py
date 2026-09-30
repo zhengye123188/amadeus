@@ -75,7 +75,8 @@ def main():
                 "-I",
                 "-B",
                 "-c",
-                "import ssl, sqlite3, mcp, pydantic_core; print('Bundled Python native imports OK')",
+                "import ssl, sqlite3, mcp, pydantic_core, cryptography.hazmat.bindings._rust; "
+                "print('Bundled Python native imports OK')",
             ],
             env=python_env,
             check=True,

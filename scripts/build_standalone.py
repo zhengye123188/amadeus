@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import tarfile
@@ -66,6 +67,44 @@ def download(url, checksum, cache):
 def extract(path, target):
     with tarfile.open(path) as archive:
         archive.extractall(target, filter="data")
+
+
+def intel_crypto_build(bundle, staging, cache, source, env):
+    """Build the locked cryptography sdist against a private static OpenSSL."""
+    for command in ("cargo", "rustc", "clang", "make", "perl"):
+        if not shutil.which(command):
+            raise RuntimeError(f"Intel Mac build requires {command}; end users do not need it")
+    archive = download(source["url"], source["sha256"], cache)
+    extract(archive, staging)
+    directory = staging / f"openssl-{source['version']}"
+    prefix = staging / "openssl-static"
+    run(
+        "perl",
+        "Configure",
+        "darwin64-x86_64-cc",
+        "no-shared",
+        "no-tests",
+        f"--prefix={prefix}",
+        cwd=directory,
+        env=env,
+    )
+    run("make", "-s", f"-j{min(os.cpu_count() or 2, 4)}", cwd=directory, env=env)
+    run("make", "-s", "install_sw", cwd=directory, env=env)
+    (bundle / "licenses").mkdir(exist_ok=True)
+    shutil.copy2(directory / "LICENSE.txt", bundle / "licenses/openssl.txt")
+    return {**env, "OPENSSL_DIR": str(prefix), "OPENSSL_STATIC": "1"}
+
+
+def check_static_crypto(site):
+    binaries = list((site / "cryptography/hazmat/bindings").glob("_rust*.so"))
+    if not binaries:
+        raise RuntimeError("Missing cryptography native module")
+    for binary in binaries:
+        dependencies = run("otool", "-L", binary, capture=True).splitlines()[1:]
+        for line in dependencies:
+            library = line.strip().split(" (", 1)[0]
+            if not library.startswith(("/usr/lib/", "/System/Library/")):
+                raise RuntimeError(f"Non-portable cryptography library dependency: {library}")
 
 
 def write_manifest(bundle, version, target, lock, sources):
@@ -215,6 +254,22 @@ def main():
             capture=True,
         )
         site = runtime / "python" / "lib" / "python3.12" / "site-packages"
+        build_policy = ["--no-build"]
+        if target == "darwin-x64":
+            # Upstream stopped publishing Intel Mac wheels. Keep the locked version;
+            # build only this package and statically link OpenSSL, never Homebrew paths.
+            sources["openssl"] = lock["intel_macos_openssl"]
+            env = intel_crypto_build(bundle, staging, cache, sources["openssl"], env)
+            binary_packages = sorted(
+                set(re.findall(r"^([a-zA-Z0-9][\w.-]*)==", requirements.read_text(), re.M))
+                - {"cryptography"}
+            )
+            build_policy = [
+                "--only-binary",
+                ",".join(binary_packages),
+                "--no-binary",
+                "cryptography",
+            ]
         run(
             "uv",
             "pip",
@@ -224,13 +279,15 @@ def main():
             "--target",
             site,
             "--require-hashes",
-            "--no-build",
+            *build_policy,
             "--link-mode",
             "copy",
             "-r",
             requirements,
             env=env,
         )
+        if target == "darwin-x64":
+            check_static_crypto(site)
         run("uv", "build", "--wheel", "--no-sources", "--out-dir", staging, env=env)
         wheel = next(staging.glob("research_terminal-*.whl"))
         run(

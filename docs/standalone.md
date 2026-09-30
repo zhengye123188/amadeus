@@ -51,6 +51,8 @@ sh research-cli-0.2.0-darwin-arm64.run --prefix "$HOME/Apps/research-cli" --bin-
 
 构建机需要 Python ≥3.12、uv、curl 和 tar。构建脚本下载并校验已固定的 Node/Python 官方分发文件；使用下载的 Node 执行 npm ci，运行环境不取自本机虚拟环境。必须在目标 OS/CPU 原生构建，以匹配 npm/Python 原生依赖。
 
+Intel Mac 构建机还需要 Xcode 命令行工具、Rust、make 和 Perl。由于上游 cryptography 已停止提供 Intel Mac wheel，构建脚本保留锁定版本，校验源包后编译，并静态链接固定版本的 OpenSSL；随后检查原生模块没有引用构建机的第三方动态库。安装用户无需这些构建工具。[上游安装说明](https://cryptography.io/en/stable/installation/)介绍了静态编译方法。
+
 ```bash
 uv run --python 3.12 python scripts/build_standalone.py
 uv run --python 3.12 python scripts/smoke_standalone.py dist/standalone/*.run

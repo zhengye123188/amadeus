@@ -2,6 +2,11 @@
   "node_version": "22.23.1",
   "python_version": "3.12.14",
   "python_release": "20260929",
+  "intel_macos_openssl": {
+    "version": "4.0.2",
+    "url": "https://github.com/openssl/openssl/releases/download/openssl-4.0.2/openssl-4.0.2.tar.gz",
+    "sha256": "736b467530f916737b7031310ccb21d8218c6229e61e8e160cd1d3458cd543a8"
+  },
   "targets": {
     "darwin-arm64": {
       "python_triple": "aarch64-apple-darwin",
