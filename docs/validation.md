@@ -5,7 +5,7 @@
 ## 实际运行结果
 
 - Python：67 项通过，覆盖原型、来源、引用、记忆修订、MCP stdio、并发实验去重、退出时取消进程与释放工作区锁。
-- TypeScript：类型检查通过；6 项测试通过，其中 4 项启动真实 Pi CLI。覆盖 MCP 工具调用、引文保存、项目记忆、压缩、退出恢复、分支、实验取消/去重、步数预算、权限批准与拒绝。
+- TypeScript：类型检查通过；7 项测试通过，其中 5 项启动真实 Pi CLI。覆盖 HTTP 认证头、MCP 工具调用、引文保存、项目记忆、压缩、退出恢复、分支、实验取消/去重、步数预算、权限批准与拒绝。
 - 实际 Pi TUI：伪终端启动成功，执行 /research-status 显示项目统计，Ctrl-D 正常退出，退出码 0。
 - npm tarball：在源码目录之外的临时 prefix 安装，research setup 成功建立独立 Python 缓存环境，doctor 确认版本一致；安装后的真实 Pi 能加载科研扩展命令。
 - Python wheel / sdist：构建成功，Twine strict 元数据与 README 检查通过；独立 uv tool 环境安装 wheel[mcp] 后，research-mcp / research-legacy 版本检查及实际文件工具调用通过。
@@ -13,6 +13,12 @@
 - ruff 检查和格式检查通过。
 
 测试中的模型由本机 HTTP 服务模拟；Pi、MCP、SQLite、本地进程和终端真实运行。没有调用真实付费模型、embedding 或 Jev，也没有 Docker 实机验证。Docker 当前是启动参数与策略测试。
+
+### 自定义端点认证修复
+
+用户实测发现自定义端点返回 401，服务端显示密钥尾部为 `_KEY`。原先传给 Pi 的 `apiKey: "OPENAI_API_KEY"` 被解释为字面值，现改为 Pi 支持的显式环境变量引用 `$OPENAI_API_KEY`。之前的模拟服务未检查 Authorization，导致集成测试遗漏此问题。
+
+新增回归测试在修复前实际复现了失败，修复后通过；所有本机模拟请求现在均验证 Bearer 认证头，包括压缩请求。测试只使用虚构密钥，不保存或输出请求头，并验证密钥不会进入模型消息或 CLI 事件。类型检查、7 项测试和 3 组 memory off/on 机制评测已重新通过；真实 DeepSeek 密钥是否有效仍需用户重启后验证。
 
 ## 记忆机制评测
 

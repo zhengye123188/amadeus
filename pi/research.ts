@@ -27,7 +27,8 @@ export default async function research(pi: ExtensionAPI) {
     const contextWindow = Number(process.env.RESEARCH_CONTEXT_WINDOW || 32768);
     if (!Number.isInteger(contextWindow) || contextWindow < 8192 || contextWindow > 2000000) throw new Error("RESEARCH_CONTEXT_WINDOW must be an integer between 8192 and 2000000");
     pi.registerProvider("research-endpoint", {
-      baseUrl: process.env.OPENAI_BASE_URL, apiKey: "OPENAI_API_KEY",
+      // Pi requires explicit interpolation; a bare variable name is a literal credential.
+      baseUrl: process.env.OPENAI_BASE_URL, apiKey: "$OPENAI_API_KEY",
       api: process.env.RESEARCH_API === "responses" ? "openai-responses" : "openai-completions",
       models: [{ id: process.env.RESEARCH_MODEL, name: process.env.RESEARCH_MODEL,
         reasoning: false, input: ["text"], contextWindow, maxTokens: 4096,

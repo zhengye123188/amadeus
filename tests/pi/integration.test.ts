@@ -6,6 +6,23 @@ import { join } from "node:path";
 import { mockEndpoint, ResearchProcess, toolResults, type Reply } from "./harness.ts";
 import { MEMORY_MARKER } from "../../pi/memory.ts";
 
+test("real Pi: custom endpoint resolves the API key from the environment", { timeout: 60000 }, async () => {
+  const root = mkdtempSync(join(tmpdir(), "research-auth-")), agentDir = join(root, "agent");
+  mkdirSync(agentDir);
+  writeFileSync(join(agentDir, "settings.json"), JSON.stringify({ retry: { enabled: false } }));
+  const fixtureKey = "fixture-$literal!credential-from-env";
+  const endpoint = await mockEndpoint(() => ({ text: "Authenticated fixture request." }), fixtureKey);
+  const app = new ResearchProcess(root, agentDir, endpoint.url, [], { OPENAI_API_KEY: fixtureKey });
+  try {
+    await app.prompt("Check the authenticated model connection.");
+    assert.equal(endpoint.authFailures(), 0, "The API key must be resolved, not sent as the environment variable name");
+    assert.equal(endpoint.requests.length, 1);
+    assert.equal((await app.command("get_last_assistant_text")).text, "Authenticated fixture request.");
+    assert(!JSON.stringify(endpoint.requests).includes(fixtureKey), "Credentials do not belong in the model payload");
+    assert(!(JSON.stringify(app.events) + app.stderr).includes(fixtureKey), "Credentials must not appear in CLI events");
+  } finally { await app.close(); await endpoint.close(); rmSync(root, { recursive: true, force: true }); }
+});
+
 test("real Pi: MCP tools, exact evidence, memory, compaction and session resume", { timeout: 90000 }, async () => {
   const root = mkdtempSync(join(tmpdir(), "research-pi-")), workspace = join(root, "work"), agentDir = join(root, "agent");
   mkdirSync(workspace); mkdirSync(agentDir);

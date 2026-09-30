@@ -6,11 +6,19 @@ import type { AddressInfo } from "node:net";
 
 export type Reply = { text: string } | { tool: string; args: Record<string, unknown> };
 export type Request = { messages: Array<{ role: string; content: unknown; tool_calls?: unknown[] }>; tools?: Array<{function: {name: string}}> };
-export async function mockEndpoint(respond: (request: Request) => Reply | Promise<Reply>) {
+export async function mockEndpoint(respond: (request: Request) => Reply | Promise<Reply>, expectedApiKey = "local-test-only") {
   const requests: Request[] = [];
+  let rejectedAuth = 0;
   const server = createServer(async (req, res) => {
     let raw = "";
     for await (const chunk of req) raw += chunk;
+    // Exercise the real HTTP auth boundary without retaining or logging credentials.
+    if (req.headers.authorization !== `Bearer ${expectedApiKey}`) {
+      rejectedAuth++;
+      res.writeHead(401, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: { message: "Fixture rejected Authorization header", type: "authentication_error" } }));
+      return;
+    }
     try {
       const body = JSON.parse(raw) as Request;
       requests.push(body);
@@ -27,7 +35,7 @@ export async function mockEndpoint(respond: (request: Request) => Reply | Promis
   });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(0, "127.0.0.1", resolve); });
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`;
-  return { url, requests, close: () => new Promise<void>(resolve => { server.closeAllConnections(); server.close(() => resolve()); }) };
+  return { url, requests, authFailures: () => rejectedAuth, close: () => new Promise<void>(resolve => { server.closeAllConnections(); server.close(() => resolve()); }) };
 }
 
 export class ResearchProcess {
