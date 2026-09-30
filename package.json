@@ -1,0 +1,22 @@
+{
+  "name": "@zhengye123188/research-cli",
+  "version": "0.2.0",
+  "description": "An evidence-aware research CLI built on Pi with Python MCP tools",
+  "type": "module",
+  "license": "MIT",
+  "repository": {"type": "git", "url": "https://github.com/zhengye123188/research-cli.git"},
+  "engines": {"node": ">=22.19.0"},
+  "os": ["darwin", "linux"],
+  "bin": {"research": "bin/research.mjs"},
+  "files": ["bin", "pi", "src/research_cli/*.py", "pyproject.toml", "uv.lock", "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md"],
+  "scripts": {
+    "start": "node bin/research.mjs",
+    "check": "tsc --noEmit",
+    "test": "node --import tsx --test tests/pi/*.test.ts",
+    "test:integration": "node --import tsx --test tests/pi/integration.test.ts",
+    "eval:memory": "node --import tsx scripts/eval-memory.ts"
+  },
+  "dependencies": {"@earendil-works/pi-coding-agent": "0.99.1"},
+  "devDependencies": {"@types/node": "^22.19.0", "tsx": "^4.20.0", "typescript": "^5.9.0"},
+  "pi": {"extensions": ["./pi/research.ts"], "skills": ["./pi/skills"]}
+}

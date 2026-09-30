@@ -18,6 +18,7 @@ class Run(Args):
     argv: list[str] = Field(min_length=1, max_length=100)
     cwd: str = "."
     timeout_seconds: int = Field(default=60, ge=1, le=3600)
+    request_id: str | None = Field(default=None, min_length=1, max_length=120)
 
 
 class JobID(Args):
@@ -34,6 +35,7 @@ class Jobs:
         self.registry, self.store, self.settings = registry, registry.store, registry.settings
         self.running = {}
         self.tasks = {}
+        self.start_lock = asyncio.Lock()
         # Do not signal stale PIDs: another process may now own the number.
         for job in self.store.records("jobs"):
             if job["status"] in {"running", "starting"}:
@@ -80,6 +82,20 @@ class Jobs:
         return manifest
 
     async def start(self, a):
+        async with self.start_lock:
+            return await self._start(a)
+
+    async def _start(self, a):
+        request_id = a.get("request_id")
+        request = {k: a[k] for k in ("argv", "cwd", "timeout_seconds")}
+        if request_id:
+            for previous in self.store.records("jobs"):
+                if previous.get("request_id") == request_id:
+                    if previous.get("request") != request:
+                        raise ValueError(
+                            "request_id already belongs to different experiment arguments"
+                        )
+                    return {**previous, "deduplicated": True}
         if self.settings.execution == "disabled":
             raise ValueError(
                 "Execution is disabled. Configure docker or explicitly opt into unsandboxed local execution."
@@ -108,6 +124,8 @@ class Jobs:
             "exit_code": None,
             "output": "",
             "pid": None,
+            "request_id": request_id,
+            "request": request,
         }
         self.store.put("jobs", jid, job)
         env = {k: os.environ[k] for k in ["PATH", "SYSTEMROOT", "LANG"] if k in os.environ}

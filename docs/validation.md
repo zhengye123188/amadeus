@@ -1,19 +1,29 @@
-# 本地验证记录
+# v0.2 本地验证记录
 
-日期：2026-09-29。环境：macOS ARM64，Python 3.12.13；依赖锁定于 `uv.lock`。没有配置真实模型/embedding/TypeSafe key；未安装 Docker。
+日期：2026-09-30。环境：macOS ARM64、Node 22.23.1、Python 3.12.13、Pi 0.99.1；锁文件为 package-lock.json / uv.lock。
 
-自动化测试：本次 `uv run pytest -q` 对应环境下 **56 项通过**（5.72 秒），ruff 检查及格式校验通过。测试项包含模型流式协议、动态工具循环、权限、文件冲突、证据定位、上下文压缩、取消恢复、本地实验子进程、Docker 启动参数、MCP stdio、embedding/Jev SDK 适配和伪终端交互。SDK 网络调用使用 mock；本地 MCP、进程和终端实际运行。以之后实际运行的输出为最新状态。
+## 实际运行结果
 
-只读联网 smoke check 使用临时目录，没有加入用户材料：
+- Python：67 项通过，覆盖原型、来源、引用、记忆修订、MCP stdio、并发实验去重、退出时取消进程与释放工作区锁。
+- TypeScript：类型检查通过；6 项测试通过，其中 4 项启动真实 Pi CLI。覆盖 MCP 工具调用、引文保存、项目记忆、压缩、退出恢复、分支、实验取消/去重、步数预算、权限批准与拒绝。
+- 实际 Pi TUI：伪终端启动成功，执行 /research-status 显示项目统计，Ctrl-D 正常退出，退出码 0。
+- npm tarball：在源码目录之外的临时 prefix 安装，research setup 成功建立独立 Python 缓存环境，doctor 确认版本一致；安装后的真实 Pi 能加载科研扩展命令。
+- Python wheel / sdist：构建成功，Twine strict 元数据与 README 检查通过；独立 uv tool 环境安装 wheel[mcp] 后，research-mcp / research-legacy 版本检查及实际文件工具调用通过。
+- 发布包文件清单检查：npm 不含 node_modules、Python 字节码、研究数据或秘密配置；Python 构建产物也按清单检查。
+- ruff 检查和格式检查通过。
 
-| 接口 | 请求 | 实际结果 |
-|---|---|---|
-| Crossref | retrieval augmented generation，2023–2026，1 条 | 返回一条元数据，DOI `10.1002/9781394374717.ch03`；只验证接口，不评价论文质量 |
-| GitHub | `python/cpython` | commit `42e62d6d22458e4759dc06ae36fb7d02a0a741d6`，README 8907 字符；未执行仓库代码 |
-| arXiv | PDF `2005.11401` | 19 页、51 个文本块；不代表公式/表格重建正确 |
+测试中的模型由本机 HTTP 服务模拟；Pi、MCP、SQLite、本地进程和终端真实运行。没有调用真实付费模型、embedding 或 Jev，也没有 Docker 实机验证。Docker 当前是启动参数与策略测试。
 
-合成检索实验的真实原始输出见 `evals/results/retrieval-smoke.json`。8 条 test 查询，overlap 和 BM25 的 Recall@3、MRR@10 均为 1.0。这个结果表明样例过易，不能证明 BM25/Jev/hybrid 的质量提升。未调整 test 来制造优势。
+## 记忆机制评测
 
-构建：`uv build --offline` 已生成 wheel 和 sdist，构建产物在被忽略的 `dist/`。在独立临时虚拟环境安装 wheel 及运行依赖后，`research --demo exec` 成功读取临时文件并返回完整 JSONL 事件，退出码 0；不依赖 editable 安装。两种安装包均检查过，未包含 `.research/`、`.venv/`、`.git/`、`.env` 或本地 `research.toml`。
+`evals/results/memory-mechanism.json` 保存 3 个合成案例 × memory off/on 的原始结果。模拟模型被编写为回读注入的项目记忆；结果只证明检索、注入和压缩机制能贯通，**不能据此宣称优于原版 Pi 或形成科研质量提升**。
 
-工程包含 GitHub Actions 配置，但尚未推送，云端 CI 未运行。正式发布前应在目标模型服务和 Docker 环境复验，并公开真实端到端任务的重复结果。
+真实模型对照入口已实现：`npm run eval:memory -- --live`。需要本机配置 API key、兼容端点和模型，再运行多次并人工审查。当前没有真实模型成绩。
+
+## 发布与远端状态
+
+本记录覆盖 v0.2 的本地验证；没有创建 GitHub Release、上传 npm 或 PyPI。CI 和 Python 发布工作流已随迁移更新，推送后的云端结果以 [GitHub Actions](https://github.com/zhengye123188/research-cli/actions/workflows/ci.yml) 中对应提交为准。之前 v0.1 的 CI 通过不代替 v0.2 验证。
+
+## v0.1 历史数据
+
+此前 Crossref 元数据、GitHub README/commit、arXiv PDF 接口做过只读实网检查。v0.2 新增的 arXiv 搜索和 GitHub 候选搜索有请求/解析 fixture 测试，尚未作为真实科研检索评测。旧合成检索实验见 `evals/results/retrieval-smoke.json`：8 条测试查询中 overlap/BM25 都满分，说明样例过易，不证明方法提升。

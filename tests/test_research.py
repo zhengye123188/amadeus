@@ -43,6 +43,47 @@ async def test_import_search_exact_evidence_and_source_position(registry, tmp_pa
         await research.close()
 
 
+async def test_arxiv_and_repository_search_preserve_metadata_boundaries(registry):
+    def handler(request):
+        if request.url.host == "export.arxiv.org":
+            assert (
+                "submittedDate:[202301010000 TO 202612312359]" in request.url.params["search_query"]
+            )
+            return httpx.Response(
+                200,
+                text="""<feed xmlns="http://www.w3.org/2005/Atom"><entry>
+                <id>http://arxiv.org/abs/2601.12345v1</id><title> Fixture paper </title>
+                <summary>See https://github.com/example/code</summary><published>2026-01-01T00:00:00Z</published>
+                <author><name>Fixture Author</name></author></entry></feed>""",
+            )
+        assert request.url.path == "/search/repositories"
+        return httpx.Response(
+            200,
+            json={
+                "items": [
+                    {"full_name": "example/code", "html_url": "https://github.com/example/code"}
+                ],
+                "incomplete_results": True,
+            },
+        )
+
+    research = ResearchTools(registry, httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    try:
+        papers = await research.search_arxiv(
+            {"query": "retrieval", "limit": 2, "from_year": 2023, "to_year": 2026}
+        )
+        paper = papers["papers"][0]
+        assert paper["level"] == "abstract"
+        assert paper["arxiv_id"] == "2601.12345v1"
+        links = await research.find_code_links({"source_id": paper["source_id"]})
+        assert links["links"] == ["https://github.com/example/code"]
+        repos = await research.search_repositories({"query": "Fixture paper", "limit": 2})
+        assert repos["incomplete_results"]
+        assert "candidates" in repos["relationship"]
+    finally:
+        await research.close()
+
+
 def test_index_page_offsets_and_idempotent_download(store):
     pages = ["first", "x" * 2500]
     result = index_pages(store, pages, "test", {"url": "https://example.org", "retrieved_at": 1})
@@ -111,5 +152,6 @@ async def test_crossref_metadata_and_github_commit_requests(registry, monkeypatc
         repo = await research.inspect_repository({"repository": "https://github.com/example/repo"})
         assert repo["commit"] == sha
         assert repo["paper_relationship"].startswith("unverified")
+        assert registry.store.get("sources", repo["source_id"])["commit"] == sha
     finally:
         await research.close()

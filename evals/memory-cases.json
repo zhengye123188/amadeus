@@ -1,0 +1,5 @@
+[
+  {"id":"cpu-budget","constraint":"CPU only; at most 60 seconds per experiment.","hypothesis":"A reranker may improve retrieval recall.","quote":"The synthetic baseline has not established a reranking improvement."},
+  {"id":"data-locality","constraint":"Private dataset must remain local; no uploads.","hypothesis":"A different chunk size may preserve more evidence.","quote":"Chunk boundaries can separate a claim from its supporting passage."},
+  {"id":"negative-result","constraint":"Use the fixed test split; do not tune on it.","hypothesis":"Adding a dense retriever may help short queries.","quote":"This fixture describes a failed test, not a successful replication."}
+]

@@ -19,6 +19,7 @@ from research_cli.types import Approve
 
 SKIP_DIRS = {
     ".git",
+    ".pi",
     ".research",
     ".venv",
     "node_modules",

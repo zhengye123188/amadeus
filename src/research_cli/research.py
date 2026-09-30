@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import io
@@ -8,6 +9,7 @@ import math
 import os
 import re
 import time
+import xml.etree.ElementTree as ET
 from collections import Counter
 from datetime import date
 
@@ -152,6 +154,8 @@ class ResearchTools:
             follow_redirects=False,
             headers={"User-Agent": "ResearchCLI/0.1 (research tool)"},
         )
+        self.arxiv_lock = asyncio.Lock()
+        self.arxiv_last_request = 0.0
 
     async def close(self):
         await self.client.aclose()
@@ -204,6 +208,80 @@ class ResearchTools:
         return {
             "papers": results,
             "coverage": "Crossref only; code links and abstracts may be missing.",
+        }
+
+    async def search_arxiv(self, a):
+        if a["from_year"] > a["to_year"]:
+            raise ValueError("from_year must not exceed to_year")
+        terms = re.findall(r"[\w-]+", a["query"])
+        if not terms:
+            raise ValueError("Query needs search terms")
+        query = " AND ".join(f'all:"{term}"' for term in terms)
+        query = f"({query}) AND submittedDate:[{a['from_year']}01010000 TO {a['to_year']}12312359]"
+        async with self.arxiv_lock:
+            await asyncio.sleep(max(0, 3 - (time.monotonic() - self.arxiv_last_request)))
+            self.arxiv_last_request = time.monotonic()
+            response = await self.client.get(
+                "https://export.arxiv.org/api/query",
+                params={
+                    "search_query": query,
+                    "max_results": a["limit"],
+                    "sortBy": "relevance",
+                    "sortOrder": "descending",
+                },
+            )
+        response.raise_for_status()
+        if len(response.content) > 2_000_000:
+            raise ValueError("arXiv response exceeded 2 MB")
+        root = ET.fromstring(response.content)
+        atom = {"a": "http://www.w3.org/2005/Atom"}
+        results = []
+        for entry in root.findall("a:entry", atom):
+            url = entry.findtext("a:id", "", atom)
+            if "/abs/" not in url:
+                raise ValueError("arXiv returned an error entry")
+            arxiv_id = url.split("/abs/", 1)[1]
+            sid = "arxiv_" + hashlib.sha256(arxiv_id.encode()).hexdigest()[:16]
+            record = {
+                "source_id": sid,
+                "arxiv_id": arxiv_id,
+                "title": " ".join(entry.findtext("a:title", "", atom).split()),
+                "abstract": " ".join(entry.findtext("a:summary", "", atom).split()),
+                "authors": [
+                    author.findtext("a:name", "", atom)
+                    for author in entry.findall("a:author", atom)
+                ],
+                "published": entry.findtext("a:published", "", atom),
+                "url": url,
+                "links": [link.attrib.get("href", "") for link in entry.findall("a:link", atom)],
+                "level": "abstract",
+                "provider": "arXiv",
+                "query": a,
+                "retrieved_at": time.time(),
+            }
+            self.store.put("sources", sid, record)
+            results.append(record)
+        return {
+            "papers": results,
+            "coverage": "arXiv metadata and abstracts; not peer-review or code-authorship verification",
+        }
+
+    async def search_repositories(self, a):
+        data = await self.github("/search/repositories", {"q": a["query"], "per_page": a["limit"]})
+        return {
+            "repositories": [
+                {
+                    "repository": r["full_name"],
+                    "url": r["html_url"],
+                    "description": r.get("description"),
+                    "stars": r.get("stargazers_count"),
+                    "license": r.get("license"),
+                    "updated_at": r.get("updated_at"),
+                }
+                for r in data["items"]
+            ],
+            "incomplete_results": data.get("incomplete_results", False),
+            "relationship": "Search candidates only. Verify paper association and pin a commit with inspect_repository.",
         }
 
     async def import_document(self, a):
@@ -276,7 +354,7 @@ class ResearchTools:
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code != 404:
                 raise
-        return {
+        record = {
             "repository": repo,
             "url": meta["html_url"],
             "description": meta.get("description"),
@@ -287,7 +365,14 @@ class ResearchTools:
             "readme": readme,
             "paper_relationship": "unverified; match with paper-author evidence",
             "reproduction_status": "repository_inspected_only",
+            "source_id": "github_"
+            + hashlib.sha256((repo.lower() + commit["sha"]).encode()).hexdigest()[:16],
+            "level": "repository_inspection",
+            "provider": "GitHub",
+            "retrieved_at": time.time(),
         }
+        self.store.put("sources", record["source_id"], record)
+        return record
 
     async def read_repository_file(self, a):
         repo = repo_parts(a["repository"])
@@ -379,6 +464,20 @@ class ResearchTools:
 
     def register(self):
         r = self.registry
+        r.add(
+            "search_arxiv",
+            "Search arXiv titles/abstracts with all query terms and a submission-year range. Prefer English terms; metadata only, not peer-review verification.",
+            PaperQuery,
+            self.search_arxiv,
+            network=True,
+        )
+        r.add(
+            "search_repositories",
+            "Find candidate GitHub repositories by paper title or topic. Results do not establish author association or reproducibility.",
+            Query,
+            self.search_repositories,
+            network=True,
+        )
         r.add(
             "search_papers",
             "Search Crossref metadata in a year range. Not a full-text or exhaustive search.",

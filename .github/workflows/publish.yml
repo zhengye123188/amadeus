@@ -1,0 +1,94 @@
+name: PyPI release
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Upload to PyPI (requires a vVERSION tag and configured Trusted Publisher)'
+        type: boolean
+        required: true
+        default: false
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pypi-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Validate and build distributions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PUBLISH_REQUESTED: ${{ github.event_name == 'release' || inputs.publish == true }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --all-extras --python 3.12
+      - name: Check version and publishing ref
+        run: |
+          uv run python - <<'PY'
+          import os
+          import json
+          import tomllib
+          from pathlib import Path
+          from research_cli import __version__
+
+          metadata = tomllib.loads(Path("pyproject.toml").read_text())
+          version = metadata["project"]["version"]
+          if version != __version__:
+              raise SystemExit("Package and CLI versions disagree")
+          if json.loads(Path("package.json").read_text())["version"] != version:
+              raise SystemExit("Python and npm package versions disagree")
+          if os.environ["PUBLISH_REQUESTED"] == "true":
+              if os.environ["GITHUB_REF_TYPE"] != "tag" or os.environ["GITHUB_REF_NAME"] != f"v{version}":
+                  raise SystemExit(f"Publishing requires the exact tag v{version}; use publish=false for a dry run")
+          print(f"Validated research-terminal {version}")
+          PY
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest -q
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.23.1'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: uv build --no-sources
+      - name: Check package metadata and README rendering
+        run: uvx --from 'twine>=6,<7' twine check --strict dist/*
+      - name: Install wheel as a CLI in an isolated tool environment
+        run: uv run python scripts/smoke_install.py dist/*.whl
+      - uses: actions/upload-artifact@v7
+        with:
+          name: python-distributions
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Upload to PyPI
+    if: github.event_name == 'release' || inputs.publish == true
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: pypi
+      url: https://pypi.org/project/research-terminal/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: python-distributions
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

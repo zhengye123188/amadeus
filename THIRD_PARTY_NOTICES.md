@@ -1,0 +1,12 @@
+# Third-party attribution
+
+Research CLI is an independent project built on **Pi**, maintained by Mario Zechner and the Pi contributors.
+
+- Upstream: https://github.com/earendil-works/pi
+- Package: `@earendil-works/pi-coding-agent`, pinned to `0.99.1`
+- License: MIT (see the upstream repository and installed package notices)
+- Reused: terminal UI, model/provider integration, agent loop, session management and native MCP integration.
+
+Pi is installed as an npm dependency. This repository does not vendor its implementation. Upstream functionality is not claimed as original Research CLI work. Original work here includes the Python research service, evidence/memory model, extension policy and context integration, experiment ledger and evaluations.
+
+Python and other npm dependencies retain their own licenses; inspect `uv.lock`, `package-lock.json` and the installed distributions for the complete dependency set. User-imported papers, datasets and third-party repository code remain subject to their own licenses and access conditions. Synthetic evaluation fixtures in this repository are original project material, not copied publications or empirical scientific results.

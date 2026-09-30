@@ -1,5 +1,7 @@
 # ResearchCLI：交互式科研 Agent 项目规格
 
+> v0.2 已迁移到 Pi CLI + 科研扩展 + Python MCP。本文保留原型设计与验收历史；当前实现、安装和验证以 README、docs/architecture.md、docs/validation.md 为准。
+
 设计日期：2026-09-29。当前已有可运行 v0.1 开发版，实际命令、验证结果和限制以 README 与开发任务清单为准。本文件保留设计目标，以下示意不等于全部实现。ResearchCLI / research-terminal 尚未发布 PyPI；GitHub 仓库入口见 README。
 
 **1．产品定位与已确定需求**

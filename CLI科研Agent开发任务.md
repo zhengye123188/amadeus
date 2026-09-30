@@ -1,5 +1,7 @@
 # 交互式 CLI 科研 Agent 开发任务
 
+> v0.2 已迁移到 Pi CLI + 科研扩展 + Python MCP。本文保留原型设计与验收历史；当前实现、安装和验证以 README、docs/architecture.md、docs/validation.md 为准。
+
 日期：2026-09-29。状态：已实现可运行的 v0.1 开发版。下面的验收表是原目标；实际交付范围见末尾实施状态及 README，不将可选适配器或 mock 测试当作真实模型评测完成。
 
 **开发顺序与验收**

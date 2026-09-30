@@ -1,166 +1,160 @@
-# ResearchCLI
+# Research CLI
 
-一个可以持续对话、读论文、查代码、修改文件和运行小实验的终端科研 Agent。模型根据当前问题与工具结果选择下一步，用户可以停止、追问或切换任务。
+**基于 Pi 的交互式科研 Agent：读论文、查开源代码、保留证据、提出假设、修改代码、运行受限实验。** 用户在终端自由对话并随时调整方向，模型根据问题和工具结果选择下一步。
 
-**v0.1 开发版 · Python 3.10+ · macOS / Linux · MIT。** 没有发布 PyPI，请从源码安装。研究阶段不是固定工作流。面试讲解见 [架构](docs/architecture.md)，发布见 [GitHub 指南](docs/github.md)。
+v0.2 源码开发版 · macOS / Linux · Node ≥22.19 · Python ≥3.10 · MIT
 
-## 五分钟启动
+复用 [Pi](https://github.com/earendil-works/pi) 的终端、模型接入、工具循环、会话树和基础压缩。项目自己的工作集中在**可追溯科研记忆、论文/代码/实验关联、工具权限和可重复评测**。Pi 锁定为 `0.99.1`，不复制或修改其源码。
 
-需要 Python 和 [uv](https://docs.astral.sh/uv/getting-started/installation/)。首次使用先下载仓库，再安装启动：
+> 发布状态：本仓库包含 v0.2 源码，当前版本尚未上传 npm / PyPI。请按下面的源码安装步骤运行。
+
+## 快速开始
+
+需要 Node ≥22.19 和 [uv](https://docs.astral.sh/uv/getting-started/installation/)。如果使用 nvm，先执行 `nvm use 22`。
 
 ```bash
 git clone https://github.com/zhengye123188/research-cli.git
 cd research-cli
+npm ci
 uv sync --frozen --all-extras
-uv run research --demo
+node bin/research.mjs doctor
+
+# 交互 CLI；不需要额外全局安装 Pi
+npm start
 ```
 
-`--demo` 不需要 API key，是明确标注的确定性工具演示，没有模型推理。可以输入：
-
-```text
-列出文件
-读取 @README.md
-/import examples/retrieval_lab/README.md
-search 实验
-/sessions
-/help
-/exit
-```
-
-真实模型使用环境变量配置，密钥只保留在本机：
+首次配置模型可以在 Pi 界面使用 `/login`、`/model`，也可以在本机设置 API key 后指定提供商和可用模型：
 
 ```bash
-export RESEARCH_MODEL='填入账号可用的模型名'
-# 在本机终端安全设置 OPENAI_API_KEY；不要提交到 Git
-uv run research
+# OPENAI_API_KEY 通过本机终端或密码管理器设置，不提交到仓库
+npm start -- --provider openai --model '你的可用模型 ID'
 ```
 
-默认使用 OpenAI Responses API。对于支持流式工具调用的 Chat Completions 兼容服务：
+对于支持流式工具调用的 OpenAI 兼容服务：
 
 ```bash
 export OPENAI_BASE_URL='https://你的服务地址/v1'
-uv run research --api chat --model '你的模型名'
+export RESEARCH_MODEL='你的模型 ID'
+export RESEARCH_API=chat           # chat 或 responses；兼容端点默认 chat
+npm start
 ```
 
-端点必须支持所用参数；不同兼容服务不保证完全兼容。程序没有默认付费模型，也不内置密钥。`uv run research doctor` 检查配置，只显示密钥是否存在。高级配置：
+自定义端点的上下文窗口默认 32768，可用 `RESEARCH_CONTEXT_WINDOW` 调整；自定义模型的价格未配置，Pi 显示的 `$0` **不代表真实费用为零**。`doctor` 只检查运行环境及密钥是否存在，不验证模型 API。`.env` 不会自动加载。
+
+想直接使用 `research` 命令，可以把当前源码打包安装：
 
 ```bash
-cp config.example.toml research.toml
-# 编辑 research.toml 中的非秘密配置
-uv run research --config research.toml
+npm pack                       # 打印生成的 .tgz 文件名
+npm install -g ./zhengye123188-research-cli-0.2.0.tgz
+research setup                 # 用 uv 安装随 npm 包携带的 Python 后端源码
+research doctor
+research --workspace /你的科研目录
 ```
 
-只加载显式传入的配置。`research.toml`、`.env*`、`.research/` 和 `.venv/` 已忽略。用 `--workspace /path/to/research` 指定研究目录。第三方代码请自行下载并审阅后放入目录；本版没有自动 clone 或依赖安装器。
+`setup` 是显式安装步骤，无需等待 Python 包发布到 PyPI。全局安装版使用用户缓存中的独立 Python 环境。单独安装 Python wheel 提供 `research-mcp` 和历史原型 `research-legacy`，交互式主入口 `research` 由 npm 包提供。
 
-## 交互方式
-
-以下是建议输入，不是已经完成的真实模型运行记录：
+## 交互示例
 
 ```text
-you › 调研近三年检索重排的工作，优先检查原文提到的 GitHub 代码。
-you › 先不做综述，读一下本地 src/model.py，解释评分函数。
-you › 结合我导入的论文，找这个假设的反例，每条给出原文位置。
-you › 先提出改进和验证方案，不运行实验。
+调研近三年检索重排的论文，先查 arXiv，再找原文提到的开源代码。
+先不继续找论文。导入 papers/baseline.pdf，给我看这个结论的原文依据。
+记住这个项目只用 CPU。这个改进目前只是待验证假设。
+检查本地 src/ranker.py，结合论文提出最小改动和验证方案。
+查看已有实验和失败原因，避免重复运行同一个请求。
 ```
 
-文本流式显示，工具有独立事件。工具错误交回模型，允许它调整参数或方案。写文件、执行命令和付费扩展按策略请求批准。
+上面是建议输入，不是已完成的真实科研结果。
 
-| 操作 | 命令 / 按键 |
+| 操作 | 入口 |
 |---|---|
-| 提交 / 换行 / 历史 | Enter / Alt-Enter / 上下箭头 |
-| 停止当前轮 | Esc、Ctrl-C 或 `/stop` |
-| 立即改变方向 | 先 `/stop`，再输入新要求 |
-| 执行中继续输入 | 排队为下一轮，不追溯更改正在执行的动作 |
-| 会话 | `/new`、`/sessions`、`/resume SESSION_ID` |
-| 重启后继续 | `uv run research --resume last` |
-| 上下文和固定约束 | `/context`、`/compact`、`/remember compute 只使用 CPU` |
-| 资料和证据 | `/import '论文路径.pdf'`、`/evidence` |
-| 能力和任务 | `/tools`、`/skills`、`/jobs`、`/cancel JOB_ID` |
-| 改动与日志 | `/diff`、`/permissions`、`/model`、`/cost`、`/trace` |
-| 退出 | `/exit` 或 Ctrl-D，会停止本 CLI 拥有的实验 |
+| 查看科研记忆、证据、实验 | `/memory`、`/evidence`、`/jobs` |
+| 查看项目统计、MCP 状态 | `/research-status`、`/mcp` |
+| 压缩、会话树、新会话 | Pi 的 `/compact`、`/tree`、`/new` |
+| 重启继续 | `research --continue`，或 `--session <路径或 ID>` |
+| 从旧会话分支 | `research --fork <路径或 ID>` |
+| 停止当前 Agent 操作 | Pi 的 Esc / Ctrl-C；已启动实验需明确取消 |
+| 保存/修改科研记录、取消实验 | 自然语言调用相应工具；无固定科研阶段 |
 
-`@path` 在 demo 中读取文件，在真实模型模式下由模型理解并调用工具。脚本入口与交互入口共用内核：
-
-```bash
-uv run research --demo exec '读取 @README.md' --json
-uv run research --permission read-only exec '解释本地文件结构' --json
-```
-
-`exec` 无交互审批，默认拒绝需要确认的操作；显式 `--permission workspace-write` 允许文件写入。退出码 0 表示轮次完成，1 表示失败/停止，2 表示配置错误。轮次完成不等于所有工具成功，要检查 JSONL 工具结果。
+主程序复用 Pi TUI。科研命令与旧 Python CLI 的命令不完全相同；旧版说明归档在 [legacy-cli.md](docs/legacy-cli.md)。
 
 ## 已实现能力
 
-| 能力 | 实现与范围 |
+| 领域 | 实现与边界 |
 |---|---|
-| Agent loop | asyncio 动态工具循环，仅完整模型响应可触发工具 |
-| 模型 | Responses + Chat Completions，原生 reasoning 输出保留用于续聊，不展示隐藏思维链 |
-| 状态 | SQLite 会话/事件/证据/实验，中断补记未知结果，不自动重放 |
-| 上下文 | 字符预算、旧轮次抽取压缩、项目便签、长结果落盘和取回 |
-| 文件 | 有边界的读取和字面搜索、SHA256 冲突检查、精确替换、备份、diff |
-| 文献 | Crossref 按年检索；本地 PDF/文本；按 arXiv ID 取 PDF；页码和分块 |
-| GitHub | README/许可证/固定 commit 目录与文本；从资料中提取显式代码链接 |
-| 证据 | claim–quote–source–position；校验引用子串，语义支持仍需审查 |
-| RAG | BM25；可选 embeddings / dense / RRF；索引区分端点与模型 |
-| Skills / MCP | 三个按需科研方法；stdio 工具发现、校验、审批、超时和本地示例 |
-| Jev | TypeSafe Score 相关性重排，记录模型和用量，不充当科学正确性裁判 |
-| 实验 | 快照、hash 清单、异步任务、输出限制、超时和取消；Docker 或显式 local |
+| 文献发现 | Crossref、arXiv 年份范围检索；返回 metadata/abstract 层级，不声称穷尽 |
+| 原文 | 本地 PDF/UTF-8 导入、按 ID 下载 arXiv PDF；来源哈希、页码和 chunk 定位；无 OCR |
+| 代码关联 | GitHub 候选检索、README/文件读取、固定 commit、原文链接证据；不自动认证作者身份 |
+| 检索 | BM25；可选 embeddings + RRF hybrid search；可选 Jev 相关性重排 |
+| 证据 | 引文必须是原文 chunk 的精确子串；引文存在与科学结论成立分别标记 |
+| 科研记忆 | 约束、假设、文献报告、实验观察、负结果、决策；引用 ID 校验、修订历史和冲突检测 |
+| 上下文 | 每次模型请求注入相关项目记录；约束优先，超出预算明确给出遗漏数；压缩附证据快照 |
+| 实验 | 快照、哈希清单、后台任务、日志、超时、取消、资源限制、稳定 request_id 去重 |
+| 工程 | 原生 MCP、Schema 校验、审批、一次性授权、结构化错误、审计记录、真实 Pi 集成测试 |
 
-主模型预算与 embeddings/Jev/MCP 费用分开，不构成总账单上限。价格缺失时成本为 unknown。token 预检查使用字符估计，实际用量和账单以供应商为准。
+项目记忆在同一 workspace 的不同会话/分支之间共享，并记录来源 session ID。分支不会回滚数据库，过期约束需要显式退役。对话历史由 Pi 管理，科研记录位于 `.research/state.sqlite3`。
 
-## 实验与扩展
+## 权限与实验
 
-自包含例子不用 API 或 GPU：
+默认 `--permission ask --execution disabled`。读文件与工具均受边界检查；写入需批准。非交互模式无法弹窗时拒绝需审批的操作。
 
 ```bash
-uv run python examples/retrieval_lab/run.py --output /tmp/retrieval-metrics.json
+# 自动允许工作区/科研记录写入，实验仍关闭
+research --permission workspace-write
+
+# 使用已经准备好的 Docker 镜像；不会自动拉镜像或退回本地执行
+research --execution docker
+
+# 明确选择未隔离的本机进程，交互时仍需执行审批
+research --execution local
+
+# 自动化实验需要显式授权执行；只读模式仍优先拒绝
+research --permission workspace-write --execution docker --approve-experiments
 ```
 
-输出逐条排名、Recall@3、MRR@10、数据和源码哈希。首次实测的 8 条 test 查询中，overlap 与 BM25 两个指标均为 1.0；数据过于简单，未显示质量提升。这是执行接口验证，不是论文复现。见 [实验说明](examples/retrieval_lab/README.md)、[原始结果](evals/results/retrieval-smoke.json) 和 [评测计划](evals/README.md)。
+Pi 的普通 bash/`!` 命令入口在本产品中关闭，实验统一走 `run_experiment`。Docker 后端无网络、只读根目录、1 CPU、1 GiB 内存、128 进程；工作快照上限 50 MB/5000 文件。`local` 不是安全沙箱。Pi、扩展和 MCP 服务本身都是可信本地程序；需要隔离整个 Agent 时应把整个程序放进容器。
 
-启用容器前，自行安装 Docker 并准备可信镜像：
+实验返回 job ID，不阻塞聊天；退出、重载或切换导致 MCP 服务关闭时会取消它拥有的实验。意外退出留下的作业标记 `interrupted_unknown`，不会自动认领旧 PID 或盲目重跑。重试同一实验应复用 `request_id`；修改参数需使用新 ID。
+
+`--max-turns 32 --max-seconds 600` 提供每次交互的模型步数/时间预算，不是支付硬限额。`--offline` 只关闭后端网络工具，模型连接仍可能联网。
+
+## 可选配置
 
 ```bash
-docker pull python:3.11-slim
-uv run research --execution docker
+cp config.example.toml research.toml
+research --config research.toml
 ```
 
-容器无网络、根文件系统只读、1 CPU / 1 GB 内存、有进程数量限制，只挂载实验目录的复制品。不自动下载镜像；复跑建议使用镜像 digest。`--execution local` 是不隔离的主机执行，只用于可信代码，仍需逐次批准。默认禁用执行。
+文件用于 Python 工具层的超时、实验镜像、输出上限和 embedding 设置；Pi 模型用 `/model`、CLI 参数和环境变量配置。权限、执行模式和 offline 以启动参数为准。不会自动加载工作目录中的第三方扩展、MCP 配置或 AGENTS.md；额外扩展需显式 `--extension` 加载，并承担其本机代码权限。
 
-- Embeddings：配置 `embedding_model`，模型可申请 `index_embeddings` / `hybrid_search`。
-- Jev：安装 `jev` extra，本机设置 `TYPESAFE_API_KEY`。模型可申请 `jev_rerank`，使用 [TypeSafe SDK](https://docs.typesafe.ai/sdk/python) 的有序 Score rubric，相关性量表为 0–4。缺少 key 时明确失败。
-- MCP：安装 `mcp` extra，按 `config.example.toml` 配置可信 server；示例在 `examples/mcp_server.py`。配置代表允许启动本地进程，工具调用仍需批准。
-
-## 验证与边界
+Embedding 需要显式配置模型；Jev 需要安装 Python `jev` extra 并设置 `TYPESAFE_API_KEY`。这两类付费工具要求审批，不纳入 Pi 主模型 token 费用。源码安装可用 `uv sync --frozen --all-extras`。MCP 服务端也可独立使用：
 
 ```bash
+uv run research-mcp --workspace /你的科研目录 --permission read-only
+```
+
+## 测试与评测
+
+```bash
+npm ci
 uv sync --frozen --all-extras
+npm run check
 uv run ruff check .
 uv run ruff format --check .
 uv run pytest -q
-uv build
+npm test
+npm run eval:memory
+uv build --no-sources
+npm pack --dry-run
 ```
 
-已做工程测试、真实 SDK 的模拟 HTTP 协议测试、本地 MCP stdio、中文/多行伪终端、实际本地子进程和合成检索实验。CI 将在推送后运行。
+Python 测试覆盖领域逻辑、真实 stdio MCP、执行与旧原型；TypeScript 集成测试启动**真实 Pi + Python MCP + 本机模拟模型服务**，覆盖证据、权限、压缩、恢复、分支和实验。这些不需要模型密钥，也不等同于真实模型能力评估。
 
-没有真实模型/embedding/TypeSafe key，因此不声称真实模型端到端通过或 Jev 有收益。开发机没有 Docker，未做容器实机验证。本项目也不是 Claude Code/Codex CLI 的功能等价实现。
+`npm run eval:memory` 是可重复的机制验证。`npm run eval:memory -- --live` 才会使用配置的模型进行付费对照，比较相同工具、数据、模型和预算下的 `--memory off/on`。默认输出 `evals/results/local-memory.json`，不提交本机结果。详见 [评测说明](evals/README.md) 和 [验证记录](docs/validation.md)。
 
-当前限制：Crossref 不是完整 CS 论文搜索；PDF 无 OCR，公式/表格可能丢失；代码归属和新颖性不自动认证；无自动依赖安装、任意网站下载、多 Agent、GPU/远程作业、守护进程或 Windows 支持。压缩有损，重要约束需 `/remember`；向量索引是小规模 SQLite 扫描。崩溃前的实验标记为未知，需要人工检查。
+## 面试讲解与限制
 
-`.research/` 的会话、历史和日志可能含科研秘密，不要上传。排除规则不能识别所有秘密，使用独立工作区并先审阅材料。见 [SECURITY.md](SECURITY.md)。
+项目主线：**如何在长对话压缩和恢复后，保留可追溯的科研约束、原文证据与实验状态？** 可以围绕三层记忆、RAG、MCP、工具权限、异步任务、幂等、恢复窗口、版本管理和消融评测展开。架构和代码映射见 [architecture.md](docs/architecture.md)。
 
-## 代码导览
+当前没有多 Agent、远程/GPU 作业、自动依赖安装、OCR 或论文真实复现保证；检索与向量存储适用于小规模项目。Jev 与真实模型收益必须实测，本项目不宣称科研新颖性或未经验证的性能提升。
 
-```text
-src/research_cli/
-  cli.py          输入、流式显示、审批、命令和队列
-  runtime.py      动态工具循环、预算、取消恢复
-  providers.py    模型协议与离线演示
-  tools.py        校验、权限、文件、按需 skills
-  research.py     文献、GitHub、分块、BM25、证据
-  jobs.py         快照和实验
-  extensions.py   embeddings / Jev / MCP
-  storage.py      SQLite、事件、产物
-  context.py      上下文与抽取压缩
-```
-
-贡献见 [CONTRIBUTING.md](CONTRIBUTING.md)。历史设计仍保留；实际状态以本 README 和开发任务清单为准。
+上游许可与归属见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。贡献与发布见 [CONTRIBUTING.md](CONTRIBUTING.md)、[发布指南](docs/pypi.md)。

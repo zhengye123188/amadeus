@@ -1,58 +1,65 @@
-# 运行时与面试讲解
+# v0.2 架构与面试讲解
 
-程序围绕一个主 Agent 的交互循环组织。论文检索、代码分析和实验都是可选择的工具；不存在必须完成综述才能进入实验的阶段状态机。
+## 架构
 
 ```mermaid
 flowchart TD
-    U[终端输入与下一轮队列] --> R[Runtime]
-    R --> C[上下文预算与旧轮次压缩]
-    C --> P[Responses / Chat Provider]
-    P --> R
-    R --> V[完整响应 + Schema 校验]
-    V --> A[权限与具体参数审批]
-    A --> T[本地 / 文献 / 实验 / MCP 工具]
-    T --> S[SQLite 与大结果产物]
-    S --> R
-    R --> E[流式 UI 与持久化事件]
-    E --> U
+    U[终端用户：自由对话] <--> P[Pi CLI：模型、工具循环、会话树]
+    L[research 启动器] --> P
+    P <--> X[TypeScript 科研扩展]
+    P <--> M[Pi 原生 MCP 适配器]
+    M <--> B[Python stdio MCP 服务]
+    B <--> D[SQLite：来源、证据、记忆修订、实验]
+    B --> J[受限实验快照与进程]
+    X --> Q[只查询项目数据的 Python companion]
+    Q --> D
 ```
 
-## 核心设计
+没有固定的文献→假设→实验状态机。Pi 根据当前对话选择工具，用户可停止或转向。`bin/research.mjs` 只检测环境、传配置并启动依赖中的 Pi CLI；没有复制或 fork 上游内核。`createMcpExtension` 使用 Pi 的公开 API。
 
-1. **工具选择与可靠性分离。** 模型给出 tool calls，运行时处理验证、超时、许可、存储和取消。所有本地、付费扩展及 MCP 调用经过同一个 Registry。模型不能靠文本提高权限。
-2. **完整参数后执行。** Responses 等到 `response.completed`；Chat 聚合各调用片段，要求完整结束原因。断流、长度截断或重复调用 ID 都不执行部分工具。SDK 的重试发生在模型请求层，应用不自动重试副作用工具。
-3. **会话可恢复但不承诺 exactly-once。** 完整 assistant 响应先写入 SQLite，每个工具结果完成后写入。崩溃或取消留下的调用补记 `interrupted`，不自动重新执行。工具已产生副作用但结果尚未存储时存在未知窗口，须检查真实状态。单工作区文件锁避免两个 CLI 并发写入。
-4. **异步输入有明确边界。** 输入与模型任务并行；执行中普通输入排到下一轮。立即转向使用 `/stop` 再输入。停止当前轮不会自动取消先前启动的实验，可 `/cancel JOB_ID`；退出会停止本 CLI 拥有的实验。MCP server 生命周期在主任务中管理。
-5. **上下文压缩按完整轮次。** 保留最近两个 turn，旧消息完整归档，仅将旧用户消息摘录放回上下文；不会拆开 function call/result 对。抽取摘要不是语义无损记忆，重要约束需固定为 project note。最近轮次仍超限时明确停止。
-6. **外部证据可定位。** PDF 每页分块，记录源 hash、页码、字符起点。引用必须是 chunk 内的精确子串。这只验证文字存在；论文结论是否支持观点必须继续审查。代码关联标为未验证直到有作者证据。
-7. **执行是可观测对象。** argv、cwd、源文件 hash 清单、退出码和日志属于 job。环境默认不传 API keys。Docker 只挂载复制品并限制 CPU、内存、网络和进程；local 明确为不隔离。不会自动安装包、获取数据或下载镜像。
+## 状态与生命周期
 
-## 技术知识点如何落地
+- **对话**由 Pi 的 JSONL 会话树管理。Python 后端不重建 assistant/tool 消息历史。
+- **科研项目记录**在 `.research/state.sqlite3`：来源、chunk、精确引文、结构化记忆、修订、实验和代码关联。数据库 schema 是增量创建，保留原型数据。
+- **模型上下文**由扩展在每次请求前查询项目库，按字符预算注入。检索先保留有效约束，再选相关/近期记录，并附可回查的证据指针。注入是请求级的，不重复写入对话。
+- **压缩**使用当前模型进行语义摘要，附结构化项目快照；后续请求仍读取最新记录。取消、空摘要、错误或截断时保留原历史。模型调用 usage 交回 Pi 计入会话统计。
+- 同工作区只允许一个 MCP owner。先拿文件锁再恢复作业，避免第二个进程错误地把正在运行的作业标为未知。
+- MCP 服务跨多次工具调用存活；服务关闭才清理其拥有的实验。切换/恢复/分支经过 Pi 生命周期，服务重建不会重放已有实验。
+- 项目记忆跨分支共享，并记录来源会话。会话分支不是数据库时间旅行；变更需修订或退役，旧摘要不能覆盖当前数据库。
 
-| 知识点 | 实现位置 | 面试可讨论的取舍 |
+## 权限链
+
+Pi `tool_call` → 本地静态工具分类/路径检查 → 用户审批或显式启动授权 → 参数绑定的短时 HMAC → MCP Schema 校验 → Python Registry → 工具。
+
+授权包含工具名、原始参数、nonce 和有效期；由扩展注入，服务端验证并消费，模型生成或复用的 `_approval` 会被清除。审计不保存令牌。read-only 优先于自动批准。
+
+复用 Pi 的 read/write/edit；路径限制覆盖 symlink 和写入 hardlink。递归搜索由已有受限文件工具提供。普通 shell/`!` 被关闭；实验从唯一执行工具进入。模型不能靠 MCP annotations 升级权限。扩展及 MCP 进程仍具有宿主权限，策略检查不是完整 OS 沙箱。
+
+## 实验可靠性
+
+`request_id` 绑定 argv、cwd 和超时；相同 ID/参数返回已保存的作业，不重复执行，不同参数拒绝。串行启动锁覆盖快照和进程建立，避免并发重试启动两个进程。任务完成后保留快照哈希、日志、退出码与状态。
+
+仍不声称 exactly-once：在启动进程和保存结果之间崩溃可能留下未知状态。恢复时 `interrupted_unknown` 不等于未启动；需查实际状态。Docker 限制用于实验进程，不隔离 Pi 或 MCP 后端。local 是明确选择的宿主进程。
+
+## 代码与知识点
+
+| 位置 | 职责 | 面试讨论 |
 |---|---|---|
-| ReAct 风格工具循环 | `runtime.py` | 用外部观察驱动下一步，不输出私有思维链；不绑定固定工具序列 |
-| Function calling / SSE | `providers.py` | 原生 reasoning item 与统一消息格式；不完整响应如何处理 |
-| Context engineering | `context.py` | 字符估算与真实 tokenizer 的区别，有损压缩与 pinned constraints |
-| Memory / event log | `storage.py` | WAL、消息/工具关联、恢复窗口、未知副作用 |
-| RAG / Hybrid search | `research.py`, `extensions.py` | BM25、cosine、RRF；小规模扫描与向量库扩展点 |
-| Evidence grounding | `research.py` | 引文真实性、语义支持、科学真实性是三个不同层次 |
-| MCP / Skills | `extensions.py`, `tools.py` | 通用工具协议与按需方法提示；server 是可信执行代码 |
-| Human in the loop | `cli.py`, `tools.py` | 审批绑定具体参数；只读请求、工作区写入、外部操作分类 |
-| Async / cancellation | `cli.py`, `runtime.py`, `jobs.py` | 输入队列、任务取消、进程组清理与失联作业 |
-| Evaluation | `tests/`, `evals/`, `examples/` | mock 保证工程行为，真实 E2E 衡量模型能力；不混淆两者 |
-| System One / Jev | `extensions.py` | 可选窄任务相关性评分；须与基线做质量/成本消融，不能拿热点名词代替收益 |
+| `bin/research.mjs` | 环境检查、安装、CLI 入口、子进程信号 | 依赖复用、分发与配置边界 |
+| `pi/research.ts` | 原生 MCP、权限钩子、上下文、压缩与命令 | Agent lifecycle、上下文工程、Human-in-the-loop |
+| `pi/policy.ts` | 路径/工具策略、审批签名 | 参数绑定、信任边界、防重放 |
+| `memory.py` | 类型化科研记忆、引用检查、版本与检索 | 长期记忆、乐观并发、来源追踪 |
+| `mcp_server.py` | Schema、协议错误、owner 生命周期 | 跨语言 MCP、取消/清理、审计 |
+| `research.py` | Crossref/arXiv/GitHub、PDF、BM25、证据 | RAG、来源层级、引文与结论的区别 |
+| `jobs.py` | 快照、进程组、超时、取消、去重 | async、幂等、故障恢复窗口 |
+| `extensions.py` | embeddings/RRF、Jev | 检索质量、成本与消融 |
+| `tests/pi` | 真实 Pi 协议集成 | mock 模型与 mock 运行时的区别 |
+| `scripts/eval-memory.ts` | 同工具集合的记忆对照 | 机制验证与模型能力评估的区别 |
 
-没有引入 LangGraph，是因为自定义的小型循环便于检查与讲解交互语义，并不表示框架不能实现。没有多 Agent，是因为首版任务尚未证明委派比单 Agent 有收益。
+原 Python CLI 的 `cli.py/providers.py/runtime.py/context.py` 保留为 `research-legacy`，用于工程对照；主产品不调用这些运行时。历史架构在 [legacy-architecture.md](legacy-architecture.md)。
 
-## 工程边界与下一步
+## 当前取舍
 
-- 当前文献检索仅 Crossref；arXiv 只能按 ID 下载，后续可扩展 arXiv/Semantic Scholar 检索和 GitHub 候选搜索。
-- 工具 schema 不随着任务裁剪，大量 MCP tools 可能使上下文提前超限；可做工具路由/检索。
-- BM25 每次扫描、重新分词；向量在 SQLite JSON 中保存。规模扩大后应建立持久倒排索引/向量索引，并测试中英文分词。
-- token/cost 预算是请求前估算和调用后记账，不是支付系统硬限额。Embedding/Jev/MCP 各自调用有审批，但不纳入主模型成本上限。
-- skill 目前是三个内置原创方法，尚无第三方技能安装器。
-- 支持一个 CLI 进程拥有一个工作区。SQLite 未做跨设备同步或服务端共享。
-- 首版实验只验证原创 toy fixture；GPU、远程调度、崩溃作业自动认领、论文真实复现及有保留集的模型评测仍待实现/验证。
+每次模型请求的项目查询使用短生命周期 Python companion，避免另开一个会恢复/拥有实验的 MCP 进程；这有进程启动开销，可用延迟测量判断是否值得改成常驻只读 IPC。
 
-接口参考：[OpenAI function calling](https://developers.openai.com/api/docs/guides/function-calling)、[streaming](https://developers.openai.com/api/docs/guides/streaming-responses)、[MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)、[TypeSafe SDK](https://docs.typesafe.ai/sdk/python)。锁定依赖见 `uv.lock`，配置示例见 `config.example.toml`。
+检索是小规模 SQLite 扫描；大项目需要倒排/向量索引。工具目前直接暴露，不开启 Codemode。先验证证据记忆的作用，再以测量结果决定工具路由、多 Agent 或远程执行是否值得加入。
