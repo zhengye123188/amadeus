@@ -4,7 +4,7 @@
 
 ## 实际运行结果
 
-- Python：68 项通过，覆盖原型、来源、引用、记忆修订、MCP stdio、并发实验去重、退出时取消进程与释放工作区锁，以及保存的 API 凭据访问保护。
+- Python：78 项通过，覆盖原型、来源、引用、记忆修订、MCP stdio、并发实验去重、退出时取消进程与释放工作区锁、保存的 API 凭据访问保护，以及公开下载入口的平台选择、校验拒绝执行和失败清理。
 - JavaScript / TypeScript：类型检查通过；10 项测试通过，其中 5 项启动真实 Pi CLI。覆盖 HTTP 认证头、MCP 工具调用、引文保存、项目记忆、压缩、退出恢复、分支、实验取消/去重、步数预算、权限批准与拒绝、配置持久化和凭据访问保护。
 - 实际 Pi TUI：伪终端启动成功，执行 /research-status 显示项目统计，Ctrl-D 正常退出，退出码 0。
 - npm tarball：在源码目录之外的临时 prefix 安装，research setup 成功建立独立 Python 缓存环境，doctor 确认版本一致；安装后的真实 Pi 能加载科研扩展命令。
@@ -18,7 +18,7 @@ macOS ARM64 实际构建并安装 `.run`，内置 Node 22.23.1 和可搬移的 P
 
 验证包括中文与空格安装路径、Python SSL/SQLite/原生模块导入、伪终端隐藏输入密钥、0600 配置权限、新进程自动读取配置、真实 Pi 文件读取和 MCP project_status 调用、交互界面中的 /research-status 与正常退出、重复安装保留配置与研究数据、拒绝覆盖其他程序，以及拒绝损坏安装包。模型由本机 HTTP 服务模拟并验证认证头，不调用真实付费 API。
 
-提交 `9f05f0b` 的 [Standalone installers 运行记录](https://github.com/zhengye123188/research-cli/actions/runs/36813125328) 已全部通过，并上传四个平台的 `.run` 与 `.sha256`：
+提交 `2509d00` 的 [Standalone installers 运行记录](https://github.com/zhengye123188/research-cli/actions/runs/36818786041) 已全部通过，并公开发布四个平台的 `.run` 与 `.sha256`：
 
 | 安装包平台 | 原生验证环境 | 结果 |
 |---|---|---|
@@ -47,7 +47,11 @@ Intel Mac 在构建机编译锁定的 cryptography，静态链接 OpenSSL 4.0.2�
 
 ## 发布与远端状态
 
-提交 `9f05f0b` 的 [常规 CI](https://github.com/zhengye123188/research-cli/actions/runs/36813100374) 四组 macOS/Linux × Python 3.10/3.12 检查均通过。独立安装包已上传 Actions artifacts，保留 30 天、下载需要 GitHub 登录。没有创建 GitHub Release、上传 npm 或 PyPI。后续提交以 [GitHub Actions](https://github.com/zhengye123188/research-cli/actions/workflows/ci.yml) 中对应结果为准。
+提交 `2509d00` 的 [常规 CI](https://github.com/zhengye123188/research-cli/actions/runs/36818769903) 四组 macOS/Linux × Python 3.10/3.12 检查均通过。[v0.2.0 GitHub Release](https://github.com/zhengye123188/research-cli/releases/tag/v0.2.0) 于 2026-10-01 公开，包含四组安装器/校验文件和 `install.sh` 下载入口，无需登录 GitHub。
+
+另外从公开 `releases/latest/download/install.sh` 地址实际下载，确认脚本与已审查源码字节一致，再通过该脚本下载 macOS ARM64 安装包并在临时中文/空格路径实装。`research doctor` 确认程序及后端均为 0.2.0；临时安装已清理，现有用户安装和 API 配置未修改。
+
+npm / PyPI 未上传；当天只读查询两个包的注册表地址均返回 404，不保证名字被预留。GitHub Release 不会自动上传到这两个注册表。后续提交以 [GitHub Actions](https://github.com/zhengye123188/research-cli/actions/workflows/ci.yml) 中对应结果为准。
 
 ## v0.1 历史数据
 

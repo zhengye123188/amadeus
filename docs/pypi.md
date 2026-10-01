@@ -70,14 +70,13 @@ research
 gh workflow run publish.yml --ref main -f publish=false
 ```
 
-真正发布要求 `package.json`、`pyproject.toml`、`src/research_cli/__init__.py` 版本一致，而且工作流运行在完全匹配的 `vVERSION` 标签上。以 `0.2.0` 为例，若标签尚不存在：
+真正发布要求 `package.json`、`pyproject.toml`、`src/research_cli/__init__.py` 版本一致，而且工作流运行在完全匹配的 `vVERSION` 标签上。先同步远端标签：
 
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+git fetch origin --tags
 ```
 
-标签已经存在时复用该标签，不要重复创建。标签应指向包含当前发布工作流和该版本代码的提交。然后在 GitHub **Actions → PyPI release → Run workflow** 中选择 `v0.2.0` 并勾选 `publish`，或执行：
+`v0.2.0` 已由 GitHub 独立包发布创建，可以直接复用，不要重复创建或修改。发布后续版本时，先更新源码版本，再创建并推送完全匹配的标签；标签应指向包含发布工作流和该版本代码的提交。当前版本可在 GitHub **Actions → PyPI release → Run workflow** 中选择 `v0.2.0` 并勾选 `publish`，或执行：
 
 ```bash
 gh workflow run publish.yml --ref v0.2.0 -f publish=true
