@@ -97,6 +97,8 @@ def restore_project(archive_path: Path, workspace: Path):
         with zipfile.ZipFile(archive_path) as archive:
             entries = archive.infolist()
             names = [entry.filename for entry in entries]
+            if not {"state.sqlite3", "manifest.json"}.issubset(names):
+                raise ValueError("Project archive requires its database and manifest")
             if len(names) != len(set(names)) or len(names) > 20000:
                 raise ValueError("Duplicate archive members or excessive file count")
             if sum(entry.file_size for entry in entries) > MAX_ARCHIVE_BYTES:
@@ -109,6 +111,7 @@ def restore_project(archive_path: Path, workspace: Path):
                     or "\\" in entry.filename
                     or entry.filename != path.as_posix()
                     or stat.S_ISLNK(entry.external_attr >> 16)
+                    or not path.parts
                     or not (
                         entry.filename in {"manifest.json", "state.sqlite3"}
                         or path.parts[0] in {"artifacts", "jobs"}
@@ -142,6 +145,18 @@ def restore_project(archive_path: Path, workspace: Path):
                 raise ValueError("Invalid project database")
             if database.execute("PRAGMA user_version").fetchone()[0] > SCHEMA_VERSION:
                 raise ValueError("Database needs a newer Research CLI")
+            for table, columns in {
+                "sources": {"id", "body", "created"},
+                "evidence": {"id", "body", "created"},
+                "jobs": {"id", "body", "updated"},
+                "chunks": {"id", "source", "position", "text", "vector", "embedding_model"},
+                "artifacts": {"id", "path", "sha256", "size", "created"},
+            }.items():
+                actual = {row[1] for row in database.execute(f"PRAGMA table_info({table})")}
+                if not columns.issubset(actual):
+                    raise ValueError(
+                        "Archive database does not contain a compatible project schema"
+                    )
         finally:
             database.close()
         # The staging directory is fully verified before becoming the project state.

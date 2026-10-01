@@ -19,6 +19,12 @@ export const effects: Record<string, Effect> = {
   run_experiment: "execute", index_embeddings: "external", hybrid_search: "external",
   jev_rerank: "external", list_files: "read", search_code: "read", git_diff: "read", load_skill: "read",
   backup_project: "write", project_data_info: "read",
+  compare_experiments: "read", list_experiments: "read", report_export: "write",
+  run_project_check: "execute", search_project: "read", inspect_symbols: "read",
+  create_checkpoint: "write", inspect_checkpoint: "read", restore_checkpoint: "write",
+  register_paper_identity: "write", get_paper_identity: "read", list_papers: "read",
+  save_research_map: "write", read_research_map: "read", compare_papers: "read", export_research_map: "write",
+  save_reproduction_plan: "write", read_reproduction_plan: "read", list_reproduction_plans: "read", update_reproduction_stage: "write",
 };
 
 const blocked = new Set([".git", ".research", ".pi", ".venv", "node_modules", "research.toml", "id_rsa", "id_ed25519"]);

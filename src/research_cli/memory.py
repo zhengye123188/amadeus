@@ -23,6 +23,23 @@ STATES = {
 }
 
 
+class MetricCheck(Args):
+    job_id: str
+    metric: str = Field(min_length=1, max_length=100)
+    operator: Literal["gt", "gte", "lt", "lte", "eq"]
+    threshold: float = Field(allow_inf_nan=False)
+
+
+class ClaimAssessment(Args):
+    condition: str = Field(
+        min_length=1,
+        max_length=2000,
+        description="Falsifiable support condition. Metric checks are interpreted as a conjunction.",
+    )
+    rationale: str = Field(min_length=1, max_length=2000)
+    metric_checks: list[MetricCheck] = Field(default_factory=list, max_length=20)
+
+
 class MemoryWrite(Args):
     kind: Kind
     text: str = Field(min_length=1, max_length=2000)
@@ -33,6 +50,8 @@ class MemoryWrite(Args):
     source_ids: list[str] = Field(default_factory=list, max_length=20)
     job_ids: list[str] = Field(default_factory=list, max_length=20)
     session_id: str = Field(default="external", max_length=200)
+    assessment: ClaimAssessment | None = None
+    observation_type: Literal["scientific", "execution"] = "scientific"
 
 
 class MemoryUpdate(MemoryWrite):
@@ -97,6 +116,65 @@ class ProjectMemory:
             raise ValueError(
                 "A supported/refuted hypothesis requires evidence or an experiment reference"
             )
+        if a["status"] in {"supported", "refuted"}:
+            assessment = a.get("assessment")
+            if not assessment:
+                raise ValueError(
+                    "A supported/refuted hypothesis requires an explicit assessment condition and rationale"
+                )
+            relation = "supports" if a["status"] == "supported" else "contradicts"
+            linked = []
+            for eid in a["evidence_ids"]:
+                evidence = self.store.get("evidence", eid)
+                row = self.store.db.execute(
+                    "SELECT text,source FROM chunks WHERE id=?", (evidence["chunk_id"],)
+                ).fetchone()
+                if (
+                    not row
+                    or row["source"] != evidence["source_id"]
+                    or evidence["quote"] not in row["text"]
+                ):
+                    raise ValueError("Cited evidence no longer matches its source chunk")
+                if (
+                    evidence["claim"].strip() == a["text"].strip()
+                    and evidence["relation"] == relation
+                ):
+                    linked.append(eid)
+            checks = assessment["metric_checks"]
+            if a["job_ids"]:
+                if {check["job_id"] for check in checks} != set(a["job_ids"]):
+                    raise ValueError(
+                        "Every experiment reference must have an explicit metric check"
+                    )
+                from research_cli.experiments import verify_experiment
+
+                results = []
+                operations = {
+                    "gt": lambda x, y: x > y,
+                    "gte": lambda x, y: x >= y,
+                    "lt": lambda x, y: x < y,
+                    "lte": lambda x, y: x <= y,
+                    "eq": lambda x, y: x == y,
+                }
+                for check in checks:
+                    captured = verify_experiment(
+                        self.store, self.store.get("jobs", check["job_id"])
+                    )
+                    if check["metric"] not in captured["metrics"]:
+                        raise ValueError("Metric check references an unrecorded metric")
+                    results.append(
+                        operations[check["operator"]](
+                            captured["metrics"][check["metric"]], check["threshold"]
+                        )
+                    )
+                if (a["status"] == "supported") != all(results):
+                    raise ValueError("Hypothesis status contradicts the recorded metric conditions")
+            elif checks:
+                raise ValueError("Metric checks must reference this record's experiment IDs")
+            if not a["job_ids"] and not linked:
+                raise ValueError(
+                    "Literature assessment needs evidence for the exact claim and matching supports/contradicts relation"
+                )
         if a["kind"] in {"finding", "negative_result"} and a["status"] == "observed":
             if not a["job_ids"]:
                 raise ValueError(
@@ -112,6 +190,10 @@ class ProjectMemory:
                     raise ValueError(
                         "Observed results must refer to finished experiments, not pending/unknown runs"
                     )
+                if a.get("observation_type", "scientific") == "scientific":
+                    from research_cli.experiments import verify_experiment
+
+                    verify_experiment(self.store, self.store.get("jobs", jid))
 
     async def save(self, a):
         self.validate(a)
@@ -132,7 +214,8 @@ class ProjectMemory:
                 "memory_id": mid,
                 "revision": revision,
                 "updated": time.time(),
-                "verification": "References exist; scientific interpretation is not independently verified.",
+                "review_state": "model_reviewed" if a.get("assessment") else "unreviewed",
+                "verification": "Source/metric consistency checked; rationale and scientific interpretation require independent review.",
             }
             self.store.db.execute(
                 "INSERT OR REPLACE INTO research_memory VALUES(?,?,?)",
@@ -149,13 +232,17 @@ class ProjectMemory:
         ).fetchone()
         if not row:
             raise ValueError(f"Unknown memory: {mid}")
-        return json.loads(row[0])
+        body = json.loads(row[0])
+        body.setdefault("review_state", "unreviewed")
+        body.setdefault("assessment", None)
+        body.setdefault("observation_type", "legacy_unclassified")
+        return body
 
     def all_memory(self):
         return [
-            json.loads(r[0])
+            self.memory(r[0])
             for r in self.store.db.execute(
-                "SELECT body FROM research_memory ORDER BY updated DESC, id"
+                "SELECT id FROM research_memory ORDER BY updated DESC, id"
             )
         ]
 
@@ -262,6 +349,9 @@ class ProjectMemory:
                     "source_ids",
                     "job_ids",
                     "session_id",
+                    "review_state",
+                    "assessment",
+                    "observation_type",
                 )
             }
             size = len(encode(item))

@@ -110,6 +110,7 @@ async def test_repository_association_requires_same_source(registry):
                 "relation": "context",
             }
         )
+
     finally:
         await research.close()
     linked = await memory.link_repository(
@@ -143,3 +144,134 @@ async def test_repository_association_requires_same_source(registry):
                 "evidence_id": ev["evidence_id"],
             }
         )
+
+
+async def test_literature_verdict_requires_claim_relation_and_explicit_assessment(registry):
+    memory = ProjectMemory(registry)
+    source = index_pages(
+        registry.store, ["The method improves recall on this benchmark."], "fixture", {}
+    )
+    chunk = registry.store.db.execute(
+        "SELECT id FROM chunks WHERE source=?", (source["source_id"],)
+    ).fetchone()[0]
+    research = ResearchTools(registry)
+    try:
+        evidence = await research.save_evidence(
+            {
+                "chunk_id": chunk,
+                "quote": "improves recall",
+                "claim": "Recall improves on this benchmark",
+                "relation": "context",
+            }
+        )
+        args = MemoryWrite(
+            kind="hypothesis",
+            text="Recall improves on this benchmark",
+            status="supported",
+            evidence_ids=[evidence["evidence_id"]],
+        ).model_dump()
+        with pytest.raises(ValueError, match="explicit assessment"):
+            await memory.save(args)
+        args["assessment"] = {
+            "condition": "Recall exceeds the reported baseline on this benchmark",
+            "rationale": "The cited benchmark report describes higher recall",
+            "metric_checks": [],
+        }
+        with pytest.raises(ValueError, match="matching supports"):
+            await memory.save(args)
+        evidence = await research.save_evidence(
+            {
+                "chunk_id": chunk,
+                "quote": "improves recall",
+                "claim": args["text"],
+                "relation": "supports",
+            }
+        )
+        args["evidence_ids"] = [evidence["evidence_id"]]
+        saved = await memory.save(args)
+        assert saved["review_state"] == "model_reviewed"
+        assert "independent review" in saved["verification"]
+        registry.store.db.execute("UPDATE chunks SET text='changed' WHERE id=?", (chunk,))
+        registry.store.db.commit()
+        with pytest.raises(ValueError, match="no longer matches"):
+            await memory.save(args)
+    finally:
+        await research.close()
+
+
+async def test_metric_conditions_cannot_be_promoted_against_observed_values(registry):
+    import sys
+
+    from research_cli.jobs import Jobs, Run
+
+    memory = ProjectMemory(registry)
+    registry.settings.execution = "local"
+    (registry.store.workspace / "data.json").write_text("[1, 2, 3]")
+    jobs = Jobs(registry)
+    spec = {
+        "group": "mean-check",
+        "variant": "baseline",
+        "dataset": {
+            "dataset_id": "three-values",
+            "files": ["data.json"],
+            "split": "all",
+            "protocol": "Mean of all fixed values",
+        },
+        "seed": 0,
+        "metrics": {
+            "mean": {"direction": "maximize", "definition": "Arithmetic mean of recorded values"}
+        },
+        "primary_metric": "mean",
+    }
+    args = Run(
+        argv=[
+            sys.executable,
+            "-c",
+            "import json,pathlib; x=json.loads(pathlib.Path('data.json').read_text()); pathlib.Path('metrics.json').write_text(json.dumps({'mean':sum(x)/len(x)}))",
+        ],
+        spec=spec,
+        timeout_seconds=10,
+    ).model_dump()
+    job = await jobs.start(args)
+    await jobs.tasks[job["job_id"]]
+    claim = MemoryWrite(
+        kind="hypothesis",
+        text="Mean is at least three",
+        status="supported",
+        job_ids=[job["job_id"]],
+        assessment={
+            "condition": "Measured mean >= 3",
+            "rationale": "Check generated metric",
+            "metric_checks": [
+                {"job_id": job["job_id"], "metric": "mean", "operator": "gte", "threshold": 3}
+            ],
+        },
+    ).model_dump()
+    with pytest.raises(ValueError, match="contradicts the recorded"):
+        await memory.save(claim)
+    claim["status"] = "refuted"
+    result = await memory.save(claim)
+    assert result["review_state"] == "model_reviewed"
+    claim["status"] = "supported"
+    claim["assessment"]["metric_checks"][0]["threshold"] = 2
+    assert (await memory.save(claim))["status"] == "supported"
+    path = registry.store.root / "jobs" / job["job_id"] / "work/metrics.json"
+    path.write_text('{"mean":20}')
+    with pytest.raises(ValueError, match="no longer matches"):
+        await memory.save(claim)
+    await jobs.close()
+
+
+async def test_process_failure_can_only_be_an_execution_observation(registry):
+    memory = ProjectMemory(registry)
+    registry.store.put("jobs", "job_failed", {"status": "failed", "exit_code": 1})
+    record = MemoryWrite(
+        kind="negative_result",
+        text="Process failed; scientific outcome remains unknown",
+        status="observed",
+        job_ids=["job_failed"],
+    ).model_dump()
+    with pytest.raises(ValueError, match="no verified"):
+        await memory.save(record)
+    record["observation_type"] = "execution"
+    assert (await memory.save(record))["observation_type"] == "execution"

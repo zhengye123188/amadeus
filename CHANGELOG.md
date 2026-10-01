@@ -9,6 +9,15 @@
 - Expose `backup_project` and `project_data_info` through the permission-controlled research MCP service.
 - Verify WAL backup, restored evidence/job files, version compatibility, archive tampering, traversal and symlink rejection.
 
+### Batch 2: evidence, experiments and project validation
+
+- Add experiment specs, generated finite metric/artifact capture, comparable baseline/candidate runs and reports.
+- Add an offline CPU case with baseline, improvement and negative results across repeated seeds.
+- Require explicit claim assessments and verified metric conditions for hypothesis verdicts; separate execution observations from scientific results.
+- Add canonical DOI/arXiv paper identities, evidence-backed research maps and pinned-code reproduction plans.
+- Add project checks using prepared dependencies, bounded search/Python symbols and conflict-checked code checkpoints.
+- Harden archive schema validation and validate all checkpoint payloads before restoration.
+
 ## 0.2.0
 
 Interactive Pi CLI with project-scoped research MCP tools, evidence and memory, bounded experiment jobs, npm distribution and standalone installers. See [release notes](docs/releases/v0.2.0.md).

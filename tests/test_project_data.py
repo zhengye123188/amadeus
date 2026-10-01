@@ -86,9 +86,38 @@ def test_archive_tamper_and_traversal_never_create_project_state(tmp_path):
     with zipfile.ZipFile(malicious, "w") as archive:
         archive.writestr("../outside", "escape")
         archive.writestr("manifest.json", json.dumps({}))
+        archive.writestr("state.sqlite3", b"")
     with pytest.raises(ValueError, match="Unsafe"):
         restore_project(malicious, tmp_path / "safe-target")
     assert not (tmp_path / "outside").exists()
+
+
+def test_manifest_only_or_wrong_application_database_never_installs(tmp_path):
+    archive_path = tmp_path / "empty.zip"
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr("manifest.json", "{}")
+    with pytest.raises(ValueError, match="requires its database"):
+        restore_project(archive_path, tmp_path / "empty-target")
+    assert not (tmp_path / "empty-target/.research").exists()
+    database_path = tmp_path / "unrelated.sqlite3"
+    database = sqlite3.connect(database_path)
+    database.execute("CREATE TABLE unrelated(id INTEGER)")
+    database.commit()
+    database.close()
+    data = database_path.read_bytes()
+    manifest = {
+        "format": "research-project-v1",
+        "schema_version": 1,
+        "files": {
+            "state.sqlite3": {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+        },
+    }
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr("manifest.json", json.dumps(manifest))
+        archive.writestr("state.sqlite3", data)
+    with pytest.raises(ValueError, match="compatible project schema"):
+        restore_project(archive_path, tmp_path / "wrong-target")
+    assert not (tmp_path / "wrong-target/.research").exists()
 
 
 def test_backup_refuses_live_jobs_and_symlink_artifacts(store, tmp_path):

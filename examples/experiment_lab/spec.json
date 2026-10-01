@@ -1,0 +1,19 @@
+{
+  "group": "offline-quadratic-regression",
+  "variant": "baseline",
+  "dataset": {
+    "dataset_id": "synthetic-quadratic-v1",
+    "files": ["data.csv"],
+    "split": "fixed-train-test-csv-column-v1",
+    "protocol": "Fit on 40 training rows sampled with the recorded seed; evaluate only fixed test rows. Never use test targets for fitting."
+  },
+  "seed": 7,
+  "parameters": {"degree": 1, "training_rows": 40},
+  "metrics": {
+    "mse": {"direction": "minimize", "unit": "squared target units", "definition": "Mean squared prediction error over the fixed test rows"},
+    "mae": {"direction": "minimize", "unit": "target units", "definition": "Mean absolute prediction error over the fixed test rows"}
+  },
+  "primary_metric": "mse",
+  "metrics_file": "metrics.json",
+  "artifacts": ["predictions.json"]
+}

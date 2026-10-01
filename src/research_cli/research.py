@@ -16,6 +16,7 @@ from datetime import date
 import httpx
 from pydantic import Field
 
+from research_cli.research_map import PaperIdentity, canonical_arxiv, canonical_doi
 from research_cli.storage import Store, encode, identifier
 from research_cli.tools import Args, Empty, Registry, Workspace
 
@@ -56,11 +57,22 @@ def rrf(rankings: list[list[str]], k=60):
     return scores
 
 
-def index_pages(store: Store, pages: list[str], title: str, provenance: dict) -> dict:
+def index_pages(
+    store: Store, pages: list[str], title: str, provenance: dict, paper_id: str | None = None
+) -> dict:
     raw = "\n".join(pages)
     digest = hashlib.sha256(raw.encode()).hexdigest()
     identity = {k: v for k, v in provenance.items() if k != "retrieved_at"}
     sid = "doc_" + hashlib.sha256((digest + encode(identity)).encode()).hexdigest()[:16]
+    existing = store.db.execute("SELECT body FROM sources WHERE id=?", (sid,)).fetchone()
+    previous_paper_id = json.loads(existing[0]).get("paper_id") if existing else None
+    if paper_id and previous_paper_id and paper_id != previous_paper_id:
+        raise ValueError(
+            "Document already belongs to another paper; identities cannot be silently merged"
+        )
+    paper_id = paper_id or previous_paper_id
+    if paper_id:
+        PaperIdentity(store).get(paper_id)
     source = {
         "source_id": sid,
         "title": title,
@@ -86,6 +98,9 @@ def index_pages(store: Store, pages: list[str], title: str, provenance: dict) ->
     if not rows:
         raise ValueError("No extractable text (possibly scanned PDF); OCR is not implemented")
     store.put("sources", sid, source)
+    if paper_id:
+        PaperIdentity(store).attach(sid, paper_id)
+        source["paper_id"] = paper_id
     with store.db:
         for row in rows:
             store.db.execute(
@@ -106,6 +121,10 @@ class PaperQuery(Query):
 
 class Import(Args):
     path: str
+    paper_id: str | None = Field(
+        default=None,
+        description="Existing canonical paper_id, explicitly linking this fulltext to its metadata; never guessed from its title.",
+    )
 
 
 class Arxiv(Args):
@@ -148,6 +167,7 @@ def repo_parts(value):
 class ResearchTools:
     def __init__(self, registry: Registry, client=None):
         self.registry, self.store = registry, registry.store
+        self.identities = PaperIdentity(self.store)
         self.ws = Workspace(self.store.workspace)
         self.client = client or httpx.AsyncClient(
             timeout=30,
@@ -187,6 +207,7 @@ class ResearchTools:
             doi = item.get("DOI", "")
             if not doi:
                 continue
+            doi = canonical_doi(doi)
             abstract = re.sub(r"<[^>]+>", " ", item.get("abstract", "")).strip()
             sid = "doi_" + hashlib.sha256(doi.lower().encode()).hexdigest()[:16]
             paper = {
@@ -204,6 +225,8 @@ class ResearchTools:
                 "links": item.get("link", []),
             }
             self.store.put("sources", sid, paper)
+            identity = self.identities.register(doi=doi, source_ids=[sid], title=paper["title"])
+            paper["paper_id"] = identity["paper_id"]
             results.append(paper)
         return {
             "papers": results,
@@ -241,10 +264,14 @@ class ResearchTools:
             if "/abs/" not in url:
                 raise ValueError("arXiv returned an error entry")
             arxiv_id = url.split("/abs/", 1)[1]
+            arxiv_base_id, arxiv_version = canonical_arxiv(arxiv_id)
+            arxiv_id = arxiv_base_id + (arxiv_version or "")
             sid = "arxiv_" + hashlib.sha256(arxiv_id.encode()).hexdigest()[:16]
             record = {
                 "source_id": sid,
                 "arxiv_id": arxiv_id,
+                "arxiv_base_id": arxiv_base_id,
+                "arxiv_version": arxiv_version,
                 "title": " ".join(entry.findtext("a:title", "", atom).split()),
                 "abstract": " ".join(entry.findtext("a:summary", "", atom).split()),
                 "authors": [
@@ -260,6 +287,10 @@ class ResearchTools:
                 "retrieved_at": time.time(),
             }
             self.store.put("sources", sid, record)
+            identity = self.identities.register(
+                arxiv_id=arxiv_id, source_ids=[sid], title=record["title"]
+            )
+            record["paper_id"] = identity["paper_id"]
             results.append(record)
         return {
             "papers": results,
@@ -285,6 +316,8 @@ class ResearchTools:
         }
 
     async def import_document(self, a):
+        if a.get("paper_id"):
+            self.identities.get(a["paper_id"])
         path = self.ws.path(a["path"])
         if not path.is_file() or path.stat().st_size > 20_000_000:
             raise ValueError("Document must be a regular file up to 20 MB")
@@ -302,6 +335,7 @@ class ResearchTools:
                 "path": str(path.relative_to(self.ws.root)),
                 "file_sha256": hashlib.sha256(data).hexdigest(),
             },
+            paper_id=a.get("paper_id"),
         )
 
     async def pdf_pages(self, data):
@@ -321,7 +355,10 @@ class ResearchTools:
         return await asyncio.to_thread(extract)
 
     async def download_arxiv(self, a):
-        url = "https://arxiv.org/pdf/" + a["arxiv_id"]
+        base_id, version = canonical_arxiv(a["arxiv_id"])
+        arxiv_id = base_id + (version or "")
+        identity = self.identities.register(arxiv_id=arxiv_id)
+        url = "https://arxiv.org/pdf/" + arxiv_id
         data = bytearray()
         async with self.client.stream("GET", url) as response:
             response.raise_for_status()
@@ -337,9 +374,13 @@ class ResearchTools:
             a["arxiv_id"],
             {
                 "url": url,
+                "arxiv_id": arxiv_id,
+                "requested_version": version
+                or "latest; resolved version not independently verified",
                 "file_sha256": hashlib.sha256(data).hexdigest(),
                 "retrieved_at": time.time(),
             },
+            paper_id=identity["paper_id"],
         )
 
     async def inspect_repository(self, a):
@@ -391,13 +432,20 @@ class ResearchTools:
         if item.get("size", 0) > 1_000_000 or item.get("encoding") != "base64":
             raise ValueError("Remote file is too large or not available as inline content")
         text = base64.b64decode(item["content"]).decode("utf-8")
-        return {
+        record = {
             "repository": repo,
             "path": a["path"],
             "commit": a["ref"],
             "url": item["html_url"],
             "text": "\n".join(f"{i}: {line}" for i, line in enumerate(text.splitlines(), 1)),
+            "source_id": "github_file_"
+            + hashlib.sha256((repo.lower() + a["ref"] + a["path"]).encode()).hexdigest()[:20],
+            "provider": "GitHub",
+            "level": "repository_file",
+            "content_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
         }
+        self.store.put("sources", record["source_id"], record)
+        return record
 
     async def find_code_links(self, a):
         source = self.store.get("sources", a["source_id"])

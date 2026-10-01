@@ -7,9 +7,17 @@ import shutil
 import signal
 import time
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 
+from research_cli.experiments import (
+    Experiments,
+    ExperimentSpec,
+    capture_experiment,
+    prepare_experiment,
+    runtime_environment,
+)
 from research_cli.storage import encode, identifier
 from research_cli.tools import SKIP_DIRS, Args, Empty, Registry, Workspace
 
@@ -19,10 +27,26 @@ class Run(Args):
     cwd: str = "."
     timeout_seconds: int = Field(default=60, ge=1, le=3600)
     request_id: str | None = Field(default=None, min_length=1, max_length=120)
+    spec: ExperimentSpec | None = Field(
+        default=None,
+        description="Optional measured experiment: dataset inputs, protocol, seed, parameters, metric definitions and fresh generated output paths.",
+    )
 
 
 class JobID(Args):
     job_id: str
+
+
+class ProjectCheck(Args):
+    argv: list[str] = Field(min_length=1, max_length=100)
+    cwd: str = "."
+    kind: Literal["test", "build", "lint", "custom"] = "test"
+    timeout_seconds: int = Field(default=60, ge=1, le=3600)
+    request_id: str = Field(
+        min_length=1,
+        max_length=120,
+        description="Stable request ID; reuse it to inspect/retry the same check without executing twice.",
+    )
 
 
 class JobFile(JobID):
@@ -85,9 +109,19 @@ class Jobs:
         async with self.start_lock:
             return await self._start(a)
 
-    async def _start(self, a):
+    async def start_check(self, a):
+        a = ProjectCheck.model_validate(a).model_dump()
+        async with self.start_lock:
+            return await self._start(a, workspace_check=True)
+
+    async def _start(self, a, workspace_check=False):
         request_id = a.get("request_id")
         request = {k: a[k] for k in ("argv", "cwd", "timeout_seconds")}
+        spec = ExperimentSpec.model_validate(a["spec"]).model_dump() if a.get("spec") else None
+        if spec:
+            request["spec"] = spec
+        if workspace_check:
+            request.update(execution_mode="workspace_check", kind=a["kind"])
         if request_id:
             for previous in self.store.records("jobs"):
                 if previous.get("request_id") == request_id:
@@ -109,7 +143,13 @@ class Jobs:
         folder = self.store.root / "jobs" / jid
         folder.mkdir()
         work = folder / "work"
-        manifest = self.snapshot(Workspace(self.store.workspace).path(a["cwd"]), work)
+        source = Workspace(self.store.workspace).path(a["cwd"])
+        try:
+            manifest = self.snapshot(source, work)
+            dataset = prepare_experiment(work, spec) if spec else None
+        except BaseException:
+            shutil.rmtree(folder)
+            raise
         (folder / "manifest.json").write_text(encode(manifest))
         digest = hashlib.sha256(encode(manifest).encode()).hexdigest()
         job = {
@@ -118,6 +158,8 @@ class Jobs:
             "argv": a["argv"],
             "source_cwd": a["cwd"],
             "backend": self.settings.execution,
+            "execution_mode": "workspace_check" if workspace_check else "snapshot",
+            "kind": a.get("kind", "experiment"),
             "timeout_seconds": timeout,
             "snapshot_sha256": digest,
             "created": time.time(),
@@ -126,6 +168,17 @@ class Jobs:
             "pid": None,
             "request_id": request_id,
             "request": request,
+            "spec": spec,
+            "dataset": dataset,
+            "environment": runtime_environment(
+                a["argv"],
+                self.settings.execution,
+                self.settings.docker_image if self.settings.execution == "docker" else None,
+            ),
+            "experimental_results": {
+                "status": "pending" if spec else "not_requested",
+                "validation_scope": "Process completion does not validate a scientific claim.",
+            },
         }
         self.store.put("jobs", jid, job)
         env = {k: os.environ[k] for k in ["PATH", "SYSTEMROOT", "LANG"] if k in os.environ}
@@ -158,7 +211,7 @@ class Jobs:
                 "--user",
                 f"{os.getuid()}:{os.getgid()}",
                 "--volume",
-                f"{work}:/work:rw",
+                f"{source if workspace_check else work}:/work:rw",
                 "--workdir",
                 "/work",
                 self.settings.docker_image,
@@ -168,7 +221,7 @@ class Jobs:
         try:
             proc = await asyncio.create_subprocess_exec(
                 *argv,
-                cwd=work,
+                cwd=source if workspace_check else work,
                 env=env,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
@@ -186,7 +239,12 @@ class Jobs:
         await asyncio.sleep(0)
         return {
             **job,
-            "execution_note": "isolated snapshot; outputs stay under job storage. "
+            "execution_note": (
+                "ORIGINAL project directory; test/build commands may modify it. "
+                "A pre-run code snapshot is retained for traceability. "
+                if workspace_check
+                else "isolated snapshot; outputs stay under job storage. "
+            )
             + (
                 "UNSANDBOXED host process."
                 if self.settings.execution == "local"
@@ -259,6 +317,15 @@ class Jobs:
                 finished=time.time(),
                 output=data.decode(errors="replace")[-10000:],
             )
+            if job.get("spec"):
+                try:
+                    job["experimental_results"] = capture_experiment(self.store, job)
+                except (ValueError, OSError) as exc:
+                    job["experimental_results"] = {
+                        "status": "invalid",
+                        "detail": str(exc),
+                        "validation_scope": "Process status alone is not measured scientific evidence.",
+                    }
             self.store.put("jobs", jid, job)
             self.running.pop(jid, None)
 
@@ -300,9 +367,16 @@ class Jobs:
     def register(self):
         self.registry.add(
             "run_experiment",
-            "Run argv (no implicit shell) in a bounded snapshot. Explicit execution permission required. Returns background job ID.",
+            "Run argv (no implicit shell) in a bounded snapshot. Optional spec captures generated metrics and dataset/artifact hashes. Explicit execution permission required. Returns job ID; exit zero alone is not scientific validation.",
             Run,
             self.start,
+            "execute",
+        )
+        self.registry.add(
+            "run_project_check",
+            "Run an explicitly approved test/build/lint argv in the ORIGINAL project directory, with installed dependencies available. May modify the project; retains a pre-run code snapshot. No scientific spec or metric verification. Returns job ID.",
+            ProjectCheck,
+            self.start_check,
             "execute",
         )
         self.registry.add(
@@ -330,3 +404,4 @@ class Jobs:
             JobFile,
             self.read_file,
         )
+        Experiments(self.registry).register()

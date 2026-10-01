@@ -154,3 +154,70 @@ async def test_missing_docker_never_falls_back_to_host(registry, monkeypatch):
     with pytest.raises(ValueError, match="no fallback"):
         await jobs.start({"argv": ["python", "--version"], "cwd": ".", "timeout_seconds": 1})
     assert registry.store.records("jobs")[0]["status"] == "failed"
+
+
+async def test_project_check_uses_original_cwd_dependencies_and_snapshot(registry, tmp_path):
+    registry.settings.execution = "local"
+    (tmp_path / "source.py").write_text("print('original')")
+    dependencies = tmp_path / "node_modules" / "fixture"
+    dependencies.mkdir(parents=True)
+    (dependencies / "package.json").write_text('{"name":"fixture"}')
+    jobs = Jobs(registry)
+    args = {
+        "argv": [
+            sys.executable,
+            "-c",
+            "import pathlib; assert pathlib.Path('node_modules/fixture/package.json').exists(); pathlib.Path('checked.txt').write_text('passed'); print('project check passed')",
+        ],
+        "cwd": ".",
+        "kind": "test",
+        "timeout_seconds": 5,
+        "request_id": "project-check-1",
+    }
+    result = await jobs.start_check(args)
+    await jobs.tasks[result["job_id"]]
+    job = await jobs.status(result)
+    assert job["status"] == "completed"
+    assert job["execution_mode"] == "workspace_check"
+    assert job["experimental_results"]["status"] == "not_requested"
+    assert "ORIGINAL" in result["execution_note"]
+    assert (tmp_path / "checked.txt").read_text() == "passed"
+    work = registry.store.root / "jobs" / job["job_id"] / "work"
+    assert (work / "source.py").read_text() == "print('original')"
+    assert not (work / "checked.txt").exists()
+    assert not (work / "node_modules").exists()
+    assert (await jobs.start_check(args))["deduplicated"]
+    with pytest.raises(ValueError, match="different experiment arguments"):
+        await jobs.start(
+            {key: args[key] for key in ("argv", "cwd", "timeout_seconds", "request_id")}
+        )
+
+
+async def test_project_check_cannot_smuggle_scientific_spec_or_bypass_execution(registry):
+    jobs = Jobs(registry)
+    args = {"argv": ["python", "--version"], "request_id": "check-disabled"}
+    with pytest.raises(ValueError, match="disabled"):
+        await jobs.start_check(args)
+    with pytest.raises(ValueError, match="Extra inputs"):
+        await jobs.start_check({**args, "spec": {}})
+    assert not registry.store.records("jobs")
+
+
+async def test_project_check_obeys_read_only_permission(registry):
+    from research_cli.storage import encode
+
+    registry.settings.permission = "read-only"
+    registry.settings.execution = "local"
+    jobs = Jobs(registry)
+    jobs.register()
+
+    async def approve(name, args):
+        raise AssertionError("read-only mode should reject before requesting approval")
+
+    result = await registry.invoke(
+        "run_project_check",
+        encode({"argv": [sys.executable, "--version"], "request_id": "read-only-check"}),
+        approve,
+    )
+    assert not result["ok"]
+    assert not registry.store.records("jobs")

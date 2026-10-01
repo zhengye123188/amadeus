@@ -155,3 +155,32 @@ async def test_crossref_metadata_and_github_commit_requests(registry, monkeypatc
         assert registry.store.get("sources", repo["source_id"])["commit"] == sha
     finally:
         await research.close()
+
+
+async def test_repository_file_preserves_commit_and_content_provenance(registry):
+    content = b"print('fixture')\n"
+
+    def handler(request):
+        assert request.url.path == "/repos/example/repo/contents/train.py"
+        assert request.url.params["ref"] == "a" * 40
+        return httpx.Response(
+            200,
+            json={
+                "size": len(content),
+                "encoding": "base64",
+                "content": base64.b64encode(content).decode(),
+                "html_url": "https://github.com/example/repo/blob/" + "a" * 40 + "/train.py",
+            },
+        )
+
+    research = ResearchTools(registry, httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    try:
+        result = await research.read_repository_file(
+            {"repository": "example/repo", "path": "train.py", "ref": "a" * 40}
+        )
+        assert result["level"] == "repository_file"
+        assert result["content_sha256"] == __import__("hashlib").sha256(content).hexdigest()
+        assert result["text"] == "1: print('fixture')"
+        assert registry.store.get("sources", result["source_id"])["commit"] == "a" * 40
+    finally:
+        await research.close()

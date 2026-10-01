@@ -58,6 +58,7 @@ async def seed(workspace, case):
                 kind="negative_result",
                 text="A synthetic baseline run failed; inspect it before considering a rerun.",
                 status="observed",
+                observation_type="execution",
                 job_ids=[job_id],
             ).model_dump()
         )

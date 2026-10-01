@@ -24,7 +24,9 @@ from research_cli.extensions import register_embeddings, register_jev
 from research_cli.jobs import Jobs, Run
 from research_cli.maintenance import register_maintenance
 from research_cli.memory import ProjectMemory
+from research_cli.project_tools import ProjectTools
 from research_cli.research import ResearchTools
+from research_cli.research_map import ResearchMap
 from research_cli.storage import Store, encode
 from research_cli.tools import Registry, register_files
 
@@ -83,6 +85,8 @@ class Backend:
         self.verifier = ApprovalVerifier(secret)
         self.research = ResearchTools(self.registry)
         self.research.register()
+        ResearchMap(self.registry).register()
+        ProjectTools(self.registry).register()
         self.jobs = Jobs(self.registry)
         self.jobs.register()
         run_tool = self.registry.tools["run_experiment"]
