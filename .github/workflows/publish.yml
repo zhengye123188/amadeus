@@ -8,8 +8,6 @@ on:
         type: boolean
         required: true
         default: false
-  release:
-    types: [published]
 
 permissions:
   contents: read
@@ -24,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      PUBLISH_REQUESTED: ${{ github.event_name == 'release' || inputs.publish == true }}
+      PUBLISH_REQUESTED: ${{ inputs.publish == true }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -77,7 +75,7 @@ jobs:
 
   publish:
     name: Upload to PyPI
-    if: github.event_name == 'release' || inputs.publish == true
+    if: inputs.publish == true
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10

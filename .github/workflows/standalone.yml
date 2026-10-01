@@ -1,8 +1,17 @@
 name: Standalone installers
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish all four tested installers to a public GitHub Release (does not upload to npm/PyPI)'
+        type: boolean
+        required: true
+        default: false
 permissions:
   contents: read
+concurrency:
+  group: standalone-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
   build:
     name: Bundle ${{ matrix.platform }}
@@ -22,6 +31,8 @@ jobs:
             platform: linux-arm64
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           version: '0.11.26'
@@ -36,3 +47,82 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
+
+  release:
+    name: Publish tested installers
+    if: inputs.publish == true
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: research-cli-*
+          merge-multiple: true
+          path: dist/standalone
+      - name: Verify all four assets and prepare release metadata
+        id: metadata
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import re
+          import shutil
+          import tomllib
+          from pathlib import Path
+
+          version = json.loads(Path("package.json").read_text())["version"]
+          if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version):
+              raise SystemExit("Standalone releases require a stable semantic version")
+          if tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"] != version:
+              raise SystemExit("Python and npm package versions disagree")
+          if not re.search(r'__version__\s*=\s*[\'"]' + re.escape(version) + r'[\'"]', Path("src/research_cli/__init__.py").read_text()):
+              raise SystemExit("Python CLI and package versions disagree")
+          downloader = Path("packaging/download.sh").read_text()
+          if not re.search(r"^VERSION=['\"]?" + re.escape(version) + r"['\"]?$", downloader, re.M):
+              raise SystemExit("Download script and package versions disagree")
+          directory = Path("dist/standalone")
+          expected = set()
+          for platform in ("darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64"):
+              name = f"research-cli-{version}-{platform}.run"
+              expected.update((name, name + ".sha256"))
+              path = directory / name
+              checksum = path.with_name(name + ".sha256").read_text()
+              with path.open("rb") as handle:
+                  actual = hashlib.file_digest(handle, "sha256").hexdigest()
+              if checksum != f"{actual}  {name}\n":
+                  raise SystemExit(f"Release checksum mismatch: {name}")
+          if {p.name for p in directory.iterdir()} != expected:
+              raise SystemExit("Unexpected or missing release assets")
+          shutil.copyfile("packaging/download.sh", directory / "install.sh")
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
+              output.write(f"tag=v{version}\n")
+          PY
+          sh -n dist/standalone/install.sh
+      - name: Upload complete draft and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ steps.metadata.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists; bump the version instead of overwriting it." >&2
+            exit 1
+          fi
+          existing_tag=$(git ls-remote --tags origin "refs/tags/$RELEASE_TAG" "refs/tags/$RELEASE_TAG^{}" | \
+            awk '$2 ~ /\^\{\}$/ {peeled=$1} $2 !~ /\^\{\}$/ {direct=$1} END {print peeled ? peeled : direct}')
+          if [ -n "$existing_tag" ] && [ "$existing_tag" != "$GITHUB_SHA" ]; then
+            echo "Tag $RELEASE_TAG points to a different commit; release assets must match the tagged source." >&2
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" dist/standalone/* \
+            --draft --target "$GITHUB_SHA" --title "Research CLI $RELEASE_TAG" \
+            --notes-file "docs/releases/$RELEASE_TAG.md"
+          gh release edit "$RELEASE_TAG" --draft=false --latest

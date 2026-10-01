@@ -4,7 +4,15 @@
 
 ## 用户安装
 
-打开 [安装包构建页面](https://github.com/zhengye123188/research-cli/actions/workflows/standalone.yml)，选择通过的运行记录，在底部 **Artifacts** 下载对应平台的压缩包。下载 Actions artifacts 需要登录 GitHub；文件保留 30 天，目前尚未发布长期可用的 Release 下载地址。先解压下载的 ZIP，里面包含 `.run` 和 `.run.sha256` 文件。
+在 macOS / Linux 终端执行：
+
+```bash
+curl -fsSL https://github.com/zhengye123188/research-cli/releases/latest/download/install.sh | sh
+```
+
+下载入口自动识别系统与 CPU，从同一版本的 GitHub Release 获取 `.run` 和 `.run.sha256`，校验通过后安装。它需要 curl 和系统 SHA-256 工具，安装包本身包含运行环境。也可以先下载并查看入口脚本，再执行 `sh install.sh`。
+
+手动下载可打开 [公开下载页面](https://github.com/zhengye123188/research-cli/releases/latest)，在 **Assets** 中选择对应平台的 `.run` 和 `.run.sha256` 文件。无需登录 GitHub，也无需解压 ZIP。
 
 选择与机器匹配的 `.run` 文件，在终端执行：
 
@@ -12,7 +20,7 @@
 sh ~/Downloads/research-cli-0.2.0-darwin-arm64.run
 ```
 
-如果文件解压在子目录，请把命令中的路径替换为实际文件路径。安装器会自动校验内嵌内容；也可在两个文件所在目录提前运行 `shasum -a 256 -c research-cli-0.2.0-darwin-arm64.run.sha256`（Linux 可使用 `sha256sum -c`）。
+请把命令中的路径替换为实际下载位置。安装器会自动校验内嵌内容；也可在两个文件所在目录提前运行 `shasum -a 256 -c research-cli-0.2.0-darwin-arm64.run.sha256`（Linux 可使用 `sha256sum -c`）。
 
 | 文件后缀 | 平台 |
 |---|---|
@@ -58,6 +66,12 @@ research
 sh research-cli-0.2.0-darwin-arm64.run --prefix "$HOME/Apps/research-cli" --bin-dir "$HOME/Apps/bin"
 ```
 
+下载入口同样支持这些参数：
+
+```bash
+curl -fsSL https://github.com/zhengye123188/research-cli/releases/latest/download/install.sh | sh -s -- --prefix "$HOME/Apps/research-cli" --bin-dir "$HOME/Apps/bin"
+```
+
 旧版本保留在安装目录，重新运行旧版本安装器可回退。项目中的 `.research` 数据和 API 配置独立于程序目录，更新不删除它们。卸载时删除安装器打印的命令链接及程序安装目录即可；API 配置与科研数据应按用户需要单独保留或清理。
 
 ## 开发者构建
@@ -73,6 +87,10 @@ uv run --python 3.12 python scripts/smoke_standalone.py dist/standalone/*.run
 
 产物在 `dist/standalone/`：自解压 `.run`、可手动解压的 `.tar.gz`、各自 `.sha256`。运行环境 URL/哈希锁定在 `packaging/runtimes.json`；JS/Python 依赖锁定在 package-lock.json / uv.lock。包内 bundle.json 记录所有文件与符号链接，保留第三方许可证。校验和用于检测损坏，不等于代码签名或发布者认证。
 
-GitHub 的 `Standalone installers` 手动工作流在四种平台构建、进行独立安装测试，并上传 Actions artifacts。它不会创建 Release 或触发 PyPI 发布。首次分发前应确认对应平台工作流通过，并把 `.run` 与 `.sha256` 一起提供给用户。
+GitHub 的 [Standalone installers](https://github.com/zhengye123188/research-cli/actions/workflows/standalone.yml) 手动工作流在四种平台构建、进行独立安装测试，并上传 Actions artifacts。默认 `publish=false` 只构建；选择 `publish=true` 时，四个平台全部通过后才会校验产物并创建同版本的 GitHub Release。工作流先上传完整草稿，再公开发布，包含四组 `.run` / `.sha256` 和 `install.sh` 下载入口。已有版本不会被覆盖。
+
+发布前需同步 `package.json`、`pyproject.toml`、`src/research_cli/__init__.py` 及 `packaging/download.sh` 的版本，并准备对应的 `docs/releases/vVERSION.md`。GitHub 安装包发布不会上传 npm 或 PyPI；这些包需要按 [发布指南](pypi.md) 显式发布。Actions artifacts 仍可用于内部构建检查，下载要求 GitHub 登录，保留 30 天。
+
+工作流会拒绝指向其他提交的同版本标签，也不会覆盖已有 Release。若上传中断留下草稿，先在 GitHub 检查并移除该草稿，再从同一个提交重跑；已公开版本应通过增加版本号更新。
 
 macOS 分发目前没有 Developer ID 签名或公证；其他 Mac 上的 Gatekeeper 行为尚需实际下载验证。不能把本机构建运行通过当作 Apple 公证通过，也不应要求用户全局关闭系统保护。

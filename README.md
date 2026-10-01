@@ -2,23 +2,23 @@
 
 **基于 Pi 的交互式科研 Agent：读论文、查开源代码、保留证据、提出假设、修改代码、运行受限实验。** 用户在终端自由对话并随时调整方向，模型根据问题和工具结果选择下一步。
 
-v0.2 源码开发版 · macOS / Linux · Node ≥22.19 · Python ≥3.10 · MIT
+v0.2 · macOS / Linux · 独立安装包自带运行环境 · MIT
 
 复用 [Pi](https://github.com/earendil-works/pi) 的终端、模型接入、工具循环、会话树和基础压缩。项目自己的工作集中在**可追溯科研记忆、论文/代码/实验关联、工具权限和可重复评测**。Pi 锁定为 `0.99.1`，不复制或修改其源码。
 
-> 发布状态：本仓库包含 v0.2 源码和独立安装器构建脚本，当前版本尚未上传 npm / PyPI。可使用独立安装包或按下面的源码安装步骤运行。
+> 独立安装包通过 GitHub Releases 分发；npm / PyPI 采用单独的发布流程。开发者发布步骤见 [发布指南](docs/pypi.md)。
 
 ## 独立安装包（无需开发环境）
 
-独立 `.run` 安装器包含 Node、Python、Pi 和科研工具依赖；下载后安装无需联网。以 Apple Silicon Mac 为例：
+独立安装器包含 Node、Python、Pi 和科研工具依赖，无需预装开发环境。一条命令自动选择 macOS / Linux 的 x64 / ARM64 安装包，下载并验证校验和后安装：
 
 ```bash
-sh ~/Downloads/research-cli-0.2.0-darwin-arm64.run
+curl -fsSL https://github.com/zhengye123188/research-cli/releases/latest/download/install.sh | sh
 "$HOME/.local/bin/research" configure
 "$HOME/.local/bin/research"
 ```
 
-`configure` 会隐藏密钥输入，并将 API 地址、模型和密钥保存在本机，后续终端无需重新 export。默认安装在用户目录，不需要 sudo，不依赖 nvm。从 [Standalone installers](https://github.com/zhengye123188/research-cli/actions/workflows/standalone.yml) 中通过的运行记录下载对应平台的 Artifacts，解压 ZIP 后执行上面的命令。下载需要登录 GitHub，文件保留 30 天；尚未发布公开 Release 下载地址。平台选择、校验、更新和构建方法见 [独立安装指南](docs/standalone.md)。
+`configure` 会隐藏密钥输入，并将 API 地址、模型和密钥保存在本机，后续终端无需重新 export。默认安装在用户目录，不需要 sudo，不依赖 nvm。也可从 [公开下载页面](https://github.com/zhengye123188/research-cli/releases/latest) 下载对应平台的 `.run` 文件，执行 `sh ~/Downloads/<安装包文件名>`；下载后可离线安装，无需登录 GitHub。平台选择、校验、更新和构建方法见 [独立安装指南](docs/standalone.md)。
 
 ## 在项目目录使用
 
