@@ -83,6 +83,7 @@ def intel_crypto_build(bundle, staging, cache, source, env):
         "Configure",
         "darwin64-x86_64-cc",
         "no-shared",
+        "no-module",
         "no-tests",
         f"--prefix={prefix}",
         cwd=directory,
@@ -100,10 +101,17 @@ def check_static_crypto(site):
     if not binaries:
         raise RuntimeError("Missing cryptography native module")
     for binary in binaries:
+        # MH_DYLIB modules list their own LC_ID_DYLIB in `otool -L` as well.
+        # This identifier is not a dependency that must exist elsewhere on disk.
+        identifiers = {
+            line.strip() for line in run("otool", "-D", binary, capture=True).splitlines()[1:]
+        }
         dependencies = run("otool", "-L", binary, capture=True).splitlines()[1:]
         for line in dependencies:
             library = line.strip().split(" (", 1)[0]
-            if not library.startswith(("/usr/lib/", "/System/Library/")):
+            if library not in identifiers and not library.startswith(
+                ("/usr/lib/", "/System/Library/")
+            ):
                 raise RuntimeError(f"Non-portable cryptography library dependency: {library}")
 
 
