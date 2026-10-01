@@ -29,6 +29,7 @@ from research_cli.research import ResearchTools
 from research_cli.research_map import ResearchMap
 from research_cli.storage import Store, encode
 from research_cli.tools import Registry, register_files
+from research_cli.usage import register_usage
 
 
 class ExperimentRequest(Run):
@@ -95,6 +96,7 @@ class Backend:
         self.memory = ProjectMemory(self.registry)
         self.memory.register()
         register_maintenance(self.registry)
+        register_usage(self.registry)
         self.embedding_client = None
         if settings.embedding_model:
             from openai import AsyncOpenAI

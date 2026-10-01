@@ -6,6 +6,31 @@ from research_cli.memory import MemoryUpdate, MemoryWrite, ProjectMemory
 from research_cli.research import ResearchTools, index_pages
 
 
+async def test_explicit_human_review_is_revision_bound_and_new_edits_reset_it(registry):
+    memory = ProjectMemory(registry)
+    row = await memory.save(
+        MemoryWrite(kind="constraint", text="Use CPU only", status="active").model_dump()
+    )
+    reviewed = memory.human_review(
+        {"memory_id": row["memory_id"], "expected_revision": 1, "decision": "confirm"}
+    )
+    assert reviewed["review_state"] == "human_confirmed" and reviewed["revision"] == 2
+    with pytest.raises(ValueError, match="revision conflict"):
+        memory.human_review(
+            {"memory_id": row["memory_id"], "expected_revision": 1, "decision": "confirm"}
+        )
+    updated = await memory.save(
+        MemoryUpdate(
+            kind="constraint",
+            text="Use GPU after approval",
+            status="active",
+            memory_id=row["memory_id"],
+            expected_revision=2,
+        ).model_dump()
+    )
+    assert updated["review_state"] == "unreviewed" and updated["revision"] == 3
+
+
 async def test_memory_provenance_revision_and_retirement(registry):
     memory = ProjectMemory(registry)
     record = await memory.save(
@@ -275,3 +300,42 @@ async def test_process_failure_can_only_be_an_execution_observation(registry):
         await memory.save(record)
     record["observation_type"] = "execution"
     assert (await memory.save(record))["observation_type"] == "execution"
+
+
+async def test_v02_memory_context_preserves_legacy_records_without_claim_promotion(registry):
+    memory = ProjectMemory(registry)
+    legacy = {
+        "memory_id": "mem_v02",
+        "revision": 1,
+        "kind": "hypothesis",
+        "text": "Legacy retrieval claim",
+        "status": "supported",
+        "evidence_ids": [],
+        "source_ids": [],
+        "job_ids": [],
+        "session_id": "old-session",
+        "updated": 1,
+        "verification": "References exist; scientific interpretation is not independently verified.",
+    }
+    encoded = json.dumps(legacy)
+    with registry.store.db:
+        registry.store.db.execute(
+            "INSERT INTO research_memory VALUES(?,?,?)", (legacy["memory_id"], encoded, 1)
+        )
+        registry.store.db.execute(
+            "INSERT INTO memory_revisions VALUES(?,?,?)", (legacy["memory_id"], 1, encoded)
+        )
+    context = await memory.context({"query": "retrieval", "limit": 5, "max_chars": 3000})
+    record = context["records"][0]
+    assert record["review_state"] == "unreviewed"
+    assert record["assessment"] is None
+    assert record["observation_type"] == "legacy_unclassified"
+    assert record["status"] == "supported" and record["revision"] == 1
+    retrieved = await memory.record({"kind": "memory", "record_id": legacy["memory_id"]})
+    assert retrieved["history"] == [legacy]
+    assert (
+        registry.store.db.execute(
+            "SELECT body FROM research_memory WHERE id=?", (legacy["memory_id"],)
+        ).fetchone()[0]
+        == encoded
+    )

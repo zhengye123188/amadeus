@@ -6,6 +6,8 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { configPath, configure, loadApiConfig } from "./api-config.mjs";
+import { checkApi } from "./api-doctor.mjs";
+import { loadModelProfile } from "./model-profile.mjs";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
@@ -24,7 +26,8 @@ if (args.includes("--help") || args.includes("-h")) {
 
 research setup [--jev]                 Install the Python backend using uv
 research configure                    Save API settings locally (hidden key input)
-research doctor                        Check runtimes and backend (no model API call)
+research doctor [--check-api]           Check runtimes; optionally GET /models (no generation)
+research project backup|restore|info   Manage project archives and metadata
 research [options]                     Open the interactive terminal
 research [options] -p "question"        Run a noninteractive prompt
 
@@ -36,13 +39,19 @@ Research options:
   --offline                            Disable backend network tools (model may still use network)
   --memory on|off                       Project context/compaction ablation (default: on)
   --config FILE                        Python backend TOML configuration
+  --model-profile FILE                 Explicit model capability/pricing JSON
+  --mcp-config FILE                    Trusted external MCP JSON with per-tool allowlist
+  --instructions FILE                  Explicitly selected project instructions (e.g. AGENTS.md)
+  --skill PATH                         Explicit Pi skill file or directory
   --max-turns N                        Model-step limit per prompt (default: 32)
   --max-seconds N                      Time budget per agent run (default: 600)
+  --max-tokens N                       Soft token budget per prompt (default: 60000)
+  --max-cost-usd N                     Soft model cost budget; requires configured prices
 
 Pi options pass through: --provider, --model, -p, --mode json, --continue, --resume.
 Set provider keys in environment or use /login. OPENAI_BASE_URL + RESEARCH_MODEL
 select an OpenAI-compatible endpoint; RESEARCH_API=chat|responses selects protocol.
-Interactive commands: /memory /evidence /jobs /research-status /mcp /compact /tree.
+Interactive commands: /memory /evidence /jobs /usage /review-memory /research-status /mcp /compact /tree.
 For full upstream options: research --pi-help
 Python prototype: research-legacy (separate command).
 `);
@@ -51,7 +60,17 @@ Python prototype: research-legacy (separate command).
 
 try {
   if (args[0] === "configure") { await configure(); process.exit(0); }
+  for (const flag of ["--model-profile", "--mcp-config"]) {
+    const index = args.indexOf(flag);
+    if (index !== -1) {
+      const value = args[index + 1];
+      if (!value || value.startsWith("--")) throw new Error(`Missing value for ${flag}`);
+      process.env[flag === "--model-profile" ? "RESEARCH_MODEL_PROFILE" : "RESEARCH_MCP_CONFIG"] = resolve(value);
+    }
+  }
   loadApiConfig();
+  const profile = loadModelProfile();
+  if (!process.env.RESEARCH_MODEL && profile.model) process.env.RESEARCH_MODEL = profile.model;
 } catch (error) { console.error(error.message); process.exit(2); }
 
 const cacheEnv = join(process.env.XDG_CACHE_HOME || join(homedir(), ".cache"), "research-cli", "python", pkg.version);
@@ -84,28 +103,44 @@ if (args[0] === "setup") {
 const python = pythonPath();
 const checked = checkBackend(python);
 if (args[0] === "doctor") {
+  const api = args.includes("--check-api") ? await checkApi() : { status: "skipped", message: "Use research doctor --check-api for an explicit endpoint access check." };
   console.log(JSON.stringify({ version: pkg.version, pi: pkg.dependencies["@earendil-works/pi-coding-agent"], node: process.versions.node,
     python, standalone: Boolean(process.env.RESEARCH_BUNDLE_ROOT), configFile: configPath(), backend: checked.status === 0 ? checked.stdout.trim() : "missing; run research setup",
     keysPresent: Object.fromEntries(["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GITHUB_TOKEN", "TYPESAFE_API_KEY"].map(k => [k, Boolean(process.env[k])])),
-    verification: "Runtime/import checks only; model credentials and endpoint are not validated." }, null, 2));
-  process.exit(checked.status === 0 && checked.stdout.trim() === pkg.version ? 0 : 2);
+    modelProfile: loadModelProfile(), api,
+    verification: args.includes("--check-api") ? "Runtime/import and /models access checks; no generation or tool-call validation." : "Runtime/import checks only; model credentials and endpoint are not validated." }, null, 2));
+  process.exit(checked.status === 0 && checked.stdout.trim() === pkg.version && api.status !== "failed" ? 0 : 2);
 }
 if (checked.status !== 0 || checked.stdout.trim() !== pkg.version) {
   console.error(`Python backend ${pkg.version} unavailable. Run research setup, or set RESEARCH_PYTHON to a matching environment.`);
   process.exit(2);
 }
+if (args[0] === "project") {
+  const action = args[1];
+  if (!["backup", "restore", "info"].includes(action)) { console.error("Usage: research project backup|restore|info [arguments]"); process.exit(2); }
+  const command = ["-m", "research_cli.maintenance", action, ...args.slice(2)];
+  if (!args.includes("--workspace")) command.push("--workspace", process.cwd());
+  const result = spawnSync(python, command, { stdio: "inherit", env: process.env });
+  if (result.error) console.error("Project maintenance could not start. Check the Python backend.");
+  process.exit(result.status ?? 2);
+}
 
 const env = { ...process.env, RESEARCH_PYTHON: python, RESEARCH_APPROVAL_SECRET: randomBytes(32).toString("hex") };
 let workspace = process.cwd();
 const forwarded = [];
-const researchOptions = { "--permission": "RESEARCH_PERMISSION", "--execution": "RESEARCH_EXECUTION", "--memory": "RESEARCH_MEMORY", "--config": "RESEARCH_CONFIG", "--max-turns": "RESEARCH_MAX_TURNS", "--max-seconds": "RESEARCH_MAX_SECONDS" };
+const researchOptions = { "--permission": "RESEARCH_PERMISSION", "--execution": "RESEARCH_EXECUTION", "--memory": "RESEARCH_MEMORY", "--config": "RESEARCH_CONFIG", "--model-profile": "RESEARCH_MODEL_PROFILE", "--mcp-config": "RESEARCH_MCP_CONFIG", "--instructions": "RESEARCH_INSTRUCTIONS", "--max-turns": "RESEARCH_MAX_TURNS", "--max-seconds": "RESEARCH_MAX_SECONDS", "--max-tokens": "RESEARCH_MAX_TOKENS", "--max-cost-usd": "RESEARCH_MAX_COST_USD" };
+const selectedSkills = [];
 for (let i = 0; i < args.length; i++) {
   const arg = args[i];
   if (arg === "--workspace" || arg in researchOptions) {
     const value = args[++i];
     if (!value || value.startsWith("--")) { console.error(`Missing value for ${arg}`); process.exit(2); }
     if (arg === "--workspace") workspace = resolve(value);
-    else env[researchOptions[arg]] = arg === "--config" ? resolve(value) : value;
+    else env[researchOptions[arg]] = ["--config", "--model-profile", "--mcp-config", "--instructions"].includes(arg) ? resolve(value) : value;
+  } else if (arg === "--skill") {
+    const value = args[++i];
+    if (!value || value.startsWith("--")) { console.error("Missing value for --skill"); process.exit(2); }
+    selectedSkills.push(resolve(value)); forwarded.push("--skill", resolve(value));
   } else if (arg === "--offline") env.RESEARCH_OFFLINE = "1";
   else if (arg === "--approve-experiments") env.RESEARCH_APPROVE_EXPERIMENTS = "1";
   else if (arg === "--pi-help") forwarded.push("--help");
@@ -115,6 +150,7 @@ for (const [key, values] of Object.entries({ RESEARCH_PERMISSION: ["ask", "read-
   if (env[key] && !values.includes(env[key])) { console.error(`Invalid ${key}: ${env[key]}`); process.exit(2); }
 }
 try { workspace = realpathSync(workspace); } catch { console.error("Workspace does not exist"); process.exit(2); }
+env.RESEARCH_TRUSTED_SKILL_PATHS = JSON.stringify(selectedSkills);
 const piRoot = dirname(dirname(fileURLToPath(import.meta.resolve("@earendil-works/pi-coding-agent"))));
 const piBin = join(piRoot, "dist", "bundle", "cli.js");
 if (env.OPENAI_BASE_URL && env.RESEARCH_MODEL && !forwarded.includes("--model")) forwarded.unshift("--provider", "research-endpoint", "--model", env.RESEARCH_MODEL);

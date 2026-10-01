@@ -19,6 +19,7 @@ export const effects: Record<string, Effect> = {
   run_experiment: "execute", index_embeddings: "external", hybrid_search: "external",
   jev_rerank: "external", list_files: "read", search_code: "read", git_diff: "read", load_skill: "read",
   backup_project: "write", project_data_info: "read",
+  usage_summary: "read",
   compare_experiments: "read", list_experiments: "read", report_export: "write",
   run_project_check: "execute", search_project: "read", inspect_symbols: "read",
   create_checkpoint: "write", inspect_checkpoint: "read", restore_checkpoint: "write",
@@ -36,6 +37,14 @@ function checkParts(path: string) {
 export function safePath(workspace: string, value: unknown, write = false): string {
   if (typeof value !== "string" || value.includes("\0")) throw new Error("Expected a regular workspace path");
   const root = realpathSync(workspace), target = resolve(root, value);
+  for (const name of ["RESEARCH_CONFIG", "RESEARCH_MCP_CONFIG", "RESEARCH_MODEL_PROFILE"]) {
+    if (process.env[name]) {
+      const configured = resolve(process.env[name]!);
+      let realConfigured = configured;
+      try { realConfigured = realpathSync(configured); } catch { /* optional file validation occurs in loader */ }
+      if (target === configured || target === realConfigured) throw new Error("Explicit configuration files are blocked from model file tools");
+    }
+  }
   const credential = resolve(process.env.XDG_CONFIG_HOME || resolve(homedir(), ".config"), "research-cli", "api.json");
   let realCredential = credential;
   try { realCredential = realpathSync(credential); } catch { /* not configured yet */ }

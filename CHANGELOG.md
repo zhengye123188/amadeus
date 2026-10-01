@@ -18,6 +18,14 @@
 - Add project checks using prepared dependencies, bounded search/Python symbols and conflict-checked code checkpoints.
 - Harden archive schema validation and validate all checkpoint payloads before restoration.
 
+### Batch 3: configuration and accountable CLI use
+
+- Add model capability/pricing profiles and an explicit, redacted `/models` diagnostic.
+- Add native Pi external MCP configuration with per-tool local effect allowlists.
+- Add numeric usage ledgers and soft model token/cost budgets; unknown prices remain unknown.
+- Add explicit project instructions/skills and revision-bound human memory review from the terminal.
+- Synchronize release metadata and derive npm smoke paths from package metadata.
+
 ## 0.2.0
 
 Interactive Pi CLI with project-scoped research MCP tools, evidence and memory, bounded experiment jobs, npm distribution and standalone installers. See [release notes](docs/releases/v0.2.0.md).

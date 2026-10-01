@@ -31,10 +31,14 @@ jobs:
           node-version: '22.23.1'
           cache: npm
       - run: npm ci
+      - run: node scripts/version.mjs --check
       - run: npm run check
       - run: npm test
       - run: npm run eval:memory
       - run: npm pack --dry-run
-      - run: npm pack --pack-destination /tmp
-      - run: node scripts/smoke_npm.mjs /tmp/lelouch_021015-research-cli-0.2.0.tgz
+      - name: Install and verify the npm tarball
+        run: |
+          npm pack --json --pack-destination /tmp > /tmp/research-pack.json
+          tarball=$(node --input-type=module -e 'import fs from "node:fs"; const [pack] = JSON.parse(fs.readFileSync("/tmp/research-pack.json", "utf8")); process.stdout.write("/tmp/" + pack.filename)')
+          node scripts/smoke_npm.mjs "$tarball"
       - run: uv run python scripts/smoke_install.py dist/*.whl

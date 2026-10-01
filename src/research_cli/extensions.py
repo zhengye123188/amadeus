@@ -38,6 +38,17 @@ def register_embeddings(registry: Registry, provider):
         response = await provider.client.embeddings.create(
             model=settings.embedding_model, input=texts
         )
+        store.event(
+            "mcp",
+            "embedding",
+            {
+                "type": "billable_tool_usage",
+                "provider": "embedding",
+                "model": settings.embedding_model,
+                "tokens": response.usage.total_tokens,
+                "cost_usd": None,
+            },
+        )
         return [
             r.embedding for r in sorted(response.data, key=lambda x: x.index)
         ], response.usage.total_tokens
@@ -156,6 +167,17 @@ def register_jev(registry):
                     for i in range(len(chunks))
                 },
             )
+        registry.store.event(
+            "mcp",
+            "jev_rerank",
+            {
+                "type": "billable_tool_usage",
+                "provider": "TypeSafe Jev",
+                "model": result.model,
+                "usage": result.usage.model_dump(),
+                "cost_usd": None,
+            },
+        )
         scores = [
             {
                 "chunk_id": chunk["id"],

@@ -45,7 +45,7 @@ export class ResearchProcess {
   private sequence = 0;
   private listeners = new Set<() => void>();
   constructor(workspace: string, agentDir: string, endpoint: string, args: string[] = [], env: Record<string, string> = {}) {
-    this.child = spawn(process.execPath, [resolve("bin/research.mjs"), "--workspace", workspace, "--mode", "rpc", "--permission", "workspace-write", "--offline", ...args], {
+    this.child = spawn(process.execPath, [resolve("bin/research.mjs"), "--workspace", workspace, "--mode", "rpc", "--permission", "workspace-write", ...(env.RESEARCH_OFFLINE === "0" ? [] : ["--offline"]), ...args], {
       cwd: process.cwd(), env: { ...process.env, RESEARCH_SKIP_CONFIG: "1", PI_CODING_AGENT_DIR: agentDir, PI_OFFLINE: "1", PI_TELEMETRY: "0",
         RESEARCH_PYTHON: process.env.RESEARCH_PYTHON || resolve(".venv/bin/python"), OPENAI_BASE_URL: endpoint, OPENAI_API_KEY: "local-test-only", RESEARCH_MODEL: "fixture", RESEARCH_API: "chat", ...env },
     });

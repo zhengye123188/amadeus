@@ -92,6 +92,9 @@ class Workspace:
 
     def path(self, value: str, write=False) -> Path:
         path = (self.root / value).resolve()
+        for name in ["RESEARCH_CONFIG", "RESEARCH_MCP_CONFIG", "RESEARCH_MODEL_PROFILE"]:
+            if os.environ.get(name) and path == Path(os.environ[name]).resolve():
+                raise ValueError("Explicit configuration files are blocked")
         credentials = (
             Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config")))
             / "research-cli"

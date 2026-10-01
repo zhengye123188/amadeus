@@ -1,13 +1,15 @@
 /** Install the actual npm tarball into a temporary prefix, then bootstrap its Python service. */
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, readFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const temp = mkdtempSync(join(tmpdir(), "research-npm-install-"));
 const tarball = resolve(process.argv[2] || "");
 if (!process.argv[2]) throw new Error("Pass the npm .tgz path");
+const expectedVersion = JSON.parse(readFileSync(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8")).version;
 const env = { ...process.env, RESEARCH_SKIP_CONFIG: "1", XDG_CACHE_HOME: join(temp, "cache") };
 delete env.RESEARCH_PYTHON;
 function run(cmd, args, cwd = temp) {
@@ -19,10 +21,10 @@ try {
   run("npm", ["install", "--prefix", temp, "--ignore-scripts", "--no-audit", "--no-fund", tarball]);
   const executable = join(temp, "node_modules", ".bin", "research");
   const version = run(executable, ["--version"]);
-  if (!version.startsWith("0.2.0")) throw new Error("Installed CLI version mismatch");
+  if (!version.startsWith(expectedVersion + " ")) throw new Error("Installed CLI version mismatch");
   run(executable, ["setup"]);
   const doctor = JSON.parse(run(executable, ["doctor"]));
-  if (doctor.backend !== "0.2.0" || !doctor.python.startsWith(temp)) throw new Error("Backend did not install in the isolated cache");
+  if (doctor.backend !== expectedVersion || !doctor.python.startsWith(temp)) throw new Error("Backend did not install in the isolated cache");
   const workspace = join(temp, "work"); mkdirSync(workspace);
   run(doctor.python, ["-m", "research_cli.mcp_server", "--version"]);
   await new Promise((resolve, reject) => {

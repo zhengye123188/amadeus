@@ -65,6 +65,12 @@ class MemoryList(Args):
     offset: int = Field(default=0, ge=0)
 
 
+class HumanReview(Args):
+    memory_id: str
+    expected_revision: int = Field(ge=1)
+    decision: Literal["confirm", "needs_revision"]
+
+
 class ContextQuery(Query):
     max_chars: int = Field(default=10000, ge=2000, le=24000)
 
@@ -245,6 +251,44 @@ class ProjectMemory:
                 "SELECT id FROM research_memory ORDER BY updated DESC, id"
             )
         ]
+
+    def human_review(self, a):
+        """Host-only companion action after an explicit terminal confirmation, not an MCP tool."""
+        a = HumanReview.model_validate(a).model_dump()
+        with self.store.db:
+            row = self.store.db.execute(
+                "SELECT body FROM research_memory WHERE id=?", (a["memory_id"],)
+            ).fetchone()
+            if not row:
+                raise ValueError("Unknown memory")
+            old = json.loads(row[0])
+            if old["revision"] != a["expected_revision"]:
+                raise ValueError("Memory revision conflict; review the current record")
+            body = {
+                **old,
+                "revision": old["revision"] + 1,
+                "updated": time.time(),
+                "review_state": "human_confirmed"
+                if a["decision"] == "confirm"
+                else "needs_revision",
+                "human_review": {
+                    "decision": a["decision"],
+                    "reviewed_revision": old["revision"],
+                    "time": time.time(),
+                    "scope": "Explicit user review; not an independent replication or truth guarantee",
+                },
+            }
+            updated = self.store.db.execute(
+                "UPDATE research_memory SET body=?,updated=? WHERE id=? AND body=?",
+                (encode(body), body["updated"], a["memory_id"], row[0]),
+            )
+            if updated.rowcount != 1:
+                raise ValueError("Memory revision conflict; review the current record")
+            self.store.db.execute(
+                "INSERT INTO memory_revisions VALUES(?,?,?)",
+                (a["memory_id"], body["revision"], encode(body)),
+            )
+        return body
 
     async def listing(self, a):
         rows = [r for r in self.all_memory() if a["include_retired"] or r["status"] != "retired"]
