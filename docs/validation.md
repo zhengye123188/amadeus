@@ -17,9 +17,23 @@
 - npm tarball 在临时目录实际安装，`research setup`、`doctor`、版本核对与真实 Pi 科研扩展加载通过。
 - Python wheel / sdist 构建成功；wheel 在隔离工具目录安装，`research-mcp`、`research-legacy` 版本及动态文件读取通过。
 
+[GitHub 完整 CI](https://github.com/zhengye123188/research-cli/actions/runs/36873204826) 在 macOS/Linux × Python 3.10/3.12 四组环境通过。每组 Python 170 项通过、3 项依赖 ripgrep 的可选测试因 runner 未安装该工具而跳过；本机有 ripgrep，这三项也通过。每组 Node 25 项通过，并完成模拟任务与 npm/wheel 安装验证。
+
+远端检查发现并修复了 Linux/Python 3.12 的后台 worker 生命周期问题：启动方式改为不属于原事件循环的独立进程；回归测试在原 CLI 真正退出后认证 worker，再允许实验完成。该修复包含在发布提交 `1313232` 中。
+
 所有上述模型请求使用本机模拟服务和虚构密钥，没有调用付费模型。测试中确实运行了 Pi、MCP、SQLite、临时本地进程和 Unix socket。
 
 公开 LIBSVM CPU 案例是**可选开发示例**，用于演示参数、数据划分、指标和来源记录。它不使用用户科研数据，选参方案没有超过基线，不构成科研能力成绩或完整论文复现。结果与边界见 [示例说明](../evals/public-case.md)。真实科研评估待具体课题开展后设计；Docker/GPU 尚未实机验证。
+
+### v0.3.0 独立安装包与发布状态
+
+[构建与发布工作流](https://github.com/zhengye123188/research-cli/actions/runs/36873884406) 已完成。macOS ARM64、macOS x64、Linux ARM64、Linux x64 四个平台均通过原生构建、临时安装和真实 Pi/MCP 检查；测试隐藏密钥输入、中文/空格路径、内置运行环境、重装和损坏包拒绝。
+
+[GitHub Release v0.3.0](https://github.com/zhengye123188/research-cli/releases/tag/v0.3.0) 已公开，标签对应提交 `1313232b31feea811c27d504a3d61e059bc3a7ee`，资产包含四个安装器、四个 SHA256 文件和 `install.sh`。程序包含 Node 22.23.1、Python 3.12.14、Pi 0.99.1 与后端依赖。macOS 签名、公证和其他 Mac 的 Gatekeeper 下载行为仍未验证。
+
+公开 `latest/download/install.sh` 入口已实际验证：下载脚本逐字节匹配已审查源码，再下载 macOS ARM64 安装包，在临时中文/空格路径安装；CLI 与后端均为 0.3.0，`doctor` 确认使用包内运行环境。没有调用模型，临时安装已清理，用户现有安装和配置未改变。
+
+npm 当前公开版本仍为 0.2.0；本次 GitHub 发布没有上传 npm 或 PyPI。
 
 ## v0.2.0：历史工程验证
 

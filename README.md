@@ -6,7 +6,7 @@
 
 [npm 包](https://www.npmjs.com/package/@lelouch_021015/research-cli) · [独立安装包](https://github.com/zhengye123188/research-cli/releases/latest) · [版本说明](docs/releases/v0.3.0.md) · [架构](docs/architecture.md)
 
-本文描述 v0.3.0 功能。npm 当前已发布版本仍为 **0.2.0**，v0.3.0 需要单独发布到 npm；GitHub 独立安装器使用 `latest` Release。安装后用 `research --version` 核对版本。
+GitHub 已发布 **v0.3.0** 独立安装包，覆盖 macOS/Linux 的 ARM64 与 x64；下方一键安装命令下载该版本。npm 当前已发布版本仍为 **0.2.0**，v0.3.0 需要单独发布到 npm。安装后用 `research --version` 核对版本。
 
 ## 安装
 
