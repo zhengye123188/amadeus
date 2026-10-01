@@ -4,11 +4,15 @@
 
 ## 用户安装
 
+打开 [安装包构建页面](https://github.com/zhengye123188/research-cli/actions/workflows/standalone.yml)，选择通过的运行记录，在底部 **Artifacts** 下载对应平台的压缩包。下载 Actions artifacts 需要登录 GitHub；文件保留 30 天，目前尚未发布长期可用的 Release 下载地址。先解压下载的 ZIP，里面包含 `.run` 和 `.run.sha256` 文件。
+
 选择与机器匹配的 `.run` 文件，在终端执行：
 
 ```bash
 sh ~/Downloads/research-cli-0.2.0-darwin-arm64.run
 ```
+
+如果文件解压在子目录，请把命令中的路径替换为实际文件路径。安装器会自动校验内嵌内容；也可在两个文件所在目录提前运行 `shasum -a 256 -c research-cli-0.2.0-darwin-arm64.run.sha256`（Linux 可使用 `sha256sum -c`）。
 
 | 文件后缀 | 平台 |
 |---|---|

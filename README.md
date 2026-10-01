@@ -18,7 +18,7 @@ sh ~/Downloads/research-cli-0.2.0-darwin-arm64.run
 "$HOME/.local/bin/research"
 ```
 
-`configure` 会隐藏密钥输入，并将 API 地址、模型和密钥保存在本机，后续终端无需重新 export。默认安装在用户目录，不需要 sudo，不依赖 nvm。安装包由 GitHub 的 `Standalone installers` 手动工作流构建并保存在 Actions artifacts；尚未发布公开 Release 下载地址。平台选择、校验、更新和构建方法见 [独立安装指南](docs/standalone.md)。
+`configure` 会隐藏密钥输入，并将 API 地址、模型和密钥保存在本机，后续终端无需重新 export。默认安装在用户目录，不需要 sudo，不依赖 nvm。从 [Standalone installers](https://github.com/zhengye123188/research-cli/actions/workflows/standalone.yml) 中通过的运行记录下载对应平台的 Artifacts，解压 ZIP 后执行上面的命令。下载需要登录 GitHub，文件保留 30 天；尚未发布公开 Release 下载地址。平台选择、校验、更新和构建方法见 [独立安装指南](docs/standalone.md)。
 
 ## 快速开始
 

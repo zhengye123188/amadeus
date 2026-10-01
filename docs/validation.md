@@ -1,6 +1,6 @@
-# v0.2 本地验证记录
+# v0.2 验证记录
 
-日期：2026-09-30。环境：macOS ARM64、Node 22.23.1、Python 3.12.13、Pi 0.99.1；锁文件为 package-lock.json / uv.lock。
+日期：2026-09-30；独立安装器与云端验证更新于 2026-10-01。开发环境：macOS ARM64、Node 22.23.1、Python 3.12.13、Pi 0.99.1；锁文件为 package-lock.json / uv.lock。
 
 ## 实际运行结果
 
@@ -18,7 +18,16 @@ macOS ARM64 实际构建并安装 `.run`，内置 Node 22.23.1 和可搬移的 P
 
 验证包括中文与空格安装路径、Python SSL/SQLite/原生模块导入、伪终端隐藏输入密钥、0600 配置权限、新进程自动读取配置、真实 Pi 文件读取和 MCP project_status 调用、交互界面中的 /research-status 与正常退出、重复安装保留配置与研究数据、拒绝覆盖其他程序，以及拒绝损坏安装包。模型由本机 HTTP 服务模拟并验证认证头，不调用真实付费 API。
 
-另外三个平台由 `Standalone installers` 工作流原生构建和执行同一测试，结果以对应 Actions 运行记录为准。没有进行 macOS 签名、公证或其他 Mac 实机下载验证。
+提交 `9f05f0b` 的 [Standalone installers 运行记录](https://github.com/zhengye123188/research-cli/actions/runs/36813125328) 已全部通过，并上传四个平台的 `.run` 与 `.sha256`：
+
+| 安装包平台 | 原生验证环境 | 结果 |
+|---|---|---|
+| darwin-arm64 | macos-15 | 构建、实装、Pi/MCP、TUI 均通过 |
+| darwin-x64 | macos-15-intel | 构建、实装、Pi/MCP、TUI 均通过 |
+| linux-x64 | ubuntu-24.04 | 构建、实装、Pi/MCP、TUI 均通过 |
+| linux-arm64 | ubuntu-24.04-arm | 构建、实装、Pi/MCP、TUI 均通过 |
+
+Intel Mac 在构建机编译锁定的 cryptography，静态链接 OpenSSL 4.0.2，并检查原生模块没有引用构建机的第三方动态库；用户无需安装编译工具。未进行 macOS Developer ID 签名、公证或另一台 Mac 从浏览器下载后的 Gatekeeper 验证。
 
 测试中的模型由本机 HTTP 服务模拟；Pi、MCP、SQLite、本地进程和终端真实运行。没有调用真实付费模型、embedding 或 Jev，也没有 Docker 实机验证。Docker 当前是启动参数与策略测试。
 
@@ -36,7 +45,7 @@ macOS ARM64 实际构建并安装 `.run`，内置 Node 22.23.1 和可搬移的 P
 
 ## 发布与远端状态
 
-本记录覆盖 v0.2 的本地验证；没有创建 GitHub Release、上传 npm 或 PyPI。CI 和 Python 发布工作流已随迁移更新，推送后的云端结果以 [GitHub Actions](https://github.com/zhengye123188/research-cli/actions/workflows/ci.yml) 中对应提交为准。之前 v0.1 的 CI 通过不代替 v0.2 验证。
+提交 `9f05f0b` 的 [常规 CI](https://github.com/zhengye123188/research-cli/actions/runs/36813100374) 四组 macOS/Linux × Python 3.10/3.12 检查均通过。独立安装包已上传 Actions artifacts，保留 30 天、下载需要 GitHub 登录。没有创建 GitHub Release、上传 npm 或 PyPI。后续提交以 [GitHub Actions](https://github.com/zhengye123188/research-cli/actions/workflows/ci.yml) 中对应结果为准。
 
 ## v0.1 历史数据
 
