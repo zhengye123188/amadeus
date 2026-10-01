@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 — in development
+## 0.3.0 — 2026-10-01
 
 ### Batch 1: project data
 
@@ -25,6 +25,15 @@
 - Add numeric usage ledgers and soft model token/cost budgets; unknown prices remain unknown.
 - Add explicit project instructions/skills and revision-bound human memory review from the terminal.
 - Synchronize release metadata and derive npm smoke paths from package metadata.
+
+### Batch 4: durable jobs and reproducible evaluation
+
+- Add detached local workers with authenticated status/cancel, live logs, cross-process concurrency limits and explicit checkpoint-file continuation as a new run.
+- Add configurable Docker CPU/memory/GPU requests and longer detached time limits; physical Docker/GPU validation remains outstanding.
+- Add 12 synthetic research tasks evaluated through real Pi/MCP with final artifacts, resolvable references and measured experiment values. Suggested tool paths are advisory; both memory arms have the same task and tools.
+- Add a pinned author-code LIBSVM CPU case with actual three-seed results. Validation-selected parameters did not improve held-out accuracy; the negative result and provenance are preserved.
+- Harden backup schema validation, bounded search, file restoration and reproduction-stage checks.
+- Document configuration, data upgrades and the separate npm, Python and standalone release channels.
 
 ## 0.2.0
 

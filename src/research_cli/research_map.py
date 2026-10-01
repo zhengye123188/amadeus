@@ -124,16 +124,9 @@ class PaperIdentity:
             aliases.append("arxiv:" + base)
         if not aliases and not source_ids and not paper_id:
             raise ValueError("A paper requires a DOI, arXiv ID or existing source")
-        owners = {
-            row[0]
-            for alias in aliases
-            if (
-                row := self.store.db.execute(
-                    "SELECT paper_id FROM paper_aliases WHERE alias=?", (alias,)
-                ).fetchone()
-            )
-        }
         sources = [self.store.get("sources", sid) for sid in source_ids]
+        versions = [version] if version else []
+        source_owners = set()
         for source in sources:
             if source.get("provider") == "GitHub" or source.get("level") in {
                 "repository_inspection",
@@ -141,7 +134,7 @@ class PaperIdentity:
             }:
                 raise ValueError("Repository records cannot be paper sources")
             if source.get("paper_id"):
-                owners.add(source["paper_id"])
+                source_owners.add(source["paper_id"])
             # Explicit metadata identifiers must agree; a title is never an identity key.
             if doi and source.get("doi") and canonical_doi(source["doi"]) != canonical_doi(doi):
                 raise ValueError("Source DOI conflicts with supplied DOI")
@@ -151,6 +144,36 @@ class PaperIdentity:
                 and canonical_arxiv(source["arxiv_id"])[0] != canonical_arxiv(arxiv_id)[0]
             ):
                 raise ValueError("Source arXiv ID conflicts with supplied arXiv ID")
+            if source.get("doi"):
+                aliases.append("doi:" + canonical_doi(source["doi"]))
+            if source.get("arxiv_id"):
+                base, source_version = canonical_arxiv(source["arxiv_id"])
+                aliases.append("arxiv:" + base)
+                if source_version:
+                    versions.append(source_version)
+        # Legacy metadata has no paper_id yet. Its explicit identifiers still prevent
+        # unrelated papers from being grouped by a shared or similar title.
+        if any(
+            len({alias for alias in aliases if alias.startswith(prefix)}) > 1
+            for prefix in ("doi:", "arxiv:")
+        ):
+            raise ValueError("Source metadata contains conflicting paper identifiers")
+        aliases = list(dict.fromkeys(aliases))
+        owners = source_owners | {
+            row[0]
+            for alias in aliases
+            if (
+                row := self.store.db.execute(
+                    "SELECT paper_id FROM paper_aliases WHERE alias=?", (alias,)
+                ).fetchone()
+            )
+        }
+        for sid in source_ids:
+            row = self.store.db.execute(
+                "SELECT paper_id FROM paper_sources WHERE source_id=?", (sid,)
+            ).fetchone()
+            if row:
+                owners.add(row[0])
         if paper_id:
             self.get(paper_id)
             owners.add(paper_id)
@@ -166,9 +189,7 @@ class PaperIdentity:
             stable = aliases[0] if aliases else "source:" + source_ids[0]
             pid = "paper_" + hashlib.sha256(stable.encode()).hexdigest()[:20]
         combined = sorted(set((old or {}).get("aliases", []) + aliases))
-        versions = sorted(
-            set((old or {}).get("arxiv_versions", []) + ([version] if version else []))
-        )
+        versions = sorted(set((old or {}).get("arxiv_versions", []) + versions))
         titles = list(
             dict.fromkeys(
                 (old or {}).get("titles", []) + ([title.strip()] if title.strip() else [])
@@ -300,6 +321,11 @@ class ReproductionWrite(Args):
     configuration: dict[str, str] = Field(default_factory=dict, max_length=100)
     hardware: str = Field(default="", max_length=2000)
     command: list[str] = Field(default_factory=list, max_length=100)
+    smoke_command: list[str] = Field(
+        default_factory=list,
+        max_length=100,
+        description="Optional smaller validation command; otherwise smoke stage requires the baseline command.",
+    )
     targets: list[TargetMetric] = Field(default_factory=list, max_length=50)
     notes: str = Field(default="", max_length=4000)
     plan_id: str | None = None
@@ -693,6 +719,8 @@ class ResearchMap:
                     "Failed, pending or interrupted jobs do not establish reproduction success"
                 )
             if stage == "smoke_passed":
+                if job.get("argv") != (old.get("smoke_command") or old["command"]):
+                    raise ValueError("Recorded smoke command differs from the reproduction plan")
                 evidence["verification"] = "completed job; scientific reproduction not established"
             else:
                 # Import lazily: identity/map tools work without the optional experiment runner.

@@ -51,6 +51,8 @@ def test_wal_backup_restore_keeps_evidence_artifacts_and_job_files(tmp_path):
         folder = store.root / "jobs/job_old/work"
         folder.mkdir(parents=True)
         (folder / "result.json").write_text('{"accuracy":0.75}')
+        ledger = '{"model":"fixture","tokens":42}\n'
+        (store.root / "usage.jsonl").write_text(ledger)
         backup = backup_project(store)
         assert hashlib.sha256(open(backup["path"], "rb").read()).hexdigest() == backup["sha256"]
         destination = tmp_path / "restored"
@@ -61,6 +63,7 @@ def test_wal_backup_restore_keeps_evidence_artifacts_and_job_files(tmp_path):
             assert other.get("sources", "paper_one")["title"] == "可恢复记录"
             assert other.read_artifact(artifact["artifact_id"])["text"] == "a real result"
             assert (other.root / "jobs/job_old/work/result.json").read_text() == '{"accuracy":0.75}'
+            assert (other.root / "usage.jsonl").read_text() == ledger
         finally:
             other.close()
         with pytest.raises(ValueError, match="never overwritten"):
@@ -128,3 +131,96 @@ def test_backup_refuses_live_jobs_and_symlink_artifacts(store, tmp_path):
     (store.root / "artifacts/private").symlink_to(tmp_path / "outside")
     with pytest.raises(ValueError, match="Symlinks"):
         backup_project(store)
+
+
+def write_database_archive(path, data, schema_version=0):
+    manifest = {
+        "format": "research-project-v1",
+        "schema_version": schema_version,
+        "files": {
+            "state.sqlite3": {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+        },
+    }
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("manifest.json", json.dumps(manifest))
+        archive.writestr("state.sqlite3", data)
+
+
+def test_v02_restore_finishes_migrations_before_installation(tmp_path):
+    store = Store(tmp_path / "old")
+    store.put("sources", "paper_old", {"title": "Old stable ID"})
+    store.db.execute("DROP TABLE schema_migrations")
+    store.db.execute("PRAGMA user_version=0")
+    store.db.commit()
+    store.close()
+    original = tmp_path / "old/.research/state.sqlite3"
+    archive = tmp_path / "old.zip"
+    write_database_archive(archive, original.read_bytes())
+    original_digest = hashlib.sha256(original.read_bytes()).hexdigest()
+    result = restore_project(archive, tmp_path / "restored-old")
+    assert result["schema_version"] == SCHEMA_VERSION
+    restored = Store(tmp_path / "restored-old")
+    try:
+        assert restored.get("sources", "paper_old") == {"title": "Old stable ID"}
+        assert restored.db.execute("SELECT version FROM schema_migrations").fetchone()[0] == 1
+    finally:
+        restored.close()
+    assert hashlib.sha256(original.read_bytes()).hexdigest() == original_digest
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "wrong_migration_columns",
+        "migration_conflict",
+        "missing_columns",
+        "view",
+        "trigger",
+        "expression",
+    ],
+)
+def test_invalid_schema_or_migration_never_promotes_staging(tmp_path, change):
+    store = Store(tmp_path / "source")
+    if change == "wrong_migration_columns":
+        store.db.execute("DROP TABLE schema_migrations")
+        store.db.execute("CREATE TABLE schema_migrations(unrelated TEXT)")
+        store.db.execute("PRAGMA user_version=0")
+    elif change == "migration_conflict":
+        store.db.execute("PRAGMA user_version=0")
+    elif change == "missing_columns":
+        store.db.execute("DROP TABLE notes")
+        store.db.execute("CREATE TABLE notes(key TEXT,body TEXT)")
+    elif change == "view":
+        store.db.execute("CREATE VIEW malicious_view AS SELECT * FROM sources")
+    elif change == "trigger":
+        store.db.execute(
+            "CREATE TRIGGER malicious_trigger AFTER INSERT ON sources BEGIN DELETE FROM sources; END"
+        )
+    else:
+        store.db.execute("DROP TABLE notes")
+        store.db.execute(
+            "CREATE TABLE notes(key TEXT PRIMARY KEY,body TEXT,updated REAL,CHECK(length(body)>=0))"
+        )
+    store.db.commit()
+    store.close()
+    archive = tmp_path / "invalid-schema.zip"
+    write_database_archive(archive, (tmp_path / "source/.research/state.sqlite3").read_bytes())
+    destination = tmp_path / "destination"
+    with pytest.raises((ValueError, sqlite3.DatabaseError)):
+        restore_project(archive, destination)
+    assert not (destination / ".research").exists()
+    assert list(destination.glob(".research-import-*")) == []
+
+
+def test_usage_ledger_symlinks_are_not_exported(store, tmp_path):
+    (store.root / "usage.jsonl").symlink_to(tmp_path / "outside")
+    with pytest.raises(ValueError, match="Symlinks"):
+        backup_project(store)
+
+
+def test_unknown_detached_worker_blocks_backup_until_ownership_is_resolved(store):
+    store.put("jobs", "job_unknown", {"status": "interrupted_unknown", "detached": True})
+    with pytest.raises(ValueError, match="running jobs"):
+        backup_project(store)
+    store.put("jobs", "job_unknown", {"status": "interrupted_unknown", "detached": False})
+    assert backup_project(store)["files"] >= 1

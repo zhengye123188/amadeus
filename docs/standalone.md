@@ -17,10 +17,10 @@ curl -fsSL https://github.com/zhengye123188/research-cli/releases/latest/downloa
 选择与机器匹配的 `.run` 文件，在终端执行：
 
 ```bash
-sh ~/Downloads/research-cli-0.2.0-darwin-arm64.run
+sh ~/Downloads/research-cli-0.3.0-darwin-arm64.run
 ```
 
-请把命令中的路径替换为实际下载位置。安装器会自动校验内嵌内容；也可在两个文件所在目录提前运行 `shasum -a 256 -c research-cli-0.2.0-darwin-arm64.run.sha256`（Linux 可使用 `sha256sum -c`）。
+请把命令中的路径替换为实际下载位置。安装器会自动校验内嵌内容；也可在两个文件所在目录提前运行 `shasum -a 256 -c research-cli-0.3.0-darwin-arm64.run.sha256`（Linux 可使用 `sha256sum -c`）。
 
 | 文件后缀 | 平台 |
 |---|---|
@@ -63,7 +63,7 @@ research
 更新时运行新安装器；它先验证校验和、复制到新目录、检查运行环境，成功后原子切换 `current` 链接。不会覆盖其他来源的同名 `research` 命令；遇到冲突可以使用不同命令目录：
 
 ```bash
-sh research-cli-0.2.0-darwin-arm64.run --prefix "$HOME/Apps/research-cli" --bin-dir "$HOME/Apps/bin"
+sh research-cli-0.3.0-darwin-arm64.run --prefix "$HOME/Apps/research-cli" --bin-dir "$HOME/Apps/bin"
 ```
 
 下载入口同样支持这些参数：
@@ -72,7 +72,7 @@ sh research-cli-0.2.0-darwin-arm64.run --prefix "$HOME/Apps/research-cli" --bin-
 curl -fsSL https://github.com/zhengye123188/research-cli/releases/latest/download/install.sh | sh -s -- --prefix "$HOME/Apps/research-cli" --bin-dir "$HOME/Apps/bin"
 ```
 
-旧版本保留在安装目录，重新运行旧版本安装器可回退。项目中的 `.research` 数据和 API 配置独立于程序目录，更新不删除它们。卸载时删除安装器打印的命令链接及程序安装目录即可；API 配置与科研数据应按用户需要单独保留或清理。
+旧版本保留在安装目录，重新运行旧版本安装器可回退程序。数据库升级后的兼容性需单独检查：回退前保留备份，并在新工作区恢复兼容数据，不能假定旧程序可读取新版本数据库。项目中的 `.research` 数据和 API 配置独立于程序目录，更新不删除它们。卸载时删除安装器打印的命令链接及程序安装目录即可；API 配置与科研数据应按用户需要单独保留或清理。
 
 ## 开发者构建
 
@@ -89,7 +89,7 @@ uv run --python 3.12 python scripts/smoke_standalone.py dist/standalone/*.run
 
 GitHub 的 [Standalone installers](https://github.com/zhengye123188/research-cli/actions/workflows/standalone.yml) 手动工作流在四种平台构建、进行独立安装测试，并上传 Actions artifacts。默认 `publish=false` 只构建；选择 `publish=true` 时，四个平台全部通过后才会校验产物并创建同版本的 GitHub Release。工作流先上传完整草稿，再公开发布，包含四组 `.run` / `.sha256` 和 `install.sh` 下载入口。已有版本不会被覆盖。
 
-发布前需同步 `package.json`、`pyproject.toml`、`src/research_cli/__init__.py` 及 `packaging/download.sh` 的版本，并准备对应的 `docs/releases/vVERSION.md`。GitHub 安装包发布不会上传 npm 或 PyPI；这些包需要按 [发布指南](pypi.md) 显式发布。Actions artifacts 仍可用于内部构建检查，下载要求 GitHub 登录，保留 30 天。
+发布前运行 `npm run version:set -- VERSION` 同步前后端、两个锁文件及下载入口的版本，再运行 `npm run version:check`，并准备对应的 `docs/releases/vVERSION.md`。GitHub 安装包发布不会上传 npm 或 PyPI；这些包需要按 [发布指南](pypi.md) 显式发布。Actions artifacts 仍可用于内部构建检查，下载要求 GitHub 登录，保留 30 天。
 
 工作流会拒绝指向其他提交的同版本标签，也不会覆盖已有 Release。若上传中断留下草稿，先在 GitHub 检查并移除该草稿，再从同一个提交重跑；已公开版本应通过增加版本号更新。
 

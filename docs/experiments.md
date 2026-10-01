@@ -152,9 +152,78 @@ This fixture validates experiment mechanics. It is not a paper reproduction or a
 of model research quality. Real paper cases and independently reviewed claims remain a
 separate evaluation task.
 
-## Current execution boundaries
+## Detached jobs and explicit checkpoint resume
 
-Jobs remain owned by the foreground CLI/MCP process. Closing it cancels owned jobs;
-unexpected exits mark unfinished records as `interrupted_unknown`. No saved PID is blindly
-signalled or replayed. Background workers, reattachment, GPU/remote scheduling and checkpoint
-recovery are not yet implemented. Snapshot limits and execution deadlines still apply.
+Set `detached: true` on `run_experiment` to assign the snapshot run to an independent local
+worker. Both local and Docker backends use this owner mechanism; execution opt-in still
+applies. A detached run requires a stable `request_id`. Closing the CLI cancels its
+foreground jobs and leaves detached workers running. Reopen the same workspace and use
+`job_status`, `list_jobs`, `read_job_file` or `cancel_job` with the stored job ID.
+
+```json
+{
+  "argv": ["python3", "train.py", "--checkpoint-out", "checkpoint.json"],
+  "cwd": "small_training_project",
+  "timeout_seconds": 3600,
+  "request_id": "training-seed7-attempt1",
+  "detached": true
+}
+```
+
+Logs are saved while the process runs, with a bounded recent tail in its job record.
+Reattachment and cancellation use a private Unix socket and challenge-authenticated owner
+identity. Credentials remain in a private control file under blocked `.research` state;
+they are not exposed through tool results, command-line arguments or inherited API keys.
+The worker has its own per-job lock and does not hold the workspace CLI lock. It alone
+owns and terminates its actual child process. Persisted PIDs are never used to signal
+unverified processes.
+
+Foreground runs retain the one-hour argument limit. Detached runs accept at most seven
+days, **also bounded by `Settings.max_job_seconds`** (default 600 seconds). Configure this
+limit before requesting a long run. All foreground/detached experiments and project
+checks share a transactionally reserved cap of two active jobs per workspace.
+
+If an owner cannot be authenticated, the record becomes `interrupted_unknown`. The command
+is not replayed and no stale PID is signalled. Unknown detached owners continue to reserve
+capacity because the process may still be running. Investigate the worker/process and its
+saved outputs before starting replacement work. A machine reboot or abrupt worker kill
+cannot promise child cleanup or automatic checkpoint recovery.
+
+To resume from preserved checkpoint files, request a **new run** with a new `request_id`,
+`parent_job_id`, and `expected_parent_snapshot_sha256` from the parent record. The parent
+must be known finished (`completed`, `failed`, `cancelled`, `timed_out`, or `output_limit`).
+Live or unknown parents are rejected. The backend verifies the original manifest identity,
+copies bounded non-private files from the parent's preserved work directory into a new
+snapshot, and records the checkpoint manifest hash and parent linkage.
+
+```json
+{
+  "argv": ["python3", "train.py", "--resume", "checkpoint.json", "--checkpoint-out", "checkpoint-next.json"],
+  "cwd": ".",
+  "timeout_seconds": 3600,
+  "request_id": "training-seed7-attempt2",
+  "detached": true,
+  "parent_job_id": "job_previous",
+  "expected_parent_snapshot_sha256": "<64-character hash from the parent record>"
+}
+```
+
+The training program must implement loading its checkpoint. Research CLI does not infer
+checkpoint formats or restore model/optimizer state itself. For measured resumed runs,
+declare fresh metric/artifact output names in the new spec; copied outputs are not new
+evidence. Parent files remain separate from the resumed run.
+
+## Resource settings and remaining execution boundaries
+
+Docker resources are configurable via `Settings.docker_cpus` (default 1),
+`docker_memory_mb` (default 1024), `docker_image`, and optional `docker_gpus`.
+The backend records these settings and passes them as explicit Docker arguments while
+retaining network-off, prepared-image, read-only-root and other existing restrictions.
+Local mode is an explicitly enabled host process and does not enforce CPU/memory isolation.
+
+Tests exercise actual detached local workers, parent-process exit, reattachment, verified
+cancellation, owner failure and explicit checkpoint-file resume. Docker/GPU argument
+construction is tested; physical Docker/GPU execution needs a compatible installed runtime
+and has not been established by this local suite. SSH/cluster scheduling is not implemented.
+The 50 MB/5000-file snapshot limit still applies, so this is a bounded execution facility,
+not yet a general large-dataset training platform.

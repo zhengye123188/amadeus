@@ -1,6 +1,20 @@
 # 评测边界
 
-## v0.2 Pi 记忆对照
+## v0.3 科研任务与公开 CPU 案例
+
+`npm run eval:research -- --mock` 对 12 个原创合成科研任务分别运行 memory off/on，共 24 次真实 Pi/MCP 执行。评分核对最终文件、引用 ID、实测指标、重复执行与约束；建议工具路径只记录为轨迹信息，允许模型利用已注入记忆或选择其他有效检索方式。两组的初始数据、工具、任务和预算相同。
+
+```bash
+npm run eval:research -- --mock --output evals/results/research-mock.json
+# 配置模型后显式执行，下面会产生付费请求：
+npm run eval:research -- --live --repetitions 3 --output evals/results/research-live.json
+```
+
+默认 mock 用于机制验证，不能衡量真实模型质量。Live 至少重复三次；报告保留原始失败、产物、轨迹、token、时间和成本未知项。本次未运行付费模型评测。
+
+另提供固定作者仓库 commit 的 LIBSVM CPU 实算，包含三个 seed 的基线、验证集选参和负结果。选参后的平均测试准确率与基线相同，未观察到提升。它验证真实代码、数据、指标与来源记录，不衡量 Agent 能力，也不是复现论文全部实验。详细结果与复跑方式见 [科研评测和公开案例](public-case.md)。
+
+## v0.2 Pi 记忆机制对照
 
 `npm test` 启动真实 Pi CLI、真实 Python stdio MCP 和本机模拟模型端点，验证模型工具调用、权限、证据、压缩、恢复、分支、实验取消/去重和运行预算。模拟的是模型回复，Agent 和工具链实际执行。
 
@@ -22,7 +36,7 @@ npm run eval:memory -- --live --output evals/results/local-memory-live.json
 
 模型协议测试使用真实 SDK 和 HTTP mock；MCP 测试启动真实本地 stdio server；执行测试运行真实本地 Python 子进程；终端测试使用伪终端输入中文和多行文本。测试中不存在付费 API 调用。可选依赖缺失时对应测试会显示 skipped，不能把跳过算作通过。
 
-**尚未产生的实测结果：**真实大模型端到端任务成功率、真实 embedding 或 Jev 的质量/费用比较、Docker 实机结果、公开论文复现。这些能力尚未完成实测，不能作为已验证的项目成果。
+**尚未产生的实测结果：**真实大模型端到端任务成功率、真实 embedding 或 Jev 的质量/费用比较、Docker/GPU 实机结果、完整论文实验复现。这些能力尚未完成实测，不能作为已验证的项目成果。
 
 模型 E2E 建议用下面的人工验收矩阵，每项至少运行三次，固定模型版本、配置、数据哈希、权限和预算，保存 JSONL 轨迹与最终文件。允许模型采用不同工具路径；按最终产物与约束评分。付费工具用量要单独记账。
 

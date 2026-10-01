@@ -119,3 +119,76 @@ async def test_regex_search_uses_ripgrep_with_literal_arguments(registry):
     assert result["matches"][0]["line"] == 1
     with pytest.raises(ValueError, match="Invalid search"):
         await tools.search(SearchProject(query="[", regex=True).model_dump())
+
+
+async def test_literal_search_reads_one_file_at_a_time_and_stops_after_page(registry, monkeypatch):
+    tools = ProjectTools(registry)
+    for name in ("first.txt", "second.txt", "third.txt"):
+        (registry.store.workspace / name).write_text("match\nmatch\n")
+    original = tools.ws.read
+    calls = []
+
+    def read(path):
+        calls.append(path)
+        return original(path)
+
+    monkeypatch.setattr(tools.ws, "read", read)
+    result = await tools.search(SearchProject(query="match", limit=1).model_dump())
+    assert result["matches"][0]["path"] == "first.txt"
+    assert len(calls) == 1
+    assert result["next_offset"] == 1
+
+
+async def test_search_reports_scan_byte_limit_without_reading_all_inputs(registry, monkeypatch):
+    import research_cli.project_tools as module
+
+    tools = ProjectTools(registry)
+    (registry.store.workspace / "first.txt").write_text("no match")
+    (registry.store.workspace / "second.txt").write_text("no match")
+    monkeypatch.setattr(module, "MAX_SEARCH_BYTES", 8)
+    result = await tools.search(SearchProject(query="absent").model_dump())
+    assert result["scan_bytes"] == 8
+    assert result["scan_byte_limit"] == 8
+    assert result["truncated"]
+
+
+@pytest.mark.skipif(not shutil.which("rg"), reason="ripgrep not installed")
+async def test_regex_uses_bounded_chunks_without_loading_file_text(registry, monkeypatch):
+    import os
+
+    import research_cli.project_tools as module
+
+    tools = ProjectTools(registry)
+    for number in range(8):
+        (registry.store.workspace / (str(number) + "x" * 70 + ".txt")).write_text("needle\n")
+
+    def no_read(_path):
+        raise AssertionError("Regex search must retain validated paths only")
+
+    monkeypatch.setattr(tools.ws, "read", no_read)
+    monkeypatch.setattr(module, "MAX_RG_ARGUMENT_BYTES", 500)
+    original = module.asyncio.create_subprocess_exec
+    calls = []
+
+    async def spawn(*args, **kwargs):
+        assert sum(len(os.fsencode(arg)) + 1 for arg in args) <= 500
+        assert "OPENAI_API_KEY" not in kwargs["env"]
+        calls.append(args)
+        return await original(*args, **kwargs)
+
+    monkeypatch.setattr(module.asyncio, "create_subprocess_exec", spawn)
+    result = await tools.search(SearchProject(query="needle", regex=True, limit=20).model_dump())
+    assert len(result["matches"]) == 8
+    assert len(calls) > 1
+
+
+@pytest.mark.skipif(not shutil.which("rg"), reason="ripgrep not installed")
+async def test_regex_pagination_can_go_beyond_one_hundred_matches(registry):
+    tools = ProjectTools(registry)
+    (registry.store.workspace / "many.txt").write_text("needle\n" * 150)
+    result = await tools.search(
+        SearchProject(query="needle", regex=True, offset=120, limit=10).model_dump()
+    )
+    assert result["matches"][0]["line"] == 121
+    assert len(result["matches"]) == 10
+    assert result["next_offset"] == 130

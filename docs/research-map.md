@@ -8,6 +8,8 @@ Crossref 检索结果会按规范化 DOI 归入 `paper_id`，arXiv 的 v1、v2 �
 
 `get_paper_identity` 可以通过 `paper_id`、DOI 或 arXiv ID 查询关联材料，`list_papers` 支持分页。使用 `register_paper_identity` 可以明确登记别名或关联已有材料。向已有 `paper_id` 添加材料时，需要传入当前 `expected_revision`。若两个标识已经属于不同论文，工具会拒绝合并，避免混淆独立记录。
 
+旧版材料尚未有 `paper_id` 时，也会检查其已有 DOI/arXiv 元数据；不能将标识冲突的多篇论文仅凭相同标题归入一个身份。
+
 导入全文时，可以提供检索结果中的 `paper_id`：
 
 ```json
@@ -60,6 +62,7 @@ Crossref 检索结果会按规范化 DOI 归入 `paper_id`，arXiv 的 v1、v2 �
 - `association_evidence_ids`：论文中明确提到仓库 URL 的引文；仅提到 URL 不代表作者官方代码。
 - `code_source_ids`：固定 commit 的源码文件记录；基线验证会比对实际执行快照中的文件哈希。
 - `dependencies`、`data`、`configuration`、`hardware`、`command`：由用户或 Agent 整理、待执行验证的准备信息。
+- `smoke_command`：可选的最小运行命令；未填写时用基线命令检查 `smoke_passed` 的实验关联。
 - `dataset_id`、`split`、`protocol`：应与结构化实验中的数据集和评价条件一致。
 - `targets`：指标名称、目标值、绝对容差、优化方向及论文引文证据。
 
@@ -71,7 +74,7 @@ Crossref 检索结果会按规范化 DOI 归入 `paper_id`，arXiv 的 v1、v2 �
 | --- | --- |
 | `drafted` / `blocked` | 方案草稿或阻塞原因 |
 | `environment_ready` | 准备信息齐全；仍是声明性记录 |
-| `smoke_passed` | 关联的实验进程完成；不代表论文结果复现 |
+| `smoke_passed` | 与声明的最小运行命令对应的实验进程完成；不代表论文结果复现 |
 | `baseline_completed` | 完成的结构化实验、可重新校验的数值及产物；命令、数据集、划分、评价协议及所声明源码文件与方案一致 |
 | `metrics_matched` | 基线条件成立，全部目标指标在所声明绝对容差内 |
 

@@ -192,6 +192,19 @@ async def test_identity_rejects_source_reassignment_and_repository_as_paper(regi
         maps.identities.register(source_ids=["repo"])
 
 
+def test_legacy_metadata_identifiers_cannot_be_silently_merged(store):
+    identities = PaperIdentity(store)
+    store.put("sources", "old_doi_a", {"doi": "10.1234/A", "title": "Same title"})
+    store.put("sources", "old_doi_b", {"doi": "10.1234/B", "title": "Same title"})
+    with pytest.raises(ValueError, match="conflicting paper identifiers"):
+        identities.register(source_ids=["old_doi_a", "old_doi_b"])
+    first = identities.register(source_ids=["old_doi_a"])
+    assert identities.resolve(doi="10.1234/a") == first["paper_id"]
+    second = identities.register(source_ids=["old_doi_b"])
+    assert first["paper_id"] != second["paper_id"]
+    assert identities.resolve(doi="10.1234/b") == second["paper_id"]
+
+
 async def test_reproduction_requires_real_metrics_pinned_code_and_protocol(registry, tmp_path):
     maps = ResearchMap(registry)
     maps.register()
@@ -293,6 +306,13 @@ async def test_reproduction_requires_real_metrics_pinned_code_and_protocol(regis
             await asyncio.sleep(0.01)
         assert job["status"] == "completed"
         stage_args["job_id"] = job["job_id"]
+        unrelated = {**job, "job_id": "job_unrelated", "argv": [sys.executable, "-c", "pass"]}
+        registry.store.put("jobs", "job_unrelated", unrelated)
+        smoke = {**stage_args, "stage": "smoke_passed", "job_id": "job_unrelated"}
+        assert (
+            "smoke command differs"
+            in (await invoke(registry, "update_reproduction_stage", smoke, ok=False))["detail"]
+        )
         baseline = await invoke(registry, "update_reproduction_stage", stage_args)
         assert baseline["stage"] == "baseline_completed"
         stage_args.update(expected_revision=2, stage="metrics_matched")

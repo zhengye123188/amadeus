@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "research-terminal"
-version = "0.2.0"
+version = "0.3.0"
 description = "An interactive, evidence-aware research and coding agent for the terminal"
 readme = "README.md"
 requires-python = ">=3.10"

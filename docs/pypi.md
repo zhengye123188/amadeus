@@ -1,6 +1,6 @@
 # npm CLI 与 PyPI 后端发布
 
-交互式主 CLI 发布到 npm；Python 科研后端发布到 PyPI。npm `@lelouch_021015/research-cli@0.2.0` 已公开发布；PyPI `research-terminal` 暂未发布（2026-10-01 核对）。两者的源码版本均为 `0.2.0`。
+交互式主 CLI 发布到 npm；Python 科研后端发布到 PyPI。npm `@lelouch_021015/research-cli@0.2.0` 已公开发布；PyPI `research-terminal` 暂未发布（2026-10-01 核对）。当前源码版本为 `0.3.0`；npm 0.3.0 需要另行发布，GitHub 推送或独立安装包发布不会更新 npm。
 
 | 发布渠道 | 包名 | 安装后命令 | 用途 |
 |---|---|---|---|
@@ -37,7 +37,7 @@ npm publish --access public --registry=https://registry.npmjs.org
 发布后检查注册表：
 
 ```bash
-npm view @lelouch_021015/research-cli@0.2.0 version --registry=https://registry.npmjs.org
+npm view @lelouch_021015/research-cli@0.3.0 version --registry=https://registry.npmjs.org
 ```
 
 用户安装时，需要 Node `>=22.19.0` 和 [uv](https://docs.astral.sh/uv/getting-started/installation/)：
@@ -80,16 +80,16 @@ gh workflow run publish.yml --ref main -f publish=false
 git fetch origin --tags
 ```
 
-`v0.2.0` 已由 GitHub 独立包发布创建，可以直接复用，不要重复创建或修改。发布后续版本时，先更新源码版本，再创建并推送完全匹配的标签；标签应指向包含发布工作流和该版本代码的提交。当前版本可在 GitHub **Actions → PyPI release → Run workflow** 中选择 `v0.2.0` 并勾选 `publish`，或执行：
+如果对应版本已经通过独立安装器工作流发布，复用它创建的标签，不要移动或重新创建。否则，为已经通过 CI 的提交创建并推送完全匹配的标签。在 GitHub **Actions → PyPI release → Run workflow** 中选择该标签，再勾选 `publish`。以 0.3.0 为例，只有 `v0.3.0` 标签存在且指向通过验证的源码时运行：
 
 ```bash
-gh workflow run publish.yml --ref v0.2.0 -f publish=true
+gh workflow run publish.yml --ref v0.3.0 -f publish=true
 ```
 
 `publish=true` 会真实上传。只有工作流上传成功并能从 PyPI 查询到版本后，才向用户提供安装命令：
 
 ```bash
-uv tool install 'research-terminal[mcp]==0.2.0'
+uv tool install 'research-terminal[mcp]==0.3.0'
 research-mcp --version
 ```
 
@@ -106,7 +106,7 @@ uv run ruff format --check .
 uv run pytest -q
 uv build --no-sources --out-dir dist/python
 uvx --from 'twine>=6,<7' twine check --strict dist/python/*
-uv run python scripts/smoke_install.py dist/python/research_terminal-0.2.0-py3-none-any.whl
+uv run python scripts/smoke_install.py dist/python/research_terminal-0.3.0-py3-none-any.whl
 uvx --from 'twine>=6,<7' twine upload dist/python/*
 ```
 
@@ -114,6 +114,13 @@ uvx --from 'twine>=6,<7' twine upload dist/python/*
 
 ## 后续版本更新
 
-下一版本需同步 `package.json`、`pyproject.toml`、`src/research_cli/__init__.py`，并更新 `package-lock.json` 和 `uv.lock`。`npm version 0.2.1 --no-git-tag-version` 可以更新 npm 版本及锁文件；修改 Python 版本后运行 `uv lock`，重新检查、构建并发布对应的 `v0.2.1`。
+使用统一脚本更新版本，避免前端、后端和安装入口不一致。下面的 0.3.1 只是下一补丁版本示例：
+
+```bash
+npm run version:set -- 0.3.1
+npm run version:check
+```
+
+脚本同步 `package.json`、`package-lock.json`、`pyproject.toml`、Python 版本常量、`uv.lock` 和 `packaging/download.sh`，不改变依赖版本。补充 CHANGELOG 和对应发布说明，完成检查、构建与安装验证，再提交到 GitHub并分别发布需要更新的渠道。
 
 npm 和 PyPI 已发布的同名同版本文件不能直接覆盖。修复后发布新版本；更新发布状态时附上实际包页面和成功的工作流链接。

@@ -2,35 +2,56 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import os
 import shutil
 import signal
+import sys
 import time
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from research_cli.experiments import (
     Experiments,
     ExperimentSpec,
+    bounded_file,
     capture_experiment,
     prepare_experiment,
     runtime_environment,
 )
+from research_cli.job_worker import create_control, worker_request
 from research_cli.storage import encode, identifier
 from research_cli.tools import SKIP_DIRS, Args, Empty, Registry, Workspace
+
+OWNER_UNCERTAIN_STATES = {"starting", "running", "interrupted_unknown"}
 
 
 class Run(Args):
     argv: list[str] = Field(min_length=1, max_length=100)
     cwd: str = "."
-    timeout_seconds: int = Field(default=60, ge=1, le=3600)
+    timeout_seconds: int = Field(default=60, ge=1, le=604800)
     request_id: str | None = Field(default=None, min_length=1, max_length=120)
     spec: ExperimentSpec | None = Field(
         default=None,
         description="Optional measured experiment: dataset inputs, protocol, seed, parameters, metric definitions and fresh generated output paths.",
     )
+    detached: bool = False
+    parent_job_id: str | None = Field(default=None, min_length=1, max_length=80)
+    expected_parent_snapshot_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+
+    @model_validator(mode="after")
+    def check_ownership(self):
+        if not self.detached and self.timeout_seconds > 3600:
+            raise ValueError("Foreground experiments are limited to 3600 seconds")
+        if self.detached and not self.request_id:
+            raise ValueError("Detached experiments require a stable request_id")
+        if bool(self.parent_job_id) != bool(self.expected_parent_snapshot_sha256):
+            raise ValueError("Resume requires parent_job_id and expected_parent_snapshot_sha256")
+        if self.parent_job_id and not self.request_id:
+            raise ValueError("Resume requires a new stable request_id")
+        return self
 
 
 class JobID(Args):
@@ -55,27 +76,60 @@ class JobFile(JobID):
 
 
 class Jobs:
-    def __init__(self, registry: Registry):
+    def __init__(self, registry: Registry, recover=True):
         self.registry, self.store, self.settings = registry, registry.store, registry.settings
         self.running = {}
         self.tasks = {}
         self.start_lock = asyncio.Lock()
         # Do not signal stale PIDs: another process may now own the number.
-        for job in self.store.records("jobs"):
-            if job["status"] in {"running", "starting"}:
-                job["status"] = "interrupted_unknown"
-                job["detail"] = (
-                    "CLI owner exited unexpectedly; do not blindly rerun or signal its saved PID."
+        for job in self.store.records("jobs") if recover else []:
+            if job["status"] in {"running", "starting", "interrupted_unknown"}:
+                if job.get("detached"):
+                    try:
+                        worker_request(self.store, job["job_id"], timeout=0.5)
+                        continue
+                    except (ValueError, OSError):
+                        # Recheck after the handshake: the worker may just have finished.
+                        job = self.store.get("jobs", job["job_id"])
+                        if job["status"] not in {"running", "starting", "interrupted_unknown"}:
+                            continue
+                detail = (
+                    "Owner cannot be verified; inspect state before any new run. "
+                    "No saved PID is signalled and no command is replayed."
                 )
-                self.store.put("jobs", job["job_id"], job)
+                self._transition_state(job["job_id"], "interrupted_unknown", detail)
 
-    def snapshot(self, source: Path, target: Path):
-        source = Workspace(self.store.workspace).path(str(source))
+    def _transition_state(self, jid, status, detail, allowed=None):
+        """Never overwrite a worker's terminal result with an older owner observation."""
+        with self.store.db:
+            self.store.db.execute("BEGIN IMMEDIATE")
+            current = self.store.get("jobs", jid)
+            if current["status"] in (OWNER_UNCERTAIN_STATES if allowed is None else allowed):
+                current.update(status=status, detail=detail)
+                self.store.db.execute(
+                    "UPDATE jobs SET body=?,updated=? WHERE id=?",
+                    (encode(current), time.time(), jid),
+                )
+        return current
+
+    def snapshot(self, source: Path, target: Path, checkpoint=False):
+        ws = Workspace(source) if checkpoint else Workspace(self.store.workspace)
+        if checkpoint:
+            if any(
+                path.is_symlink()
+                for path in (
+                    source,
+                    source.parent,
+                    source.parent.parent,
+                    source.parent.parent.parent,
+                )
+            ):
+                raise ValueError("Checkpoint snapshot may not be a symlink")
+        source = ws.path(str(source))
         if not source.is_dir():
             raise ValueError("cwd must be a directory")
         target.mkdir()
         total, manifest = 0, {}
-        ws = Workspace(self.store.workspace)
         for root, dirs, files in os.walk(source, followlinks=False):
             dirs[:] = [
                 d
@@ -106,6 +160,7 @@ class Jobs:
         return manifest
 
     async def start(self, a):
+        a = Run.model_validate(a).model_dump()
         async with self.start_lock:
             return await self._start(a)
 
@@ -122,6 +177,13 @@ class Jobs:
             request["spec"] = spec
         if workspace_check:
             request.update(execution_mode="workspace_check", kind=a["kind"])
+        if a.get("detached"):
+            request["detached"] = True
+        if a.get("parent_job_id"):
+            request.update(
+                parent_job_id=a["parent_job_id"],
+                expected_parent_snapshot_sha256=a["expected_parent_snapshot_sha256"],
+            )
         if request_id:
             for previous in self.store.records("jobs"):
                 if previous.get("request_id") == request_id:
@@ -134,18 +196,46 @@ class Jobs:
             raise ValueError(
                 "Execution is disabled. Configure docker or explicitly opt into unsandboxed local execution."
             )
-        if len(self.running) >= 2:
-            raise ValueError("At most two experiments may run concurrently")
         if any("\0" in x or len(x) > 10000 for x in a["argv"]):
             raise ValueError("Invalid command argument")
         timeout = min(a["timeout_seconds"], self.settings.max_job_seconds)
+        source = Workspace(self.store.workspace).path(a["cwd"])
         jid = identifier("job")
         folder = self.store.root / "jobs" / jid
         folder.mkdir()
         work = folder / "work"
-        source = Workspace(self.store.workspace).path(a["cwd"])
+        resume = None
         try:
-            manifest = self.snapshot(source, work)
+            if a.get("parent_job_id"):
+                parent = self.store.get("jobs", a["parent_job_id"])
+                if parent["status"] not in {
+                    "completed",
+                    "failed",
+                    "cancelled",
+                    "timed_out",
+                    "output_limit",
+                }:
+                    raise ValueError(
+                        "Resume requires a known finished parent; unknown/live jobs are not replayed"
+                    )
+                if parent["snapshot_sha256"] != a["expected_parent_snapshot_sha256"]:
+                    raise ValueError("Parent snapshot identity does not match expected hash")
+                parent_folder = self.store.root / "jobs" / parent["job_id"]
+                original_manifest = json.loads(
+                    bounded_file(parent_folder, "manifest.json", 10_000_000).read_text()
+                )
+                if (
+                    hashlib.sha256(encode(original_manifest).encode()).hexdigest()
+                    != parent["snapshot_sha256"]
+                ):
+                    raise ValueError("Parent snapshot manifest has changed")
+                source = parent_folder / "work"
+                resume = {
+                    "parent_job_id": parent["job_id"],
+                    "parent_snapshot_sha256": parent["snapshot_sha256"],
+                    "scope": "Explicit new run from preserved files; program must load its own checkpoint.",
+                }
+            manifest = self.snapshot(source, work, checkpoint=resume is not None)
             dataset = prepare_experiment(work, spec) if spec else None
         except BaseException:
             shutil.rmtree(folder)
@@ -158,10 +248,12 @@ class Jobs:
             "argv": a["argv"],
             "source_cwd": a["cwd"],
             "backend": self.settings.execution,
+            "detached": bool(a.get("detached")),
             "execution_mode": "workspace_check" if workspace_check else "snapshot",
             "kind": a.get("kind", "experiment"),
             "timeout_seconds": timeout,
             "snapshot_sha256": digest,
+            "resume": {**resume, "checkpoint_manifest_sha256": digest} if resume else None,
             "created": time.time(),
             "exit_code": None,
             "output": "",
@@ -175,22 +267,154 @@ class Jobs:
                 self.settings.execution,
                 self.settings.docker_image if self.settings.execution == "docker" else None,
             ),
+            "resources": {
+                "docker_image": self.settings.docker_image,
+                "cpus": self.settings.docker_cpus,
+                "memory_mb": self.settings.docker_memory_mb,
+                "gpus": self.settings.docker_gpus,
+                "network": "disabled",
+            }
+            if self.settings.execution == "docker"
+            else {"scope": "Explicit unsandboxed host execution; no hard resource isolation"},
             "experimental_results": {
                 "status": "pending" if spec else "not_requested",
                 "validation_scope": "Process completion does not validate a scientific claim.",
             },
         }
-        self.store.put("jobs", jid, job)
+        if job["detached"]:
+            keys = (
+                "execution",
+                "docker_image",
+                "docker_cpus",
+                "docker_memory_mb",
+                "docker_gpus",
+                "max_job_seconds",
+                "max_job_output_bytes",
+            )
+            job["worker_settings"] = {key: getattr(self.settings, key) for key in keys}
+        try:
+            # Reserve across foreground/detached owners before any side-effecting launch.
+            with self.store.db:
+                self.store.db.execute("BEGIN IMMEDIATE")
+                records = self.store.records("jobs")
+                active = [
+                    record
+                    for record in records
+                    if record["status"] in {"starting", "running"}
+                    or record.get("detached")
+                    and record["status"] == "interrupted_unknown"
+                ]
+                if len(active) >= 2:
+                    raise ValueError(
+                        "At most two experiments/checks may run concurrently; verify unknown detached owners first"
+                    )
+                for previous in records:
+                    if request_id and previous.get("request_id") == request_id:
+                        if previous.get("request") != request:
+                            raise ValueError(
+                                "request_id already belongs to different experiment arguments"
+                            )
+                        shutil.rmtree(folder)
+                        return {**previous, "deduplicated": True}
+                self.store.db.execute(
+                    "INSERT INTO jobs(id,body,updated) VALUES(?,?,?)",
+                    (jid, encode(job), time.time()),
+                )
+        except BaseException:
+            if folder.exists():
+                shutil.rmtree(folder)
+            raise
+        if job["detached"]:
+            return await self._launch_worker(job)
+        return await self._spawn_job(job)
+
+    async def _launch_worker(self, job):
+        jid = job["job_id"]
+        env = {key: os.environ[key] for key in ("PATH", "SYSTEMROOT", "LANG") if key in os.environ}
+        env.update(PYTHONUNBUFFERED="1", PYTHONPATH=str(Path(__file__).resolve().parent.parent))
+        try:
+            create_control(self.store, jid)
+            await asyncio.create_subprocess_exec(
+                sys.executable,
+                "-m",
+                "research_cli.job_worker",
+                str(self.store.workspace),
+                jid,
+                stdin=asyncio.subprocess.DEVNULL,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+                env=env,
+                start_new_session=True,
+            )
+        except asyncio.CancelledError:
+            self._transition_state(
+                jid,
+                "interrupted_unknown",
+                "Worker launch interrupted; inspect authenticated owner before retrying",
+            )
+            raise
+        except Exception:
+            self._transition_state(
+                jid, "failed", "Could not launch detached worker", allowed={"starting"}
+            )
+            raise
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            current = self.store.get("jobs", jid)
+            if current["status"] not in {"starting", "running", "interrupted_unknown"}:
+                return {
+                    **current,
+                    "execution_note": "Detached worker finished; inspect process and measured results separately.",
+                }
+            try:
+                current = await asyncio.to_thread(worker_request, self.store, jid)
+                return {
+                    **current,
+                    "execution_note": "Detached authenticated worker owns this snapshot job; CLI exit does not cancel it.",
+                }
+            except (ValueError, OSError):
+                await asyncio.sleep(0.05)
+        return self._transition_state(
+            jid,
+            "interrupted_unknown",
+            "Worker startup identity could not be verified; inspect before retrying. No PID was signalled.",
+        )
+
+    async def _spawn_job(self, job):
+        jid, timeout = job["job_id"], job["timeout_seconds"]
+        work = self.store.root / "jobs" / jid / "work"
+        workspace_check = job.get("execution_mode") == "workspace_check"
+        try:
+            source = (
+                Workspace(self.store.workspace).path(job["source_cwd"]) if workspace_check else work
+            )
+        except (ValueError, OSError):
+            self._transition_state(
+                jid,
+                "failed",
+                "Project command directory could not be validated",
+                allowed={"starting", "interrupted_unknown"},
+            )
+            raise
         env = {k: os.environ[k] for k in ["PATH", "SYSTEMROOT", "LANG"] if k in os.environ}
         env["PYTHONUNBUFFERED"] = "1"
-        argv = a["argv"]
+        argv = job["argv"]
         if self.settings.execution == "docker":
             if shutil.which("docker") is None:
-                job["status"] = "failed"
-                job["detail"] = "Docker executable not found"
-                self.store.put("jobs", jid, job)
+                self._transition_state(
+                    jid,
+                    "failed",
+                    "Docker executable not found",
+                    allowed={"starting", "interrupted_unknown"},
+                )
                 raise ValueError("Docker is not installed; no fallback to local execution")
-            if ":" in str(work):
+            if ":" in str(source):
+                self._transition_state(
+                    jid,
+                    "failed",
+                    "Docker mount path contains ':'",
+                    allowed={"starting", "interrupted_unknown"},
+                )
                 raise ValueError("Docker mount path contains ':'")
             argv = [
                 "docker",
@@ -204,8 +428,12 @@ class Jobs:
                 "--cap-drop=ALL",
                 "--security-opt=no-new-privileges",
                 "--pids-limit=128",
-                "--cpus=1",
-                "--memory=1g",
+                f"--cpus={self.settings.docker_cpus:g}",
+                (
+                    "--memory=1g"
+                    if self.settings.docker_memory_mb == 1024
+                    else f"--memory={self.settings.docker_memory_mb}m"
+                ),
                 "--tmpfs",
                 "/tmp:rw,size=128m",
                 "--user",
@@ -217,6 +445,10 @@ class Jobs:
                 self.settings.docker_image,
                 *argv,
             ]
+            if self.settings.docker_gpus:
+                # Docker's flag itself is CSV-parsed; preserve a device list as one field.
+                devices = self.settings.docker_gpus
+                argv[2:2] = ["--gpus", "all" if devices == "all" else f'"device={devices}"']
             job["image"] = self.settings.docker_image
         try:
             proc = await asyncio.create_subprocess_exec(
@@ -227,9 +459,18 @@ class Jobs:
                 stderr=asyncio.subprocess.STDOUT,
                 start_new_session=True,
             )
-        except BaseException:
-            job["status"] = "failed"
-            self.store.put("jobs", jid, job)
+        except asyncio.CancelledError:
+            self._transition_state(
+                jid, "interrupted_unknown", "Process creation interrupted; inspect before retrying"
+            )
+            raise
+        except Exception:
+            self._transition_state(
+                jid,
+                "failed",
+                "Could not create command process",
+                allowed={"starting", "interrupted_unknown"},
+            )
             raise
         job.update(status="running", pid=proc.pid)
         self.store.put("jobs", jid, job)
@@ -281,13 +522,24 @@ class Jobs:
     async def _collect(self, jid, proc, timeout):
         output = bytearray()
         status = "failed"
+        log = self.store.root / "jobs" / jid / "output.log"
+        log.write_bytes(b"")
+        last_persisted = 0
 
         async def consume():
+            nonlocal last_persisted
             while True:
                 chunk = await proc.stdout.read(4096)
                 if not chunk:
                     break
                 output.extend(chunk)
+                with log.open("ab") as file:
+                    file.write(chunk[: max(0, self.settings.max_job_output_bytes - file.tell())])
+                if time.monotonic() - last_persisted >= 0.2:
+                    current = self.store.get("jobs", jid)
+                    current["output"] = bytes(output[-10000:]).decode(errors="replace")
+                    self.store.put("jobs", jid, current)
+                    last_persisted = time.monotonic()
                 if len(output) > self.settings.max_job_output_bytes:
                     raise OverflowError("Output limit")
             await proc.wait()
@@ -330,7 +582,28 @@ class Jobs:
             self.running.pop(jid, None)
 
     async def status(self, a):
-        return self.store.get("jobs", a["job_id"])
+        jid = a["job_id"]
+        job = self.store.get("jobs", jid)
+        if (
+            job.get("detached")
+            and jid not in self.tasks
+            and job["status"] in {"starting", "running", "interrupted_unknown"}
+        ):
+            try:
+                return await asyncio.to_thread(worker_request, self.store, jid)
+            except (ValueError, OSError) as exc:
+                # Completion and socket removal can race the status handshake.
+                current = self._transition_state(
+                    jid,
+                    "interrupted_unknown",
+                    "Worker identity cannot be verified; inspect before retrying. No saved PID was signalled.",
+                )
+                return (
+                    {**current, "owner_error": type(exc).__name__}
+                    if current["status"] == "interrupted_unknown"
+                    else current
+                )
+        return job
 
     async def cancel(self, a):
         jid = a["job_id"]
@@ -338,6 +611,22 @@ class Jobs:
         if task and not task.done():
             task.cancel()
             await task
+        elif task is None:
+            job = self.store.get("jobs", jid)
+            if job.get("detached") and job["status"] in {
+                "starting",
+                "running",
+                "interrupted_unknown",
+            }:
+                try:
+                    return await asyncio.to_thread(worker_request, self.store, jid, "cancel", 15)
+                except (ValueError, OSError) as exc:
+                    current = self.store.get("jobs", jid)
+                    if current["status"] not in {"starting", "running", "interrupted_unknown"}:
+                        return current
+                    raise ValueError(
+                        "Cannot cancel without a verified worker owner; no saved PID was signalled"
+                    ) from exc
         return self.store.get("jobs", jid)
 
     async def listing(self, a):
@@ -346,9 +635,7 @@ class Jobs:
     async def read_file(self, a):
         self.store.get("jobs", a["job_id"])
         work = self.store.root / "jobs" / a["job_id"] / "work"
-        path = (work / a["path"]).resolve()
-        if not path.is_relative_to(work) or not path.is_file() or path.stat().st_size > 2_000_000:
-            raise ValueError("Expected a bounded regular file inside the experiment snapshot")
+        path = bounded_file(work, a["path"], 2_000_000)
         text = path.read_text()
         return {
             "job_id": a["job_id"],
@@ -367,7 +654,7 @@ class Jobs:
     def register(self):
         self.registry.add(
             "run_experiment",
-            "Run argv (no implicit shell) in a bounded snapshot. Optional spec captures generated metrics and dataset/artifact hashes. Explicit execution permission required. Returns job ID; exit zero alone is not scientific validation.",
+            "Run argv in a bounded snapshot. Optional spec captures measured output; detached assigns an authenticated worker that survives CLI exit. Explicit parent_job_id/hash starts a new checkpoint-file resume. Execution permission required; exit zero is not scientific validation.",
             Run,
             self.start,
             "execute",
@@ -393,7 +680,7 @@ class Jobs:
         )
         self.registry.add(
             "cancel_job",
-            "Stop an experiment started by this CLI; does not signal unknown stale PIDs.",
+            "Stop an owned foreground job or an authenticated detached worker's live job. Never signals saved unverified PIDs.",
             JobID,
             self.cancel,
             "write",

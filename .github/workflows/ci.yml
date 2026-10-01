@@ -35,6 +35,7 @@ jobs:
       - run: npm run check
       - run: npm test
       - run: npm run eval:memory
+      - run: npm run eval:research -- --mock --output /tmp/research-evaluation.json
       - run: npm pack --dry-run
       - name: Install and verify the npm tarball
         run: |

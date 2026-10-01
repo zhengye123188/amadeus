@@ -1,23 +1,45 @@
-# 执行与数据边界
+# 执行与数据边界（v0.3.0）
 
-默认 `--permission ask --execution disabled`。Pi 工具事件上的本地策略约束模型发起的文件、科研工具和实验操作。read-only 禁止业务写入，但会话、索引、缓存和审计仍写入本地。workspace-write 自动允许写入；执行需单独审批或显式 --approve-experiments。付费 embedding/Jev 工具仍需审批。
+默认 `--permission ask --execution disabled`。模型发起的文件、科研工具和执行操作经过本地策略与服务端检查。read-only 禁止业务写入，但会话、索引、缓存、迁移和审计仍可能写入本地。workspace-write 自动允许业务写入；执行需单独审批或明确使用 `--approve-experiments`。付费 embedding/Jev 工具仍需审批。
 
-Pi 的 read/write/edit 有 workspace、私有路径、symlink 和 hardlink 检查；递归搜索通过 Python 的受限工具。write 是覆盖写入，Pi edit 使用其原文匹配语义；不要把旧 Python 原型的 SHA 冲突检查当成 Pi 所有文件工具的保证。普通 shell/用户 ! 入口关闭，实验走 run_experiment。
+## 工作区与可信配置
 
-Python 服务端用 Schema 和 Registry 再验证。扩展为已批准的具体工具/参数签发短时、一次性 HMAC，模型不能自行生成批准；令牌不进入 Python 审计。审批策略不是 OS 沙箱，也不对敌对的本地进程、显式加载的扩展或用户自身提供隔离。
+Pi read/write/edit 检查工作区、私有路径、symlink，以及写入时的 hardlink。write 是覆盖写入，edit 使用 Pi 的原文匹配语义；并非所有文件修改都具有 SHA 冲突检查。项目搜索限制输入扫描量、子进程参数和输出，符号检查只解析 Python 文本。选定文件检查点在回退前校验内容与当前哈希，拒绝已发现的冲突；它不是整个项目的原子事务、Git 提交或独立备份。
 
-所有扩展/MCP 代码具有宿主权限。主启动器不自动加载其他项目扩展、skills、AGENTS.md 或 MCP 配置；显式 --extension 仍是可信代码。模型认证、Pi 设置与会话使用 Pi 自己的目录，可通过 PI_CODING_AGENT_DIR 隔离。不要将该目录放入可被模型读取的普通项目文件夹。
+普通 shell 和用户 `!` 入口关闭。`run_experiment` 使用工作快照；`run_project_check` 明确在原项目目录运行测试、构建或 lint，命令可能修改源文件和构建产物，两者均需要执行授权。
 
-研究数据保存在被 Git 忽略的 .research/；Pi 对话另存其 session 目录。两者都可能含全文、私有代码、用户输入和实验日志。不要上传它们或在公开 issue 粘贴凭据。自定义模型端点会收到发送给模型的材料；工具标记只读并不意味着数据不离开机器。
+启动器关闭环境中的项目扩展、skills、AGENTS.md 和 MCP 自动发现。`--extension`、`--skill`、`--instructions`、`--mcp-config` 是用户明确选择的信任入口。外部 MCP 配置必须列出准确工具名及作用分类，未列出的工具隐藏，服务 annotations 不能升级授权。只读工具可能向外部服务发送输入；作用分类依赖用户审查，不能约束服务实现。
 
-Docker 仅隔离实验进程：无网络、只读根、有限 CPU/内存/PID、非 root、只挂载快照。没有磁盘配额或 GPU。local 模式拥有当前用户的主机访问能力；环境变量过滤和复制目录不能把它变成沙箱。需要强隔离时隔离整个 Pi/MCP 进程。
+扩展、MCP 服务和本地程序拥有其宿主进程权限。工作区策略不是完整 OS 沙箱，不对敌对本地进程、可信扩展或用户自身提供隔离。Pi 认证、设置和会话使用其自己的目录，可通过 `PI_CODING_AGENT_DIR` 隔离；不要把它放进普通项目材料目录。
 
-MCP 关闭会取消它拥有的实验。意外退出后的状态是 interrupted_unknown，不根据旧 PID 发信号或重放。request_id 用于去重，不能消除所有进程启动/记录保存之间的未知窗口。
+## 审批与人工复核
 
-PDF 解析使用线程，超时不能强制中止解析线程；不应导入恶意构造的 PDF。科研引用只校验原文子串，不能自动证明语义支持、作者代码身份、科学真实性或复现成功。
+Python 服务端使用 Schema 和 Registry 再次验证。科研扩展只为已批准的具体工具及参数签发短时、一次性 HMAC；模型生成或复用的 `_approval` 会被清除，令牌不写入审计。该机制只适用于内置科研服务；外部 MCP 使用显式白名单和本地审批。
 
-问题报告应提供最小复现并去掉秘密和私有材料；如仓库启用 GitHub Private vulnerability reporting，使用该私密渠道。
+假设的支持/反驳状态需要明确判断条件及对应的实验指标或声明匹配引文。`/review-memory` 要求用户查看具体修订并明确确认或要求修改，人工确认接口不暴露为模型 MCP 工具。旧记录仍保留历史，不能因升级自动变成人工确认。
 
-## Saved API settings
+引文存在、指标文件校验、进程完成或人工确认都不能保证科学真实性。复现记录只检查已声明的代码、命令、数据、协议和目标指标对应；未声明文件、算法覆盖、指标语义、数据可信度和作者身份仍需审查。当前工程与模拟模型测试用于软件机制验证，真实科研评测需在开展实际任务后另行设计。
 
-`research configure` writes credentials to the user's config directory with mode 0600, using a temporary file and rename. Environment variables override saved settings. Credentials are not encrypted; filesystem access by the same OS user remains trusted. Built-in file tools and the Python workspace guard block the saved credential path, including symlink aliases. Bundles never include user config files. Standalone checksums detect corruption; they are not a substitute for publisher signatures or macOS notarization.
+## 实验与独立任务
+
+Docker 仅隔离执行进程：无网络、只读根、有限 CPU/内存/PID、非 root。实验挂载快照，项目检查挂载原项目，均可写挂载目录。没有磁盘配额；可配置 GPU 参数，但 GPU 路径尚未实机验证。local 模式拥有当前用户的主机访问能力，目录快照及环境过滤不提供进程隔离。强隔离需要覆盖整个 Pi/MCP 运行环境。
+
+前台作业随拥有它的 MCP 服务关闭而取消。独立 `detached` worker 可以在 CLI 退出后继续，私有 socket 和控制文件用于认证 owner；仅经过认证的 owner 控制其活跃子进程，工具不返回控制密钥。失去 owner 身份后保留 `interrupted_unknown`，不按保存 PID 发信号，也不自动重放；未知独立任务继续占用并发槽位。
+
+`request_id` 用于参数绑定和去重，不消除所有进程启动与记录保存之间的未知窗口。显式恢复从已知结束任务的保存文件发起新作业，程序必须自行读取 checkpoint，新测量不能复用已有输出文件。
+
+## 数据、网络与费用
+
+`.research/` 可能包含全文提取、证据、私有代码快照、实验日志、检查点和用量记录；Pi 会话另存其会话目录。它们被 Git 忽略，公开分享前仍需检查私有内容。项目归档包含数据库、产物、任务文件和已有用量账本，不包含用户 API 配置、Pi 会话或整个原项目目录；运行中或 owner 未确认的独立任务阻止备份。恢复只安装到没有 `.research` 的工作区，在暂存区完成路径、哈希、受支持数据库结构及迁移检查后再安装。
+
+配置的模型、检索及外部 MCP 服务会收到各自调用输入。`--offline` 关闭后端网络工具及外部 MCP 连接，不保证主模型离线。主模型 token/费用是响应后累计的软预算，进行中的请求可能超限；embedding、Jev 和其他 MCP 费用不包含在主模型预算中。未知价格保留为未知，用量估计不替代账单。
+
+`research doctor --check-api` 仅明确 GET `/models`，不生成文本，也不验证生成、推理、图片或工具调用；未实现该端点的服务仍属未验证。
+
+PDF 解析使用线程，超时不能强制结束解析线程，不应导入恶意构造的 PDF。当前不支持 Windows、SSH/集群远程作业或对其他本地账户以外的强隔离。
+
+## API 配置与分发
+
+`research configure` 使用临时文件及 rename 保存到用户配置目录，权限为 `0600`，输入不回显；环境变量优先。凭据未加密，同一 OS 用户的文件访问仍属于信任边界。内置文件策略阻止保存密钥文件及其 symlink 别名；分发包不包含用户配置。
+
+独立安装器校验和检测损坏，不替代发布者签名或 macOS 公证。问题报告应提供去除秘密与私有材料的最小复现；如仓库启用 GitHub Private vulnerability reporting，可使用该私密渠道。

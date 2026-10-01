@@ -9,6 +9,7 @@ import difflib
 import fnmatch
 import hashlib
 import json
+import os
 import shutil
 import time
 
@@ -16,6 +17,9 @@ from pydantic import Field
 
 from research_cli.storage import encode, identifier
 from research_cli.tools import Args, Workspace
+
+MAX_SEARCH_BYTES = 32_000_000
+MAX_RG_ARGUMENT_BYTES = 32_000
 
 
 class SearchProject(Args):
@@ -58,97 +62,154 @@ class ProjectTools:
 
     async def search(self, a):
         paths = self.ws.files(a["path"], 3000)
-        readable = []
+        found, scanned_bytes = [], 0
+        truncated = len(paths) == 3000
+        selected = []
+        target = a["offset"] + a["limit"] + 1
+        needle = a["query"] if a["case_sensitive"] else a["query"].casefold()
         for path in paths:
             relative = path.relative_to(self.ws.root).as_posix()
             if a["globs"] and not any(fnmatch.fnmatchcase(relative, glob) for glob in a["globs"]):
                 continue
             try:
+                # Keep only validated filenames for ripgrep; never retain all file text.
+                path = self.ws.path(str(path))
+                size = path.stat().st_size
+                if not path.is_file() or size > 2_000_000:
+                    continue
+                if scanned_bytes + size > MAX_SEARCH_BYTES:
+                    truncated = True
+                    break
+                scanned_bytes += size
+                if a["regex"]:
+                    selected.append(path)
+                    continue
                 _, text, _ = self.ws.read(str(path))
             except (ValueError, UnicodeError, OSError):
                 continue
-            readable.append((path, text))
-        found = []
-        truncated = len(paths) == 3000
+            for number, line in enumerate(text.splitlines(), 1):
+                value = line if a["case_sensitive"] else line.casefold()
+                if needle in value:
+                    found.append({"path": relative, "line": number, "text": line[:1000]})
+                    if len(found) >= target:
+                        break
+            if len(found) >= target:
+                truncated = True
+                break
+            await asyncio.sleep(0)
         if a["regex"]:
             executable = shutil.which("rg")
             if not executable:
                 raise ValueError("Regex search needs ripgrep (rg); literal search works without it")
-            if readable:
-                argv = [
-                    executable,
-                    "--no-config",
-                    "--json",
-                    "--max-count=100",
-                    "--max-columns=1000",
-                    "--max-columns-preview",
-                    "--regexp",
-                    a["query"],
-                ]
-                if not a["case_sensitive"]:
-                    argv.append("--ignore-case")
-                argv.extend(["--", *(str(path) for path, _ in readable)])
+            base = [
+                executable,
+                "--no-config",
+                "--json",
+                "--max-count=" + str(target),
+                "--max-columns=1000",
+                "--max-columns-preview",
+                "--regexp",
+                a["query"],
+            ]
+            if not a["case_sensitive"]:
+                base.append("--ignore-case")
+            base.append("--")
+            chunks, current = [], []
+            base_bytes = sum(len(os.fsencode(value)) + 1 for value in base)
+            current_bytes = base_bytes
+            for path in selected:
+                size = len(os.fsencode(str(path))) + 1
+                if base_bytes + size > MAX_RG_ARGUMENT_BYTES:
+                    raise ValueError(
+                        "Search path exceeds bounded command arguments; use a shorter workspace path"
+                    )
+                if current and current_bytes + size > MAX_RG_ARGUMENT_BYTES:
+                    chunks.append(current)
+                    current, current_bytes = [], base_bytes
+                current.append(str(path))
+                current_bytes += size
+            if current:
+                chunks.append(current)
+            output_bytes = 0
+            # A restricted environment also keeps credentials/large environment values
+            # out of the child and leaves ample ARG_MAX headroom on macOS.
+            environment = {
+                key: os.environ[key]
+                for key in ("PATH", "LANG", "LC_ALL", "SYSTEMROOT")
+                if key in os.environ
+            }
+            for chunk in chunks:
                 proc = await asyncio.create_subprocess_exec(
-                    *argv,
+                    *base,
+                    *chunk,
                     cwd=self.ws.root,
+                    env=environment,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
+                stopped = False
+
+                async def read_errors():
+                    error = bytearray()
+                    while block := await proc.stderr.read(4096):
+                        if len(error) < 4000:
+                            error.extend(block[: 4000 - len(error)])
+                    return bytes(error)
+
+                error_task = asyncio.create_task(read_errors())
                 try:
-                    output = bytearray()
 
                     async def consume():
+                        nonlocal output_bytes, stopped
+                        pending = bytearray()
                         while block := await proc.stdout.read(4096):
-                            output.extend(block)
-                            if len(output) > 2_000_000:
+                            output_bytes += len(block)
+                            if output_bytes > 2_000_000:
                                 raise ValueError(
                                     "Search output exceeds 2 MB; narrow the query or globs"
                                 )
-                        error = await proc.stderr.read(4000)
+                            pending.extend(block)
+                            while b"\n" in pending:
+                                line, _, remainder = pending.partition(b"\n")
+                                pending = bytearray(remainder)
+                                event = json.loads(line)
+                                if event["type"] != "match":
+                                    continue
+                                data = event["data"]
+                                if "text" not in data["path"] or "text" not in data["lines"]:
+                                    continue
+                                found.append(
+                                    {
+                                        "path": str(
+                                            self.ws.path(data["path"]["text"]).relative_to(
+                                                self.ws.root
+                                            )
+                                        ),
+                                        "line": data["line_number"],
+                                        "text": data["lines"]["text"].rstrip()[:1000],
+                                    }
+                                )
+                                if len(found) >= target:
+                                    stopped = True
+                                    return
                         await proc.wait()
-                        return error
 
-                    error = await asyncio.wait_for(consume(), 10)
-                    if proc.returncode not in {0, 1}:
+                    await asyncio.wait_for(consume(), 10)
+                    if not stopped and proc.returncode not in {0, 1}:
+                        error = await error_task
                         raise ValueError(
                             "Invalid search expression: " + error.decode(errors="replace")[:500]
                         )
-                    for line in output.splitlines():
-                        event = json.loads(line)
-                        if event["type"] == "match":
-                            data = event["data"]
-                            found.append(
-                                {
-                                    "path": str(
-                                        self.ws.path(data["path"]["text"]).relative_to(self.ws.root)
-                                    ),
-                                    "line": data["line_number"],
-                                    "text": data["lines"]["text"].rstrip()[:1000],
-                                }
-                            )
                 finally:
                     if proc.returncode is None:
                         proc.kill()
                         await proc.wait()
-        else:
-            needle = a["query"] if a["case_sensitive"] else a["query"].casefold()
-            for path, text in readable:
-                for number, line in enumerate(text.splitlines(), 1):
-                    value = line if a["case_sensitive"] else line.casefold()
-                    if needle in value:
-                        found.append(
-                            {
-                                "path": str(path.relative_to(self.ws.root)),
-                                "line": number,
-                                "text": line[:1000],
-                            }
-                        )
-                        if len(found) >= a["offset"] + a["limit"] + 1:
-                            break
-                if len(found) >= a["offset"] + a["limit"] + 1:
+                    if not error_task.done():
+                        error_task.cancel()
+                    await asyncio.gather(error_task, return_exceptions=True)
+                if stopped:
                     truncated = True
                     break
-                await asyncio.sleep(0)
         end = a["offset"] + a["limit"]
         return {
             "matches": found[a["offset"] : end],
@@ -156,6 +217,8 @@ class ProjectTools:
             "next_offset": end if len(found) > end else None,
             "truncated": truncated or len(found) > end,
             "file_scan_limit": 3000,
+            "scan_bytes": scanned_bytes,
+            "scan_byte_limit": MAX_SEARCH_BYTES,
             "backend": "ripgrep" if a["regex"] else "literal",
         }
 

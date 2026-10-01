@@ -37,7 +37,10 @@ class Settings(BaseModel):
     allow_network: bool = True
     execution: Literal["disabled", "docker", "local"] = "disabled"
     docker_image: str = "python:3.11-slim"
-    max_job_seconds: int = Field(default=600, ge=1, le=3600)
+    docker_cpus: float = Field(default=1, ge=0.1, le=64, allow_inf_nan=False)
+    docker_memory_mb: int = Field(default=1024, ge=128, le=262144)
+    docker_gpus: str | None = Field(default=None, pattern=r"^(all|[0-9]+(,[0-9]+)*)$")
+    max_job_seconds: int = Field(default=600, ge=1, le=604800)
     max_job_output_bytes: int = Field(default=2_000_000, ge=1024, le=50_000_000)
     embedding_model: str | None = None
     input_price_per_million: float | None = Field(default=None, ge=0)

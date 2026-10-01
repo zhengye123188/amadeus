@@ -1,0 +1,233 @@
+{
+  "kind": "actual-public-author-code-cpu-case",
+  "recorded_at": "2026-10-01T08:27:16.576322+00:00",
+  "source_commit": "557d85749aaf0ca83fd229af0f00e4f4cb7be85c",
+  "paper_doi": "10.1145/1961189.1961199",
+  "dataset_sha256": "5defa0a4c4c5bdaf3f55ae3828310252e8565c13ee37ce279e0b86d82e7f4ce9",
+  "runner_sha256": "782f2745c3dead91608b0a9702cdf1744235f067a05505424afe27af5e12abcd",
+  "raw_result_sha256": "0f14e78e704262bcd05f5dd1176d77028afed9e7d681128320cc6826bc8b72e9",
+  "environment": {
+    "python": "3.12.13",
+    "platform": "macOS-26.6.2-arm64-arm-64bit"
+  },
+  "summary": {
+    "baseline": {
+      "n": 3,
+      "accuracy_mean": 0.8617886178861789,
+      "accuracy_stdev": 0.037256712967120686
+    },
+    "tuned": {
+      "n": 3,
+      "accuracy_mean": 0.8617886178861789,
+      "accuracy_stdev": 0.037256712967120686
+    },
+    "negative": {
+      "n": 3,
+      "accuracy_mean": 0.5609756097560976,
+      "accuracy_stdev": 0.0
+    }
+  },
+  "runs": [
+    {
+      "variant": "baseline",
+      "seed": 0,
+      "parameters": {
+        "C": 1.0,
+        "gamma": 0.07692307692307693,
+        "kernel": "rbf"
+      },
+      "metrics": {
+        "accuracy": 0.8292682926829268,
+        "balanced_accuracy": 0.8297101449275363
+      },
+      "dataset_sha256": "5defa0a4c4c5bdaf3f55ae3828310252e8565c13ee37ce279e0b86d82e7f4ce9",
+      "split_sha256": "8ad868d56e3a626a94fb49a91808ed815faca6e03aba60d5b29cbb7f7f725b6d",
+      "split_counts": {
+        "train": 189,
+        "validation": 40,
+        "test": 41
+      },
+      "model_sha256": "608b87086be995bd50281ac52a7436498161dba9fdfcfac98121fc8e23ad4b08",
+      "test_predictions_sha256": "1968ffd1b7486cea79d2d8967e73df3860f5ed066ba51f721fa8d4d11c471066"
+    },
+    {
+      "variant": "baseline",
+      "seed": 1,
+      "parameters": {
+        "C": 1.0,
+        "gamma": 0.07692307692307693,
+        "kernel": "rbf"
+      },
+      "metrics": {
+        "accuracy": 0.8536585365853658,
+        "balanced_accuracy": 0.8514492753623188
+      },
+      "dataset_sha256": "5defa0a4c4c5bdaf3f55ae3828310252e8565c13ee37ce279e0b86d82e7f4ce9",
+      "split_sha256": "44a8e4c99648210fd1d6ec5c2a14ce435fb55fcec8c6bb664bb7e0b8558fc32d",
+      "split_counts": {
+        "train": 189,
+        "validation": 40,
+        "test": 41
+      },
+      "model_sha256": "46de03c349f7441d7502d5f6c796e01adf300a335afcb4a6d3316fd55361aaf4",
+      "test_predictions_sha256": "b09022732a0856b2c47843af254a8a6c6f752ab1d329789d77c39ca213b634a3"
+    },
+    {
+      "variant": "baseline",
+      "seed": 2,
+      "parameters": {
+        "C": 1.0,
+        "gamma": 0.07692307692307693,
+        "kernel": "rbf"
+      },
+      "metrics": {
+        "accuracy": 0.9024390243902439,
+        "balanced_accuracy": 0.894927536231884
+      },
+      "dataset_sha256": "5defa0a4c4c5bdaf3f55ae3828310252e8565c13ee37ce279e0b86d82e7f4ce9",
+      "split_sha256": "e7658c62dfd2a47b05d8f3f1a81d2012b71e14488df0856ac245443f294c4753",
+      "split_counts": {
+        "train": 189,
+        "validation": 40,
+        "test": 41
+      },
+      "model_sha256": "3fe2e0b3289897c61d9f25131ca8dbcc2263c1a841b96f6b587b867dfafa411f",
+      "test_predictions_sha256": "3f2925a907913b9e956dfd23d4d92f925d94e426d1c817bc564acd688ad95f38"
+    },
+    {
+      "variant": "tuned",
+      "seed": 0,
+      "parameters": {
+        "C": 1.0,
+        "gamma": 0.01,
+        "kernel": "rbf"
+      },
+      "metrics": {
+        "accuracy": 0.8536585365853658,
+        "balanced_accuracy": 0.8514492753623188
+      },
+      "dataset_sha256": "5defa0a4c4c5bdaf3f55ae3828310252e8565c13ee37ce279e0b86d82e7f4ce9",
+      "split_sha256": "8ad868d56e3a626a94fb49a91808ed815faca6e03aba60d5b29cbb7f7f725b6d",
+      "split_counts": {
+        "train": 189,
+        "validation": 40,
+        "test": 41
+      },
+      "model_sha256": "71ecb0fc4521024e6d04f837660b4e99adb26a9606ada86ba97b7a0af32c80e7",
+      "test_predictions_sha256": "eec23d79409a4fd8ddda5835b1d8f9f5a0311c59a04d2f8f39abf6b2c8732d31"
+    },
+    {
+      "variant": "tuned",
+      "seed": 1,
+      "parameters": {
+        "C": 10.0,
+        "gamma": 0.01,
+        "kernel": "rbf"
+      },
+      "metrics": {
+        "accuracy": 0.8292682926829268,
+        "balanced_accuracy": 0.8236714975845411
+      },
+      "dataset_sha256": "5defa0a4c4c5bdaf3f55ae3828310252e8565c13ee37ce279e0b86d82e7f4ce9",
+      "split_sha256": "44a8e4c99648210fd1d6ec5c2a14ce435fb55fcec8c6bb664bb7e0b8558fc32d",
+      "split_counts": {
+        "train": 189,
+        "validation": 40,
+        "test": 41
+      },
+      "model_sha256": "5f07f323777f06751d7b47632b36d318bb5eb5e3e49c95e3d705ad800617ca61",
+      "test_predictions_sha256": "b46a4b79caec3df05b07d78dc40b551722569f2244799fb27915fd9fdc3f2440"
+    },
+    {
+      "variant": "tuned",
+      "seed": 2,
+      "parameters": {
+        "C": 10.0,
+        "gamma": 0.01,
+        "kernel": "rbf"
+      },
+      "metrics": {
+        "accuracy": 0.9024390243902439,
+        "balanced_accuracy": 0.894927536231884
+      },
+      "dataset_sha256": "5defa0a4c4c5bdaf3f55ae3828310252e8565c13ee37ce279e0b86d82e7f4ce9",
+      "split_sha256": "e7658c62dfd2a47b05d8f3f1a81d2012b71e14488df0856ac245443f294c4753",
+      "split_counts": {
+        "train": 189,
+        "validation": 40,
+        "test": 41
+      },
+      "model_sha256": "ded79239b92ae8402dda913a0816549b610dfe4b095f99562ae90a94b11f8e14",
+      "test_predictions_sha256": "3f2925a907913b9e956dfd23d4d92f925d94e426d1c817bc564acd688ad95f38"
+    },
+    {
+      "variant": "negative",
+      "seed": 0,
+      "parameters": {
+        "C": 0.001,
+        "gamma": 10.0,
+        "kernel": "rbf"
+      },
+      "metrics": {
+        "accuracy": 0.5609756097560976,
+        "balanced_accuracy": 0.5
+      },
+      "dataset_sha256": "5defa0a4c4c5bdaf3f55ae3828310252e8565c13ee37ce279e0b86d82e7f4ce9",
+      "split_sha256": "8ad868d56e3a626a94fb49a91808ed815faca6e03aba60d5b29cbb7f7f725b6d",
+      "split_counts": {
+        "train": 189,
+        "validation": 40,
+        "test": 41
+      },
+      "model_sha256": "a5090a4c527c1d31fbd5d52a0537001d1c0749a9d3f9b6ee19cd25501895ff04",
+      "test_predictions_sha256": "fdbf5ef6fae2119020ce1fbdcaead89ae601151e687a9e0961573fa69b1c8436"
+    },
+    {
+      "variant": "negative",
+      "seed": 1,
+      "parameters": {
+        "C": 0.001,
+        "gamma": 10.0,
+        "kernel": "rbf"
+      },
+      "metrics": {
+        "accuracy": 0.5609756097560976,
+        "balanced_accuracy": 0.5
+      },
+      "dataset_sha256": "5defa0a4c4c5bdaf3f55ae3828310252e8565c13ee37ce279e0b86d82e7f4ce9",
+      "split_sha256": "44a8e4c99648210fd1d6ec5c2a14ce435fb55fcec8c6bb664bb7e0b8558fc32d",
+      "split_counts": {
+        "train": 189,
+        "validation": 40,
+        "test": 41
+      },
+      "model_sha256": "e4cc443b93479d6c3f51f6d8704088f50eb8ec2675fb51a36cfbf54b5949e115",
+      "test_predictions_sha256": "fdbf5ef6fae2119020ce1fbdcaead89ae601151e687a9e0961573fa69b1c8436"
+    },
+    {
+      "variant": "negative",
+      "seed": 2,
+      "parameters": {
+        "C": 0.001,
+        "gamma": 10.0,
+        "kernel": "rbf"
+      },
+      "metrics": {
+        "accuracy": 0.5609756097560976,
+        "balanced_accuracy": 0.5
+      },
+      "dataset_sha256": "5defa0a4c4c5bdaf3f55ae3828310252e8565c13ee37ce279e0b86d82e7f4ce9",
+      "split_sha256": "e7658c62dfd2a47b05d8f3f1a81d2012b71e14488df0856ac245443f294c4753",
+      "split_counts": {
+        "train": 189,
+        "validation": 40,
+        "test": 41
+      },
+      "model_sha256": "128bc680af469c2adfdbebd4a0b63fec0b636d9a31ed4e416ddfd91eefc892b5",
+      "test_predictions_sha256": "fdbf5ef6fae2119020ce1fbdcaead89ae601151e687a9e0961573fa69b1c8436"
+    }
+  ],
+  "scope": "Small held-out parameter-selection experiment using the published authors' implementation. Not reproduction of every paper result, Figure 3 cross-validation accuracy, a new algorithm, or a clinical performance claim.",
+  "interpretation": "Descriptive differences over small stratified splits; no significance, novelty or full-paper reproduction claim.",
+  "agent_model_calls": 0
+}

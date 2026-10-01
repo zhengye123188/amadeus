@@ -128,6 +128,26 @@ async def test_capture_verifier_rejects_tampered_files(registry, lab, file):
         verify_experiment(registry.store, job)
 
 
+async def test_capture_and_file_read_reject_symlinked_snapshot_root(registry, lab, tmp_path):
+    registry.settings.execution = "local"
+    jobs = Jobs(registry)
+    job = await measured_run(jobs)
+    work = registry.store.root / "jobs" / job["job_id"] / "work"
+    outside = tmp_path / "replaced-work"
+    work.rename(outside)
+    work.symlink_to(outside, target_is_directory=True)
+    try:
+        with pytest.raises(ValueError, match="storage directories"):
+            verify_experiment(registry.store, job)
+        with pytest.raises(ValueError, match="storage directories"):
+            await jobs.read_file(
+                {"job_id": job["job_id"], "path": "metrics.json", "max_chars": 100}
+            )
+    finally:
+        work.unlink()
+        outside.rename(work)
+
+
 @pytest.mark.parametrize(
     "content",
     ['{"mse":true,"mae":0}', '{"mse":NaN,"mae":0}', '{"mae":0}', '{"mse":0,"mse":1,"mae":0}', "[]"],

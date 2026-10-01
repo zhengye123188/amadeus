@@ -1,15 +1,42 @@
-# v0.2 Python research backend settings. Launch: research --config research.toml
-# Only an explicitly supplied file is loaded. Never put literal API keys here.
-# Pi model/auth: /model, --provider/--model, OPENAI_API_KEY, OPENAI_BASE_URL,
-# RESEARCH_MODEL, RESEARCH_API. Legacy model-loop limits do not control Pi.
+# v0.3.0 Python research backend settings.
+# Copy to research.toml and explicitly load: research --config research.toml
+# Never put literal API keys in this file. .env is not automatically loaded.
 #
-# --permission, --execution and --offline are launcher policy options.
-docker_image = "python:3.11-slim" # prepare locally; an immutable digest is preferable
+# Launcher controls permission/execution/offline:
+# research --execution docker --config research.toml
+# Defaults remain --permission ask --execution disabled.
+#
+# Pi model capabilities/pricing: --model-profile model-profile.json
+# Pi budgets: --max-turns / --max-seconds / --max-tokens / --max-cost-usd
+# Explicit external MCP: --mcp-config trusted-mcp.json (per-tool effects required)
+# Project instructions/skills: --instructions AGENTS.md / --skill path
+# These Pi settings are NOT controlled by legacy model-loop fields in this TOML.
+
+docker_image = "python:3.11-slim" # prepare locally; a pinned digest is preferable
+docker_cpus = 1
+docker_memory_mb = 1024
+# Optional Docker GPU selection: requires working host/container GPU support.
+# GPU arguments are implemented but have not been validated on a real GPU.
+# docker_gpus = "all"           # or "0", "0,1"
+
 tool_timeout = 90
 tool_result_chars = 10000
 max_job_seconds = 600
 max_job_output_bytes = 2000000
-# Optional embedding API (independent of Pi's chat model and billing):
+# Detached jobs still use this timeout cap. To allow a long task, explicitly
+# raise max_job_seconds (at most 604800) and set the call's timeout_seconds.
+# Foreground calls are capped at 3600 seconds even with a larger backend limit.
+# Detached run_experiment needs detached=true and a stable request_id.
+# Project checks run in the ORIGINAL project and may change source/build files.
+
+# Optional embeddings, separate from the Pi chat model and its fee budget.
+# Enable only with a provider that supports this embedding model/endpoint.
+# The tools still require approval and allow_network; BM25 works without them.
 # embedding_model = "your-embedding-model"
 # base_url = "https://your-embedding-provider.example/v1"
 api_key_env = "OPENAI_API_KEY"
+# For a separate account use an environment variable containing its key:
+# api_key_env = "EMBEDDING_API_KEY"
+# OPENAI_BASE_URL, when set, overrides base_url in this backend configuration.
+# Jev requires its optional dependency and TYPESAFE_API_KEY in the environment.
+# No literal credentials or ambient MCP definitions should be added here.

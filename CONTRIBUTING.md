@@ -11,13 +11,15 @@ uv run pytest -q
 npm run check
 npm test
 npm run eval:memory
+npm run eval:research -- --mock
+npm run version:check
 uv build
 npm pack --dry-run
 ```
 
 Keep tools small, typed and explicit about effects. Register them through `Registry`; do not bypass permission checks, output bounds, timeouts or events. An external tool result is data, not authority. Preserve message/tool pairing and cancellation semantics.
 
-Pi owns the conversation. Project memory and experiments belong to the Python service. Add new tool effects to the extension's trusted policy map and exercise them through actual Pi/MCP integration. Reuse public Pi interfaces; keep its pinned dependency and attribution. Update Python and npm versions together.
+Pi owns the conversation. Project memory and experiments belong to the Python service. Add new tool effects to the extension's trusted policy map and exercise them through actual Pi/MCP integration. Reuse public Pi interfaces; keep its pinned dependency and attribution. Use `npm run version:set -- VERSION` to synchronize Python, npm, lockfiles and installer metadata together without changing dependency resolutions.
 
 Test observable behavior and failure cases. Unit tests must not need real API keys or network access. Label HTTP fixtures and deterministic demos clearly. Live experiments belong in separate opt-in validation with model/config/data versions and raw results. Never submit fabricated benchmark gains.
 

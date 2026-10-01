@@ -1,8 +1,27 @@
-# v0.2 验证记录
+# 验证记录
 
 更新日期：2026-10-01。开发环境为 macOS ARM64、Node 22.23.1、Python 3.12.13、Pi 0.99.1；依赖由 `package-lock.json` 和 `uv.lock` 固定。
 
-## 工程验证
+## v0.3.0：工程验证
+
+当前目标是保证 CLI 功能可靠。下面是软件测试与安装验证，不是用户课题结果，也不代表真实模型科研能力。
+
+本地环境：macOS ARM64、Node 22.23.1、Python 3.12.13、Pi 0.99.1。
+
+- Python：**173 项通过**，包括迁移/归档、论文身份、引文与记忆条件、结构化实验、项目检查、后台 worker 重连/取消及完成状态竞争。
+- JavaScript/TypeScript：**25 项通过**；类型检查、Ruff 和格式检查通过。
+- 版本检查：npm、Python、两个锁文件及独立安装入口均为 **0.3.0**。
+- 12 类合成任务分别使用 memory off/on，**24/24 通过**。两组工具与任务相同，模拟模型执行相同计划；结果只说明工具链和产物核验正常。
+- 既有 3 类记忆机制用例完成 off/on 两组测试。该模拟模型刻意回读注入内容，分数差异不代表真实模型质量收益。
+- 工具清单与打包内容已核对，默认 53 个科研 MCP 工具加 3 个 Pi 文件工具；新 worker、维护和用量模块包含在 npm/Python 分发文件内。
+- npm tarball 在临时目录实际安装，`research setup`、`doctor`、版本核对与真实 Pi 科研扩展加载通过。
+- Python wheel / sdist 构建成功；wheel 在隔离工具目录安装，`research-mcp`、`research-legacy` 版本及动态文件读取通过。
+
+所有上述模型请求使用本机模拟服务和虚构密钥，没有调用付费模型。测试中确实运行了 Pi、MCP、SQLite、临时本地进程和 Unix socket。
+
+公开 LIBSVM CPU 案例是**可选开发示例**，用于演示参数、数据划分、指标和来源记录。它不使用用户科研数据，选参方案没有超过基线，不构成科研能力成绩或完整论文复现。结果与边界见 [示例说明](../evals/public-case.md)。真实科研评估待具体课题开展后设计；Docker/GPU 尚未实机验证。
+
+## v0.2.0：历史工程验证
 
 - Python：78 项测试通过，覆盖文献、证据、记忆、MCP、实验、配置保护及下载入口。
 - JavaScript / TypeScript：类型检查与 10 项测试通过，其中 5 项启动真实 Pi CLI，覆盖认证、工具调用、权限、压缩、恢复、分支和实验。
@@ -12,7 +31,7 @@
 
 集成测试使用真实 Pi、Python stdio MCP、SQLite、本地进程和伪终端，模型由本机 HTTP 服务模拟。模拟请求检查 Bearer 认证头，仅使用虚构密钥，不调用付费 API。
 
-## 独立安装包
+## v0.2.0：历史独立安装包
 
 [v0.2.0 构建与发布](https://github.com/zhengye123188/research-cli/actions/runs/36818786041) 四个平台均通过：
 
@@ -29,7 +48,7 @@
 
 从公开下载入口实际下载 macOS ARM64 安装包，确认入口脚本与已审查源码一致，再在临时中文/空格路径实装；程序和后端版本均为 0.2.0，临时安装已清理。
 
-## 发布状态
+## v0.2.0：历史发布状态
 
 - [npm `@lelouch_021015/research-cli`](https://www.npmjs.com/package/@lelouch_021015/research-cli) 已公开发布 0.2.0，2026-10-01 从官方注册表核对。
 - [GitHub Release v0.2.0](https://github.com/zhengye123188/research-cli/releases/tag/v0.2.0) 已公开，包含四组安装器/校验文件和自动选择平台的 `install.sh`。
@@ -37,7 +56,7 @@
 
 后续代码验证以对应提交的 [CI 结果](https://github.com/zhengye123188/research-cli/actions/workflows/ci.yml) 为准。
 
-## 评测边界
+## v0.2.0：历史评测边界
 
 `npm run eval:memory` 验证检索、注入与压缩机制，默认模型刻意回读注入记录；不能将开关组分数差异解释为优于原版 Pi。原始输出由脚本生成，保存在被 Git 忽略的 `evals/results/`，复跑方法见 [评测说明](../evals/README.md)。
 

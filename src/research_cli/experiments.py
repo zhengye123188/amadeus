@@ -120,6 +120,11 @@ class ListExperiments(Args):
 def bounded_file(work: Path, relative: str, limit=20_000_000) -> Path:
     """Reject symlinks and special/hard-linked files, including intermediate symlinks."""
     relative_path(relative)
+    if not work.is_dir() or any(
+        directory.is_symlink()
+        for directory in (work, work.parent, work.parent.parent, work.parent.parent.parent)
+    ):
+        raise ValueError("Experiment storage directories may not be symlinks")
     current = work
     for part in PurePosixPath(relative).parts:
         current = current / part

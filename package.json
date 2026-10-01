@@ -1,6 +1,6 @@
 {
   "name": "@lelouch_021015/research-cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "An evidence-aware research CLI built on Pi with Python MCP tools",
   "type": "module",
   "license": "MIT",
@@ -14,7 +14,10 @@
     "check": "tsc --noEmit",
     "test": "node --import tsx --test tests/*.test.mjs tests/pi/*.test.ts",
     "test:integration": "node --import tsx --test tests/pi/integration.test.ts",
-    "eval:memory": "node --import tsx scripts/eval-memory.ts"
+    "eval:memory": "node --import tsx scripts/eval-memory.ts",
+    "eval:research": "node --import tsx scripts/eval-research.ts",
+    "version:check": "node scripts/version.mjs --check",
+    "version:set": "node scripts/version.mjs"
   },
   "dependencies": {"@earendil-works/pi-coding-agent": "0.99.1"},
   "devDependencies": {"@types/node": "^22.19.0", "tsx": "^4.20.0", "typescript": "^5.9.0"},

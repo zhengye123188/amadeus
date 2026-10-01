@@ -1,0 +1,33 @@
+{
+  "paper": {
+    "title": "LIBSVM: A library for support vector machines",
+    "authors": ["Chih-Chung Chang", "Chih-Jen Lin"],
+    "year": 2011,
+    "doi": "10.1145/1961189.1961199",
+    "publisher_url": "https://doi.org/10.1145/1961189.1961199",
+    "author_pdf_url": "https://www.csie.ntu.edu.tw/~cjlin/papers/libsvm.pdf",
+    "author_project_url": "https://www.csie.ntu.edu.tw/~cjlin/libsvm/"
+  },
+  "repository": "https://github.com/cjlin1/libsvm",
+  "commit": "557d85749aaf0ca83fd229af0f00e4f4cb7be85c",
+  "tag_for_discovery": "v324",
+  "code_license": "BSD-3-Clause; retain downloaded COPYRIGHT",
+  "dataset": {
+    "name": "heart_scale",
+    "rows": 270,
+    "features": 13,
+    "description": "Small classification example included in the authors' LIBSVM repository",
+    "catalog_url": "https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary.html",
+    "standalone_data_license": "No separate dataset license asserted here; download from the pinned author repository rather than redistribute in this project."
+  },
+  "files": {
+    "svm.cpp": "baccf6dfddfe6971eed7065e30cbdb94f9aadb03fa8b5db4ec6901232815f75d",
+    "svm.h": "cf14df9d0faa952e8da6edb6edaae2991e1a2c43cf4de1d4cf69a1e9dadd4585",
+    "svm-train.c": "004f0ba35101a8564fd535c13abacfc3e166f8ebddda73729f4be93526cc15bc",
+    "svm-predict.c": "a5ee5a5573d097bfd00913bc1eae8185eb1c6060c3b630ef861eea747b5f191c",
+    "heart_scale": "5defa0a4c4c5bdaf3f55ae3828310252e8565c13ee37ce279e0b86d82e7f4ce9",
+    "COPYRIGHT": "157091ef0b3f1213e9746e6c64b5cb0ec80d44252c9298821669ad70902cc200",
+    "README": "2478087cb2d4ee046b22930ed06089904cb9c87f84e8727c19edb5f0224c4c21"
+  },
+  "scope": "Small held-out parameter-selection experiment using the published authors' implementation. Not reproduction of every paper result, Figure 3 cross-validation accuracy, a new algorithm, or a clinical performance claim."
+}

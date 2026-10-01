@@ -106,11 +106,19 @@ async def test_immediate_shutdown_cleans_owned_job(registry):
     assert not jobs.running
 
 
-async def test_docker_flags_and_no_implicit_shell(registry, monkeypatch):
+@pytest.mark.parametrize(
+    "gpu_selection,gpu_argument", [("all", "all"), ("0", '"device=0"'), ("0,2", '"device=0,2"')]
+)
+async def test_docker_flags_and_no_implicit_shell(
+    registry, monkeypatch, gpu_selection, gpu_argument
+):
     import shutil
     from types import SimpleNamespace
 
     registry.settings.execution = "docker"
+    registry.settings.docker_cpus = 2
+    registry.settings.docker_memory_mb = 2048
+    registry.settings.docker_gpus = gpu_selection
     monkeypatch.setattr(shutil, "which", lambda name: "/fake/docker")
     calls = []
     stream = asyncio.StreamReader()
@@ -134,12 +142,18 @@ async def test_docker_flags_and_no_implicit_shell(registry, monkeypatch):
         "--cap-drop=ALL",
         "--security-opt=no-new-privileges",
         "--pids-limit=128",
-        "--memory=1g",
-        "--cpus=1",
+        "--memory=2048m",
+        "--cpus=2",
         "--pull=never",
     ]:
         assert option in argv
     assert argv[-2:] == ("python", "run.py")
+    import csv
+
+    assert argv[argv.index("--gpus") + 1] == gpu_argument
+    assert next(csv.reader([gpu_argument])) == [
+        "all" if gpu_selection == "all" else "device=" + gpu_selection
+    ]
     assert "OPENAI_API_KEY" not in kwargs["env"]
     assert kwargs["start_new_session"] is True
     assert (await jobs.status(result))["status"] == "completed"
@@ -154,6 +168,32 @@ async def test_missing_docker_never_falls_back_to_host(registry, monkeypatch):
     with pytest.raises(ValueError, match="no fallback"):
         await jobs.start({"argv": ["python", "--version"], "cwd": ".", "timeout_seconds": 1})
     assert registry.store.records("jobs")[0]["status"] == "failed"
+
+
+async def test_docker_project_check_rejects_actual_mount_source_colon_and_records_failure(
+    registry, tmp_path, monkeypatch
+):
+    import shutil
+
+    registry.settings.execution = "docker"
+    (tmp_path / "project:with-colon").mkdir()
+    monkeypatch.setattr(shutil, "which", lambda name: "/fake/docker")
+
+    async def no_spawn(*args, **kwargs):
+        raise AssertionError("Invalid Docker source mount must not launch a process")
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", no_spawn)
+    jobs = Jobs(registry)
+    with pytest.raises(ValueError, match="mount path contains"):
+        await jobs.start_check(
+            {
+                "argv": ["python", "--version"],
+                "cwd": "project:with-colon",
+                "request_id": "colon-source",
+            }
+        )
+    record = registry.store.records("jobs")[0]
+    assert record["status"] == "failed" and "mount path" in record["detail"]
 
 
 async def test_project_check_uses_original_cwd_dependencies_and_snapshot(registry, tmp_path):
