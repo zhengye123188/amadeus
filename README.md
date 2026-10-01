@@ -20,6 +20,29 @@ sh ~/Downloads/research-cli-0.2.0-darwin-arm64.run
 
 `configure` 会隐藏密钥输入，并将 API 地址、模型和密钥保存在本机，后续终端无需重新 export。默认安装在用户目录，不需要 sudo，不依赖 nvm。从 [Standalone installers](https://github.com/zhengye123188/research-cli/actions/workflows/standalone.yml) 中通过的运行记录下载对应平台的 Artifacts，解压 ZIP 后执行上面的命令。下载需要登录 GitHub，文件保留 30 天；尚未发布公开 Release 下载地址。平台选择、校验、更新和构建方法见 [独立安装指南](docs/standalone.md)。
 
+## 在项目目录使用
+
+安装后，把命令目录加入当前终端的 PATH：
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+如果希望新打开的终端也能直接使用 `research`，将这行放入自己的 shell 配置；macOS 默认 zsh 使用 `~/.zshrc`。
+
+在目标项目文件夹打开终端，直接输入 `research`；也可以先切换目录：
+
+```bash
+cd "/你的项目目录"
+research
+```
+
+启动时的当前目录自动成为工作区，无须切换到 Research CLI 的安装目录。文件工具、科研记忆和实验都使用这个项目目录，科研数据保存在项目的 `.research/` 中；API 配置保存在用户目录，只需配置一次。`/research-status` 可查看当前工作区和项目统计。
+
+在同一项目目录再次启动 `research --continue` 可继续最近会话；从其他目录启动时，也可以用 `research --workspace "/你的项目目录"` 显式指定工作区。
+
+显式使用 `--session` 或 `--resume` 恢复其他项目的历史会话时，Pi 会采用该会话保存的工作区。可用 `/research-status` 核对当前项目；若要把历史上下文带到当前项目，可使用 `research --fork <会话文件>`。
+
 ## 快速开始
 
 需要 Node ≥22.19 和 [uv](https://docs.astral.sh/uv/getting-started/installation/)。如果使用 nvm，先执行 `nvm use 22`。

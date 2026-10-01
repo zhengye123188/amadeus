@@ -29,6 +29,8 @@ macOS ARM64 实际构建并安装 `.run`，内置 Node 22.23.1 和可搬移的 P
 
 Intel Mac 在构建机编译锁定的 cryptography，静态链接 OpenSSL 4.0.2，并检查原生模块没有引用构建机的第三方动态库；用户无需安装编译工具。未进行 macOS Developer ID 签名、公证或另一台 Mac 从浏览器下载后的 Gatekeeper 验证。
 
+2026-10-01 另行验证“在项目目录打开终端直接运行”：已将独立包安装到用户目录，全局 `research` 在临时中文项目目录启动，不传 `--workspace`；`/research-status` 返回当前项目，正常退出，数据库位于该项目 `.research/state.sqlite3`。安装包测试也改为从项目 cwd 直接启动 RPC 与 TUI，文件读取、MCP 项目状态和落盘检查均通过。
+
 测试中的模型由本机 HTTP 服务模拟；Pi、MCP、SQLite、本地进程和终端真实运行。没有调用真实付费模型、embedding 或 Jev，也没有 Docker 实机验证。Docker 当前是启动参数与策略测试。
 
 ### 自定义端点认证修复

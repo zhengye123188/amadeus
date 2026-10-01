@@ -157,7 +157,7 @@ def main():
 
             # A fresh process has no API env variables; it must use persistent settings.
             app = subprocess.Popen(
-                [research, "--mode", "rpc", "--workspace", str(workspace), "--offline"],
+                [research, "--mode", "rpc", "--offline"],
                 cwd=workspace,
                 env=env,
                 stdin=subprocess.PIPE,
@@ -197,6 +197,7 @@ def main():
                 assert len(tools) == 2 and all(not e.get("isError") for e in tools), events
                 assert len(requests) == 3 and not failures
                 assert "Standalone fixture" in json.dumps(requests[-1])
+                assert str(workspace) in json.dumps(requests[-1], ensure_ascii=False)
                 assert fixture_key not in json.dumps(events)
                 app.stdin.close()
                 app.wait(timeout=15)
@@ -211,7 +212,7 @@ def main():
 
         terminal = pexpect.spawn(
             research,
-            ["--workspace", str(workspace), "--offline"],
+            ["--offline"],
             cwd=str(workspace),
             env=env,
             encoding="utf8",
@@ -268,6 +269,7 @@ def main():
                     "hidden_persistent_config": True,
                     "real_pi_mcp_tool_loop": True,
                     "interactive_terminal": True,
+                    "terminal_cwd_is_workspace": True,
                     "reinstall_and_damage_checks": True,
                 }
             )

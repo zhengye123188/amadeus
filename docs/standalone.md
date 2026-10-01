@@ -39,6 +39,15 @@ export PATH="$HOME/.local/bin:$PATH"
 research doctor
 ```
 
+要让新打开的终端也能直接输入命令，请将 `export PATH="$HOME/.local/bin:$PATH"` 加入自己的 shell 配置（macOS 默认 zsh 使用 `~/.zshrc`）。配置完成后，在任意项目文件夹打开终端，或先 `cd` 到目标项目：
+
+```bash
+cd "/你的项目目录"
+research
+```
+
+当前目录自动作为工作区，读写文件、科研记忆和实验记录均围绕该项目；科研数据存放在项目 `.research/` 下。安装目录只用于存放程序和运行环境。API 配置属于用户，可在多个项目共用。界面中的 `/research-status` 可核对工作区；在同一项目运行 `research --continue` 可继续最近会话。也可以通过 `research --workspace "/你的项目目录"` 指定其他项目。
+
 独立命令始终使用包内运行环境，不依赖 nvm 当前选择的 Node。`research setup` 会提示运行环境已包含；无须再次安装。
 
 ## 更新、回退和卸载
