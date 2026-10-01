@@ -6,7 +6,9 @@ import json
 import os
 import shutil
 import signal
+import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Literal
@@ -334,18 +336,20 @@ class Jobs:
         env.update(PYTHONUNBUFFERED="1", PYTHONPATH=str(Path(__file__).resolve().parent.parent))
         try:
             create_control(self.store, jid)
-            await asyncio.create_subprocess_exec(
-                sys.executable,
-                "-m",
-                "research_cli.job_worker",
-                str(self.store.workspace),
-                jid,
-                stdin=asyncio.subprocess.DEVNULL,
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL,
+            # An asyncio subprocess transport can kill its child when the original
+            # event loop is collected. Detached owners must not belong to that loop.
+            worker = subprocess.Popen(
+                [sys.executable, "-m", "research_cli.job_worker", str(self.store.workspace), jid],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
                 env=env,
                 start_new_session=True,
+                close_fds=True,
             )
+            # Reap while this CLI lives, without delaying interpreter exit. This
+            # thread never controls the worker; status/cancel use authenticated IPC.
+            threading.Thread(target=worker.wait, name=f"reap-{jid}", daemon=True).start()
         except asyncio.CancelledError:
             self._transition_state(
                 jid,

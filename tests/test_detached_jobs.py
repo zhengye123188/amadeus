@@ -90,7 +90,7 @@ async def test_detached_worker_captures_measured_results_without_api_credentials
 
 async def test_detached_worker_survives_actual_parent_process_exit(registry):
     script = """
-import asyncio,json,sys
+import asyncio,gc,json,sys
 from pathlib import Path
 from research_cli.config import Settings
 from research_cli.jobs import Jobs
@@ -99,19 +99,22 @@ from research_cli.tools import Registry
 async def main():
     store=Store(Path(sys.argv[1]))
     jobs=Jobs(Registry(store,Settings(execution='local')))
-    job=await jobs.start({'argv':[sys.executable,'-c',"import time,pathlib; time.sleep(0.7); pathlib.Path('detached.txt').write_text('survived')"], 'cwd':'.', 'timeout_seconds':5, 'request_id':'parent-exit', 'detached':True})
+    command="import time,pathlib,sys; gate=pathlib.Path(sys.argv[1]); deadline=time.monotonic()+10\\nwhile not gate.exists() and time.monotonic()<deadline: time.sleep(0.02)\\nassert gate.exists(); pathlib.Path('detached.txt').write_text('survived')"
+    job=await jobs.start({'argv':[sys.executable,'-c',command,sys.argv[2]], 'cwd':'.', 'timeout_seconds':12, 'request_id':'parent-exit', 'detached':True})
     print(json.dumps({'job_id':job['job_id']}),flush=True)
     await jobs.close()
     store.close()
 asyncio.run(main())
+gc.collect()
 """
     environment = {
         "PATH": os.environ.get("PATH", ""),
         "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src"),
     }
+    gate = registry.store.workspace / "parent-has-exited"
     result = await asyncio.to_thread(
         subprocess.run,
-        [sys.executable, "-c", script, str(registry.store.workspace)],
+        [sys.executable, "-c", script, str(registry.store.workspace), str(gate)],
         capture_output=True,
         text=True,
         env=environment,
@@ -122,7 +125,15 @@ asyncio.run(main())
     assert result.stderr == ""
     registry.settings.execution = "local"
     jobs = Jobs(registry)
-    assert (await finished(jobs, jid))["status"] == "completed"
+    try:
+        # The child cannot finish before its original parent has exited and this
+        # second CLI has authenticated the surviving worker.
+        assert (await jobs.status({"job_id": jid}))["status"] == "running"
+        gate.write_text("release child after verified parent exit")
+        assert (await finished(jobs, jid))["status"] == "completed"
+    finally:
+        gate.write_text("release child on test failure")
+        await jobs.cancel({"job_id": jid})
     assert (registry.store.root / "jobs" / jid / "work" / "detached.txt").read_text() == "survived"
 
 
@@ -164,21 +175,21 @@ async def test_forged_owner_never_signals_saved_pid(registry, monkeypatch):
 async def test_actual_worker_crash_preserves_unknown_outcome_without_replay(registry, monkeypatch):
     registry.settings.execution = "local"
     spawned = []
-    original = asyncio.create_subprocess_exec
+    original = subprocess.Popen
 
-    async def track_spawn(*args, **kwargs):
-        proc = await original(*args, **kwargs)
+    def track_spawn(args, **kwargs):
+        proc = original(args, **kwargs)
         if "research_cli.job_worker" in args:
             spawned.append(proc)
         return proc
 
-    monkeypatch.setattr(asyncio, "create_subprocess_exec", track_spawn)
+    monkeypatch.setattr(subprocess, "Popen", track_spawn)
     jobs = Jobs(registry)
     job = await jobs.start(detached_args("import time; time.sleep(0.5)", "crash-worker"))
     assert spawned and (await jobs.status(job))["status"] == "running"
     # Fault injection targets our freshly spawned process object, never a saved PID.
     spawned[0].kill()
-    await spawned[0].wait()
+    await asyncio.to_thread(spawned[0].wait)
     control = load_control(registry.store, job["job_id"])
     try:
         reconnected = Jobs(registry)
@@ -318,8 +329,8 @@ async def test_launch_deadline_cannot_overwrite_concurrently_finished_worker(reg
     )
     monkeypatch.setattr(module, "create_control", lambda *args: None)
 
-    async def fake_spawn(*args, **kwargs):
-        return None
+    def fake_spawn(*args, **kwargs):
+        return SimpleNamespace(wait=lambda: None)
 
     async def same_thread(function, *args, **kwargs):
         return function(*args, **kwargs)
@@ -328,7 +339,7 @@ async def test_launch_deadline_cannot_overwrite_concurrently_finished_worker(reg
         store.put("jobs", jid, {**record, "status": "completed", "exit_code": 0, "finished": 1})
         raise OSError("Socket was removed on completion")
 
-    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_spawn)
+    monkeypatch.setattr(subprocess, "Popen", fake_spawn)
     monkeypatch.setattr(asyncio, "to_thread", same_thread)
     monkeypatch.setattr(module, "worker_request", failed_handshake_after_completion)
     result = await Jobs(registry, recover=False)._launch_worker(record)
