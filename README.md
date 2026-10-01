@@ -165,9 +165,9 @@ Python 测试覆盖领域逻辑、真实 stdio MCP、执行与旧原型；TypeSc
 
 `npm run eval:memory` 是可重复的机制验证。`npm run eval:memory -- --live` 才会使用配置的模型进行付费对照，比较相同工具、数据、模型和预算下的 `--memory off/on`。默认输出 `evals/results/local-memory.json`，不提交本机结果。详见 [评测说明](evals/README.md) 和 [验证记录](docs/validation.md)。
 
-## 面试讲解与限制
+## 架构与限制
 
-项目主线：**如何在长对话压缩和恢复后，保留可追溯的科研约束、原文证据与实验状态？** 可以围绕三层记忆、RAG、MCP、工具权限、异步任务、幂等、恢复窗口、版本管理和消融评测展开。架构和代码映射见 [architecture.md](docs/architecture.md)。
+项目通过持久化科研记录、上下文注入和证据快照，在长对话压缩与会话恢复后保留科研约束、原文证据和实验状态。模块职责与代码映射见 [architecture.md](docs/architecture.md)。
 
 当前没有多 Agent、远程/GPU 作业、自动依赖安装、OCR 或论文真实复现保证；检索与向量存储适用于小规模项目。Jev 与真实模型收益必须实测，本项目不宣称科研新颖性或未经验证的性能提升。
 
