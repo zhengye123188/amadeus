@@ -4,7 +4,7 @@
 
 `npm test` 启动真实 Pi CLI、真实 Python stdio MCP 和本机模拟模型端点，验证模型工具调用、权限、证据、压缩、恢复、分支、实验取消/去重和运行预算。模拟的是模型回复，Agent 和工具链实际执行。
 
-`npm run eval:memory` 对 `memory-cases.json` 的 3 个原创合成项目，分别运行 `--memory off/on`，工具集合与初始数据库相同。检查压缩之后约束原文、假设状态、引文和失败任务 ID 是否进入最后答案。原始输出在 `results/memory-mechanism.json`。
+`npm run eval:memory` 对 `memory-cases.json` 的 3 个原创合成项目，分别运行 `--memory off/on`，工具集合与初始数据库相同。检查压缩之后约束原文、假设状态、引文和失败任务 ID 是否进入最后答案。默认输出生成到 `results/local-memory.json`；`results/` 被 Git 忽略，运行结果不随源码分发。
 
 **默认模拟模型被特意编写为只回读注入上下文，因此开关两组的分数差异只能证明机制接通，不能当作超过原版 Pi 的质量收益。** 真实模型在 off 组也能主动调用相同的 memory 工具。当前没有真实模型的对照成绩。
 
@@ -18,7 +18,7 @@ npm run eval:memory -- --live --output evals/results/local-memory-live.json
 
 ## Python 原型与检索实验
 
-工程测试运行 `uv run pytest -q`；可复跑实验运行 `uv run python examples/retrieval_lab/run.py --output /tmp/retrieval-metrics.json`。`results/retrieval-smoke.json` 是本项目首次实跑的原始输出，含环境、哈希、逐条结果；它不是模型评测。
+工程测试运行 `uv run pytest -q`；可复跑实验运行 `uv run python examples/retrieval_lab/run.py --output /tmp/retrieval-metrics.json`。原始输出由脚本生成，含环境、哈希和逐条结果；它不是模型评测。
 
 模型协议测试使用真实 SDK 和 HTTP mock；MCP 测试启动真实本地 stdio server；执行测试运行真实本地 Python 子进程；终端测试使用伪终端输入中文和多行文本。测试中不存在付费 API 调用。可选依赖缺失时对应测试会显示 skipped，不能把跳过算作通过。
 

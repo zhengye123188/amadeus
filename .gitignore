@@ -13,6 +13,6 @@ dist/
 build/
 *.egg-info/
 .DS_Store
-evals/results/local-*
+evals/results/
 node_modules/
 *.tgz

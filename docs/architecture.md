@@ -1,4 +1,4 @@
-# v0.2 架构与面试讲解
+# Research CLI 架构
 
 ## 架构
 
@@ -41,9 +41,9 @@ Pi `tool_call` → 本地静态工具分类/路径检查 → 用户审批或显�
 
 仍不声称 exactly-once：在启动进程和保存结果之间崩溃可能留下未知状态。恢复时 `interrupted_unknown` 不等于未启动；需查实际状态。Docker 限制用于实验进程，不隔离 Pi 或 MCP 后端。local 是明确选择的宿主进程。
 
-## 代码与知识点
+## 模块职责
 
-| 位置 | 职责 | 面试讨论 |
+| 位置 | 职责 | 设计重点 |
 |---|---|---|
 | `bin/research.mjs` | 环境检查、安装、CLI 入口、子进程信号 | 依赖复用、分发与配置边界 |
 | `pi/research.ts` | 原生 MCP、权限钩子、上下文、压缩与命令 | Agent lifecycle、上下文工程、Human-in-the-loop |
@@ -56,7 +56,7 @@ Pi `tool_call` → 本地静态工具分类/路径检查 → 用户审批或显�
 | `tests/pi` | 真实 Pi 协议集成 | mock 模型与 mock 运行时的区别 |
 | `scripts/eval-memory.ts` | 同工具集合的记忆对照 | 机制验证与模型能力评估的区别 |
 
-原 Python CLI 的 `cli.py/providers.py/runtime.py/context.py` 保留为 `research-legacy`，用于工程对照；主产品不调用这些运行时。历史架构在 [legacy-architecture.md](legacy-architecture.md)。
+原 Python CLI 的 `cli.py/providers.py/runtime.py/context.py` 保留为 `research-legacy`，用于兼容既有命令及工程测试；Pi 主入口不调用这些运行时。基本用法见 [legacy-cli.md](legacy-cli.md)。
 
 ## 当前取舍
 
