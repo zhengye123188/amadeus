@@ -8,6 +8,8 @@ import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
+SCHEMA_VERSION = 1
+
 
 def identifier(prefix: str) -> str:
     return f"{prefix}_{uuid.uuid4().hex[:12]}"
@@ -34,6 +36,10 @@ class Store:
             raise ValueError("State database may not be a symlink")
         self.db = sqlite3.connect(db)
         self.db.row_factory = sqlite3.Row
+        version = self.db.execute("PRAGMA user_version").fetchone()[0]
+        if version > SCHEMA_VERSION:
+            self.db.close()
+            raise ValueError("Project database was created by a newer Research CLI; upgrade first")
         self.db.executescript("""
             PRAGMA journal_mode=WAL;
             PRAGMA foreign_keys=ON;
@@ -69,6 +75,23 @@ class Store:
                 id TEXT PRIMARY KEY, body TEXT, updated REAL
             );
         """)
+        # Version zero is the v0.2 database. Preserve IDs, JSON bodies and history.
+        # Future migrations must advance one version at a time in a transaction.
+        if version < 1:
+            with self.db:
+                self.db.execute(
+                    "CREATE TABLE IF NOT EXISTS schema_migrations "
+                    "(version INTEGER PRIMARY KEY, applied REAL NOT NULL)"
+                )
+                self.db.execute("INSERT INTO schema_migrations VALUES(1,?)", (time.time(),))
+                self.db.execute("PRAGMA user_version=1")
+
+    def database_info(self):
+        return {
+            "schema_version": self.db.execute("PRAGMA user_version").fetchone()[0],
+            "supported_schema_version": SCHEMA_VERSION,
+            "integrity": self.db.execute("PRAGMA quick_check").fetchone()[0],
+        }
 
     def close(self):
         self.db.close()

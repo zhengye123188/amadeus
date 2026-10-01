@@ -18,6 +18,7 @@ export const effects: Record<string, Effect> = {
   list_jobs: "read", job_status: "read", read_job_file: "read", cancel_job: "write",
   run_experiment: "execute", index_embeddings: "external", hybrid_search: "external",
   jev_rerank: "external", list_files: "read", search_code: "read", git_diff: "read", load_skill: "read",
+  backup_project: "write", project_data_info: "read",
 };
 
 const blocked = new Set([".git", ".research", ".pi", ".venv", "node_modules", "research.toml", "id_rsa", "id_ed25519"]);

@@ -22,6 +22,7 @@ from research_cli import __version__
 from research_cli.config import Settings
 from research_cli.extensions import register_embeddings, register_jev
 from research_cli.jobs import Jobs, Run
+from research_cli.maintenance import register_maintenance
 from research_cli.memory import ProjectMemory
 from research_cli.research import ResearchTools
 from research_cli.storage import Store, encode
@@ -89,6 +90,7 @@ class Backend:
         run_tool.schema = ExperimentRequest.model_json_schema()
         self.memory = ProjectMemory(self.registry)
         self.memory.register()
+        register_maintenance(self.registry)
         self.embedding_client = None
         if settings.embedding_model:
             from openai import AsyncOpenAI
