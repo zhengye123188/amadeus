@@ -82,7 +82,7 @@ npm start
 
 ```bash
 npm pack                       # 打印生成的 .tgz 文件名
-npm install -g ./zhengye123188-research-cli-0.2.0.tgz
+npm install -g ./lelouch_021015-research-cli-0.2.0.tgz
 research setup                 # 用 uv 安装随 npm 包携带的 Python 后端源码
 research doctor
 research --workspace /你的科研目录

@@ -4,7 +4,7 @@
 
 | 发布渠道 | 包名 | 安装后命令 | 用途 |
 |---|---|---|---|
-| npm | `@zhengye123188/research-cli` | `research` | Pi 交互终端、科研扩展、后端环境安装器 |
+| npm | `@lelouch_021015/research-cli` | `research` | Pi 交互终端、科研扩展、后端环境安装器 |
 | PyPI | `research-terminal[mcp]` | `research-mcp`、`research-legacy` | 独立 MCP 服务、历史 Python CLI |
 
 npm 包携带 Python 后端源码及 `uv.lock`，`research setup` 用 uv 安装到独立缓存环境，因此 npm 发布不依赖 PyPI 发布。Pi 作为 npm 依赖安装。
@@ -13,7 +13,7 @@ npm 包携带 Python 后端源码及 `uv.lock`，`research setup` 用 uv 安装�
 
 ## 发布 npm 主 CLI
 
-先注册并登录自己的 [npm 账号](https://www.npmjs.com/signup)。包名中的 `@zhengye123188` 是 npm scope，登录账号必须拥有该 scope 的发布权限；GitHub 同名账号不自动获得 npm 权限。若使用其他 npm 用户名，先修改 `package.json` 的 `name` 并更新 `package-lock.json`。
+先注册并登录自己的 [npm 账号](https://www.npmjs.com/signup)。包名中的 `@lelouch_021015` 是 npm scope，登录账号必须拥有该 scope 的发布权限；GitHub 同名账号不自动获得 npm 权限。若使用其他 npm 用户名，先修改 `package.json` 的 `name` 并更新 `package-lock.json`。
 
 在项目根目录执行，Node 版本需要 `>=22.19.0`：
 
@@ -33,13 +33,13 @@ npm publish --access public --registry=https://registry.npmjs.org
 发布后检查注册表：
 
 ```bash
-npm view @zhengye123188/research-cli@0.2.0 version --registry=https://registry.npmjs.org
+npm view @lelouch_021015/research-cli@0.2.0 version --registry=https://registry.npmjs.org
 ```
 
 用户安装时，需要 Node `>=22.19.0` 和 [uv](https://docs.astral.sh/uv/getting-started/installation/)：
 
 ```bash
-npm install -g @zhengye123188/research-cli
+npm install -g @lelouch_021015/research-cli
 research setup
 research configure
 cd "/你的项目目录"

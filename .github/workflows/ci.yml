@@ -36,5 +36,5 @@ jobs:
       - run: npm run eval:memory
       - run: npm pack --dry-run
       - run: npm pack --pack-destination /tmp
-      - run: node scripts/smoke_npm.mjs /tmp/zhengye123188-research-cli-0.2.0.tgz
+      - run: node scripts/smoke_npm.mjs /tmp/lelouch_021015-research-cli-0.2.0.tgz
       - run: uv run python scripts/smoke_install.py dist/*.whl

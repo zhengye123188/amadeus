@@ -1,5 +1,5 @@
 {
-  "name": "@zhengye123188/research-cli",
+  "name": "@lelouch_021015/research-cli",
   "version": "0.2.0",
   "description": "An evidence-aware research CLI built on Pi with Python MCP tools",
   "type": "module",
