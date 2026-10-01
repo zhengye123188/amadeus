@@ -28,7 +28,9 @@ npm whoami --registry=https://registry.npmjs.org
 npm publish --access public --registry=https://registry.npmjs.org
 ```
 
-查看 `npm pack --dry-run` 的文件列表，确认发布内容符合预期。`npm login` 按提示完成浏览器登录，`npm whoami` 显示实际使用的 npm 账号。公开发布 scoped 包需要 `--access public`；首次手动发布建议在 npm 账号开启 2FA，并按发布提示完成验证。官方文档也支持具有相应权限和 2FA bypass 的 granular token。[npm 公开发布说明](https://docs.npmjs.com/creating-and-publishing-scoped-public-packages/)
+查看 `npm pack --dry-run` 的文件列表，确认发布内容符合预期。`npm login` 按提示完成浏览器登录，`npm whoami` 显示实际使用的 npm 账号。公开发布 scoped 包需要 `--access public`；直接发布要求 npm 账号开启 2FA，或使用具有相应权限且开启 bypass 2FA 的 granular token。[npm 公开发布说明](https://docs.npmjs.com/creating-and-publishing-scoped-public-packages/)
+
+如果返回 `E403: Two-factor authentication or granular access token with bypass 2fa enabled is required`，本次上传未完成。登录 npm 网站，进入头像菜单 → Account → Two-Factor Authentication → Enable 2FA，按浏览器提示注册安全密钥（Mac 可使用 Touch ID），保存恢复码。随后重新执行 `npm login --registry=https://registry.npmjs.org --auth-type=web`，完成新的认证，再重试发布。此次失败无需增加版本号。不要把密码、恢复码或 token 发到聊天中。[npm 2FA 设置说明](https://docs.npmjs.com/configuring-two-factor-authentication/)
 
 发布后检查注册表：
 

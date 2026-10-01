@@ -4,7 +4,7 @@
   "description": "An evidence-aware research CLI built on Pi with Python MCP tools",
   "type": "module",
   "license": "MIT",
-  "repository": {"type": "git", "url": "https://github.com/zhengye123188/research-cli.git"},
+  "repository": {"type": "git", "url": "git+https://github.com/zhengye123188/research-cli.git"},
   "engines": {"node": ">=22.19.0"},
   "os": ["darwin", "linux"],
   "bin": {"research": "bin/research.mjs"},
