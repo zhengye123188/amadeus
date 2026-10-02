@@ -84,7 +84,8 @@ Intel Mac 构建机还需要 Xcode 命令行工具、Rust、make 和 Perl。由�
 
 ```bash
 uv run --python 3.12 python scripts/build_standalone.py
-uv run --python 3.12 python scripts/smoke_standalone.py dist/standalone/*.run
+uv run --python 3.12 python scripts/smoke_standalone.py dist/standalone/research-cli-0.4.0-darwin-arm64.run
+# 将文件名替换为本机平台对应的产物
 ```
 
 产物在 `dist/standalone/`：自解压 `.run`、可手动解压的 `.tar.gz`、各自 `.sha256`。运行环境 URL/哈希锁定在 `packaging/runtimes.json`；JS/Python 依赖锁定在 package-lock.json / uv.lock。包内 bundle.json 记录所有文件与符号链接，保留第三方许可证。校验和用于检测损坏，不等于代码签名或发布者认证。

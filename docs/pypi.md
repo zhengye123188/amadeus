@@ -1,6 +1,6 @@
 # npm CLI 与 PyPI 后端发布
 
-交互式主 CLI 发布到 npm；Python 科研后端可以单独发布到 PyPI。本项目当前版本为 `0.4.0`，各渠道需要分别发布；GitHub 推送或独立安装包发布不会更新 npm。实际发布和安装验证见 [验证记录](validation.md)。
+交互式主 CLI 发布到 npm；Python 科研后端可以单独发布到 PyPI。本项目当前版本为 `0.4.0`；GitHub 四平台独立安装器已公开，npm `latest` 仍为 `0.3.0`，新版尚未上传（2026-10-02 核对）。各渠道需要分别发布；GitHub 推送或独立安装包发布不会更新 npm。实际发布和安装验证见 [验证记录](validation.md)。
 
 | 发布渠道 | 包名 | 安装后命令 | 用途 |
 |---|---|---|---|
@@ -9,7 +9,7 @@
 
 npm 包携带 Python 后端源码及 `uv.lock`，`research setup` 用 uv 安装到独立缓存环境，因此 npm 发布不依赖 PyPI 发布。Pi 作为 npm 依赖安装。
 
-希望用户无需预装 Node、Python 或 uv，可以选择 [GitHub 独立安装器](standalone.md)。它包含这些运行环境；npm 和 PyPI 安装仍使用用户本机的运行环境。
+希望用户无需预装 Node、Python 或 uv，可以选择 [GitHub 独立安装器](standalone.md)。它包含 Node 和 Python，运行无需 uv；npm 和 PyPI 安装仍使用用户本机的运行环境。
 
 ## 发布 npm 主 CLI
 

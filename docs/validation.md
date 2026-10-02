@@ -2,14 +2,18 @@
 
 更新日期：2026-10-02。开发环境为 macOS ARM64、Node 22.23.1、Python 3.12.13、Pi 0.99.1；依赖由 `package-lock.json` 和 `uv.lock` 固定。
 
-## v0.4.0：Pi 包复用（源码待发布）
+## v0.4.0：Pi 包复用与独立分发
 
 - Python **185 项通过**；Node/TypeScript **56 项通过**。类型检查、Ruff/格式、版本同步和 `uv lock --check --offline` 通过。
 - 真实 Pi CLI 默认联网请求中确认 **62 个工具**：53 个科研 MCP、3 个文件工具、6 个原生包工具。取消、权限、工具白名单、离线选择和核心初始化失败检查通过。
 - 真实 Context7 factory 在 CLI 中完成库标识解析和文档查询；HTTP 返回由测试 fixture 提供。包适配器还验证预先取消、并发取消信号隔离和服务调用独立审计。网页供应商的在线配额、真实检索质量及界面全部呈现仍未验证。
 - `pi-docparser` 原生引擎解析真实双页 PDF，保留空白第一页及第二页文本。导入链检查来源哈希、解析器版本、chunks 页码；错误、页数不全、超限、取消及超时测试通过。
 - npm tarball 在独立临时目录实装，`setup` 建立版本匹配的 Python 缓存环境，`doctor`、三个内置包、真实 Pi 扩展及安装后 PDF 导入通过。已修复 scoped npm 依赖提升时的包路径解析问题。没有改动用户的全局安装和 API 配置。
-- 新版独立构建脚本保留 npm/npx；**v0.4.0 四个平台安装器尚未构建或发布**，也未发布新版 npm/PyPI/GitHub Release。历史 v0.3.0 构建通过不等于新原生依赖在其他平台已经验证。
+- [完整 CI](https://github.com/zhengye123188/research-cli/actions/runs/36966473942) 在 macOS/Linux × Python 3.10/3.12 四组环境通过。每组 Python **182 项通过、3 项 ripgrep 可选测试跳过**，Node **56 项通过**，并完成模拟工具调用、npm tarball 与 Python wheel 实装检查；本机有 ripgrep，这三项也通过。
+- [四平台构建与安装检查](https://github.com/zhengye123188/research-cli/actions/runs/36966520191) 全部通过，包含 macOS ARM64/x64、Linux ARM64/x64。隔离外部 Node/Python/uv，验证内置 npm/npx、三个 Pi 包、原生 PDF 导入、Pi/MCP 循环、终端工作区、重装、命令冲突及损坏包拒绝。
+- [GitHub Release v0.4.0](https://github.com/zhengye123188/research-cli/releases/tag/v0.4.0) 已公开，标签对应 `34ebdf77973e5dddc65e7303914bff638fedc262`。九个资产的 GitHub SHA-256 与已验证本地文件全部一致，包含四个安装器、四个校验文件和 `install.sh`。安装包内置 Node 22.23.1、Python 3.12.14、Pi 0.99.1、npm/npx 与科研后端。
+- 公开 `latest/download/install.sh` 已逐字节比对审查源码，再实际下载 macOS ARM64 安装器，在临时中文/空格路径安装。`research --version` 为 **0.4.0 (Pi 0.99.1)**，`doctor` 确认后端 0.4.0 与内置 Node 22.23.1，三个 Pi 包可用；没有外部开发运行环境、付费模型调用或现有安装修改。
+- npm v0.4.0 tarball 已构建并实装验证，注册表新版上传未完成；2026-10-02 只读核对 `latest` 仍为 **0.3.0**。本次没有发布 PyPI。独立安装包发布不会更新 npm 或 PyPI。
 
 依赖审计仍有一项上游 Pi 0.99.1 内部 `brace-expansion` 5.0.9 告警：[上游公告](https://github.com/advisories/GHSA-qhr7-859c-m2p7)。该版本已存在于原锁文件，并由 Pi 的 npm shrinkwrap 锁定；普通 update、override 和非 force 的 `npm audit fix` 未消除它。本次没有强制升级 Pi 或修改上游源码。包的工具许可与宿主代码信任边界见 [安全说明](../SECURITY.md)。
 

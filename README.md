@@ -6,7 +6,7 @@
 
 [npm 包](https://www.npmjs.com/package/@lelouch_021015/research-cli) · [独立安装包](https://github.com/zhengye123188/research-cli/releases/latest) · [版本说明](docs/releases/v0.4.0.md) · [架构](docs/architecture.md)
 
-从 GitHub Releases 选择适合 macOS/Linux ARM64 或 x64 的独立安装包，也可通过下方 npm 命令安装。安装后用 `research --version` 核对版本。v0.4.0 新增 Pi 原生工具包和包管理命令，详见 [版本说明](docs/releases/v0.4.0.md)。
+GitHub 已发布 **v0.4.0** 独立安装包，覆盖 macOS/Linux ARM64 与 x64，四个平台均通过原生构建和安装检查。安装后用 `research --version` 核对版本。新版 Pi 原生工具包和包管理能力详见 [版本说明](docs/releases/v0.4.0.md)。
 
 ## 安装
 
@@ -25,6 +25,8 @@ research
 默认安装在用户目录，无需 sudo。将 PATH 设置加入自己的 shell 配置后，新终端也能直接运行 `research`。也可从 [Releases](https://github.com/zhengye123188/research-cli/releases/latest) 下载 `.run` 文件，执行 `sh <安装包路径>`；下载完成后可以离线安装。平台要求、校验和更新见 [独立安装指南](docs/standalone.md)。
 
 ### npm
+
+当前 npm `latest` 为 **0.3.0**，v0.4.0 尚未上传（2026-10-02 核对）。需要本版 Pi 包复用功能，请先使用上方独立安装器或源码安装。
 
 需要 Node ≥22.19 和 [uv](https://docs.astral.sh/uv/getting-started/installation/)。Pi 作为依赖安装，无需单独安装：
 
