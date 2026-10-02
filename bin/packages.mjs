@@ -26,11 +26,12 @@ export function packageModuleAliases() {
 }
 
 const effectNames = new Set(["read", "write", "execute", "external"]);
-const reservedTools = new Set(["read", "write", "edit", "bash", "powershell", "grep", "find", "ls", "codemode", "tool_search", "__proto__", "constructor", "prototype"]);
+const reservedTools = new Set(["read", "write", "edit", "bash", "powershell", "grep", "find", "ls", "codemode", "tool_search", "agent_tasks", "agent_followup", "agent_status", "agent_cancel", "__proto__", "constructor", "prototype"]);
 const npmSource = /^npm:((?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*)@((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)$/;
 
 /** Audited versions bundled as application dependencies, never installed at startup. */
 export const builtinPackages = [
+  { source: "npm:pi-subagents@0.74.0", name: "pi-subagents", version: "0.74.0", role: "delegation-engine", extensions: [], effects: {}, networkTools: [] },
   { source: "npm:pi-docparser@4.0.0", name: "pi-docparser", version: "4.0.0", role: "parser-engine", extensions: [], effects: {}, networkTools: [] },
   { source: "npm:pi-web-access@0.35.0", name: "pi-web-access", version: "0.35.0", role: "tools", extensions: ["dist/index.js"], effects: { web_search: "external", source_check: "external", fetch_content: "external", get_search_content: "read" }, networkTools: ["web_search", "source_check", "fetch_content"] },
   { source: "npm:@upstash/context7-pi@0.1.2", name: "@upstash/context7-pi", version: "0.1.2", role: "tools", extensions: ["extensions/context7.ts"], effects: { "resolve-library-id": "read", "query-docs": "read" }, networkTools: ["resolve-library-id", "query-docs"] },
@@ -166,7 +167,17 @@ function checkedPackageRoot(path, source, agentDir) {
 function bundledDirectory(root, name) {
   // npm can hoist dependencies above a scoped application directory.
   const require = createRequire(join(root, "package.json"));
-  return realpathSync(dirname(require.resolve(`${name}/package.json`)));
+  try { return realpathSync(dirname(require.resolve(`${name}/package.json`))); }
+  catch (error) {
+    // Some upstream packages export only their entry point, not package.json.
+    if (error.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") throw error;
+    let directory = dirname(require.resolve(name));
+    for (let depth = 0; depth < 8; depth++, directory = dirname(directory)) {
+      const manifest = join(directory, "package.json");
+      if (existsSync(manifest) && readJson(manifest, "bundled package metadata").name === name) return realpathSync(directory);
+    }
+    throw new Error(`Cannot resolve bundled package ${name}`);
+  }
 }
 
 function builtinStatus(root) {
@@ -174,7 +185,7 @@ function builtinStatus(root) {
     let path;
     let available = false;
     try { path = bundledDirectory(root, item.name); const metadata = JSON.parse(readFileSync(join(path, "package.json"), "utf8")); available = metadata.name === item.name && metadata.version === item.version; } catch { /* list also works before dependencies are installed */ }
-    return { source: item.source, status: available ? item.role === "parser-engine" ? "parser-engine" : "bundled-enabled" : "bundled-missing", tools: Object.keys(item.effects), path: available ? realpathSync(path) : null };
+    return { source: item.source, status: available ? item.role === "tools" ? "bundled-enabled" : item.role : "bundled-missing", tools: Object.keys(item.effects), path: available ? realpathSync(path) : null };
   });
 }
 

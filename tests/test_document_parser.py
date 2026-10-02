@@ -65,6 +65,120 @@ async def test_page_limit_rejects_before_starting_parser(tmp_path, monkeypatch):
     assert not marker.exists()
 
 
+async def test_ocr_request_and_checked_provenance_are_attached_to_import(
+    registry, tmp_path, monkeypatch
+):
+    expected = document_parser.extraction_provenance(True, ["eng", "chi_sim"])
+    model_path = tmp_path / "models"
+    fake_bridge(
+        tmp_path,
+        monkeypatch,
+        "import json, sys\n"
+        "request = json.load(sys.stdin)\n"
+        "assert request['ocr'] is True\n"
+        "assert request['ocrLanguages'] == ['eng', 'chi_sim']\n"
+        f"assert request['tessdataPath'] == {str(model_path)!r}\n"
+        f"print(json.dumps({{**{expected!r}, 'pages':['Recognized scan text.']}}))\n",
+    )
+    (tmp_path / "scan.pdf").write_bytes(pdf_bytes(1))
+    research = ResearchTools(registry)
+    try:
+        result = await research.import_document(
+            {
+                "path": "scan.pdf",
+                "ocr": True,
+                "ocr_languages": ["eng", "chi_sim"],
+                "tessdata_path": "models",
+            }
+        )
+        assert result["provenance"]["extraction"] == expected
+        assert "recognized text may contain errors" in result["extraction_note"]
+        assert result["chunks"] == 1
+    finally:
+        await research.close()
+
+
+async def test_ocr_limit_and_language_validation_reject_before_worker(tmp_path, monkeypatch):
+    marker = tmp_path / "started"
+    fake_bridge(tmp_path, monkeypatch, f"open({str(marker)!r}, 'w').write('yes')")
+    with pytest.raises(ValueError, match="20 pages"):
+        await document_parser.parse_pdf_pages(pdf_bytes(21), ocr=True)
+    with pytest.raises(ValueError, match="distinct supported"):
+        await document_parser.parse_pdf_pages(pdf_bytes(1), ocr=True, languages=["eng", "eng"])
+    with pytest.raises(ValueError, match="distinct supported"):
+        await document_parser.parse_pdf_pages(pdf_bytes(1), ocr=True, languages=["../secret"])
+    assert not marker.exists()
+
+
+async def test_tool_ocr_model_path_cannot_escape_workspace(registry, tmp_path):
+    (tmp_path / "scan.pdf").write_bytes(pdf_bytes(1))
+    research = ResearchTools(registry)
+    try:
+        with pytest.raises(ValueError, match="outside the workspace"):
+            await research.import_document(
+                {"path": "scan.pdf", "ocr": True, "tessdata_path": "../models"}
+            )
+        (tmp_path / "paper.txt").write_text("plain text")
+        with pytest.raises(ValueError, match="PDF files only"):
+            await research.import_document({"path": "paper.txt", "ocr": True})
+    finally:
+        await research.close()
+
+
+def test_ocr_result_cannot_claim_wrong_language_model_or_disabled_recognition():
+    expected = document_parser.extraction_provenance(True, ["eng"])
+    wrong_model = {**expected, "ocr_data": [{"language": "eng", "sha256": "unknown"}]}
+    for extraction in [document_parser.PARSER, wrong_model, {**expected, "ocr": 1}]:
+        with pytest.raises(RuntimeError, match="unsupported extraction"):
+            document_parser._validate_result({**extraction, "pages": ["scan text"]}, 1, expected)
+
+
+async def test_ocr_is_available_offline_but_tool_schema_rejects_non_boolean_flags(
+    registry, tmp_path, monkeypatch
+):
+    from conftest import deny
+
+    expected = document_parser.extraction_provenance(True)
+    fake_bridge(
+        tmp_path,
+        monkeypatch,
+        "import json, sys\n"
+        "request = json.load(sys.stdin)\n"
+        "assert request['ocr'] is True\n"
+        f"print(json.dumps({{**{expected!r}, 'pages':['local offline OCR fixture']}}))\n",
+    )
+    registry.settings.allow_network = False
+    (tmp_path / "scan.pdf").write_bytes(pdf_bytes(1))
+    research = ResearchTools(registry)
+    research.register()
+    try:
+        tool = registry.tools["import_document"]
+        assert tool.schema["properties"]["ocr"]["type"] == "boolean"
+        assert tool.schema["properties"]["ocr"]["default"] is False
+        assert tool.network is False
+        result = await registry.invoke("import_document", '{"path":"scan.pdf","ocr":true}', deny)
+        assert result["ok"] is True
+        assert result["result"]["provenance"]["extraction"] == expected
+        for invalid in ['"true"', "1"]:
+            result = await registry.invoke(
+                "import_document", '{"path":"scan.pdf","ocr":' + invalid + "}", deny
+            )
+            assert result["error"] == "invalid_arguments"
+    finally:
+        await research.close()
+
+
+def test_explicit_ocr_config_and_managed_cache_path(tmp_path, monkeypatch):
+    from research_cli.config import Settings
+
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.delenv("RESEARCH_OCR_TESSDATA", raising=False)
+    assert document_parser.default_tessdata_path() == tmp_path / "config/research-cli/tessdata"
+    monkeypatch.setenv("RESEARCH_OCR_TESSDATA", str(tmp_path / "trusted-ocr-models"))
+    assert document_parser.default_tessdata_path() == tmp_path / "trusted-ocr-models"
+    assert Settings.load().ocr_tessdata_path == str(tmp_path / "trusted-ocr-models")
+
+
 @pytest.mark.parametrize(
     "payload,message",
     [

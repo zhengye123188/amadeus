@@ -115,6 +115,33 @@ def check_static_crypto(site):
                 raise RuntimeError(f"Non-portable cryptography library dependency: {library}")
 
 
+def bundle_ocr_assets(bundle, node, env):
+    """Reuse the CLI's pinned, bounded downloader; never fetch OCR assets at runtime."""
+    script = """
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join, relative } from 'node:path';
+import { pathToFileURL } from 'node:url';
+const bundle = process.argv[1];
+const { installOcrModels, downloadOcrLicense, OCR_LICENSE } = await import(pathToFileURL(join(bundle, 'app/bin/ocr.mjs')).href);
+const result = await installOcrModels(['eng', 'chi_sim', 'chi_tra'], {
+  env: { RESEARCH_OCR_TESSDATA: join(bundle, 'app/ocr/tessdata') },
+});
+const licenseBytes = await downloadOcrLicense();
+mkdirSync(join(bundle, 'licenses'), { recursive: true, mode: 0o700 });
+writeFileSync(join(bundle, 'licenses/tessdata-fast.txt'), licenseBytes, { flag: 'wx', mode: 0o600 });
+const metadata = {
+  format: 1, source: result.source,
+  models: result.models.map(({ language, size, sha256, path }) => ({ language, size, sha256, path: relative(bundle, path).split('\\\\').join('/') })),
+  license: { ...OCR_LICENSE, path: 'licenses/tessdata-fast.txt' },
+};
+writeFileSync(join(bundle, 'app/ocr/manifest.json'), JSON.stringify(metadata, null, 2) + '\\n', { flag: 'wx', mode: 0o600 });
+console.log(JSON.stringify(metadata));
+"""
+    return json.loads(
+        run(node, "--input-type=module", "--eval", script, bundle, capture=True, env=env)
+    )
+
+
 def write_manifest(bundle, version, target, lock, sources):
     files = {}
     for path in sorted(bundle.rglob("*")):
@@ -249,6 +276,8 @@ def main():
             cwd=app,
             env=env,
         )
+        # End users can OCR offline immediately; only the explicit build downloads models.
+        sources["ocr"] = bundle_ocr_assets(bundle, node, env)
         requirements = staging / "requirements.txt"
         run(
             "uv",

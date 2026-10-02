@@ -37,7 +37,7 @@ if (process.env.RESEARCH_STARTUP_FILE) {
     if (step++ === 0) {
       assert.equal(readFileSync(join(root, "fetch-ready"), "utf8"), "ready");
       const tools = request.tools?.map(tool => tool.function.name) || [];
-      assert.equal(tools.length, 62);
+      assert.equal(tools.length, 66);
       for (const name of ["read", "write", "edit", "web_search", "fetch_content", "source_check", "get_search_content", "resolve-library-id", "query-docs", "mcp__research__save_evidence"]) assert(tools.includes(name), name);
       assert(!tools.includes("bash"));
       return { tool: "resolve-library-id", args: { query: "tensor derivatives", libraryName: "pytorch" } };

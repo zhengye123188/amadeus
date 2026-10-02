@@ -23,7 +23,7 @@ try {
   const version = run(executable, ["--version"]);
   if (!version.startsWith(expectedVersion + " ")) throw new Error("Installed CLI version mismatch");
   const packages = JSON.parse(run(executable, ["packages", "list"]));
-  if (packages.bundled.length !== 3 || packages.bundled.some(item => item.status === "bundled-missing")) throw new Error("Bundled Pi packages are missing from the installed tarball");
+  if (packages.bundled.length !== 4 || packages.bundled.some(item => item.status === "bundled-missing")) throw new Error("Bundled Pi packages are missing from the installed tarball");
   run(executable, ["setup"]);
   const doctor = JSON.parse(run(executable, ["doctor"]));
   if (doctor.backend !== expectedVersion || !doctor.python.startsWith(temp)) throw new Error("Backend did not install in the isolated cache");

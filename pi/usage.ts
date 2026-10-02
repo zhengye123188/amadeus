@@ -9,6 +9,9 @@ export interface UsageRecord {
   tokens: { input: number; output: number; cacheRead: number; cacheWrite: number };
   estimated_cost_usd: number | null;
   pricing_source: "configured_profile" | "provider_catalog";
+  agent_id?: string;
+  agent_role?: string;
+  parent_session_id?: string;
 }
 
 export interface PackageUsageRecord {

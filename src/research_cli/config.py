@@ -43,6 +43,7 @@ class Settings(BaseModel):
     max_job_seconds: int = Field(default=600, ge=1, le=604800)
     max_job_output_bytes: int = Field(default=2_000_000, ge=1024, le=50_000_000)
     embedding_model: str | None = None
+    ocr_tessdata_path: str | None = None
     input_price_per_million: float | None = Field(default=None, ge=0)
     output_price_per_million: float | None = Field(default=None, ge=0)
     max_turn_cost: float | None = Field(default=None, gt=0)
@@ -58,6 +59,7 @@ class Settings(BaseModel):
             ("model", "RESEARCH_MODEL"),
             ("base_url", "OPENAI_BASE_URL"),
             ("api", "RESEARCH_API"),
+            ("ocr_tessdata_path", "RESEARCH_OCR_TESSDATA"),
         ]:
             if os.environ.get(env):
                 raw[key] = os.environ[env]

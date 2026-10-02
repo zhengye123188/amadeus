@@ -11,6 +11,8 @@ import time
 import xml.etree.ElementTree as ET
 from collections import Counter
 from datetime import date
+from pathlib import Path
+from typing import Literal
 
 import httpx
 from pydantic import Field
@@ -80,7 +82,11 @@ def index_pages(
         "content_sha256": digest,
         "provenance": provenance,
         "pages": len(pages),
-        "extraction_note": "Text extraction only; no OCR or guaranteed table/formula reconstruction.",
+        "extraction_note": (
+            "Local OCR enabled; recognized text may contain errors. Verify quotations against the original page; table/formula reconstruction is not guaranteed."
+            if provenance.get("extraction", {}).get("ocr")
+            else "Text extraction only; OCR disabled and table/formula reconstruction is not guaranteed."
+        ),
     }
     rows = []
     for page_no, text in enumerate(pages, 1):
@@ -96,7 +102,9 @@ def index_pages(
                     )
                 )
     if not rows:
-        raise ValueError("No extractable text (possibly scanned PDF); OCR is not implemented")
+        raise ValueError(
+            "No extractable text. For scanned PDFs, import with ocr=true and installed language data; recognition is not guaranteed."
+        )
     store.put("sources", sid, source)
     if paper_id:
         PaperIdentity(store).attach(sid, paper_id)
@@ -121,6 +129,17 @@ class PaperQuery(Query):
 
 class Import(Args):
     path: str
+    ocr: bool = Field(
+        default=False,
+        description="Enable selective local Tesseract OCR for scanned PDF pages; requires installed verified language data and at most 20 pages.",
+    )
+    ocr_languages: list[Literal["eng", "chi_sim", "chi_tra"]] = Field(
+        default_factory=lambda: ["eng"], min_length=1, max_length=3
+    )
+    tessdata_path: str | None = Field(
+        default=None,
+        description="Optional workspace-relative directory containing official pinned .traineddata files. Otherwise uses the trusted configured OCR cache.",
+    )
     paper_id: str | None = Field(
         default=None,
         description="Existing canonical paper_id, explicitly linking this fulltext to its metadata; never guessed from its title.",
@@ -322,9 +341,32 @@ class ResearchTools:
         if not path.is_file() or path.stat().st_size > 20_000_000:
             raise ValueError("Document must be a regular file up to 20 MB")
         data = path.read_bytes()
+        extraction = {}
         if path.suffix.lower() == ".pdf":
-            pages = await self.pdf_pages(data)
+            tessdata = None
+            if a.get("tessdata_path"):
+                if not a.get("ocr", False):
+                    raise ValueError("tessdata_path requires ocr=true")
+                tessdata = self.ws.path(a["tessdata_path"])
+                # Resolve each requested model as a workspace read; a model
+                # symlink cannot grant the worker access outside the workspace.
+                for language in a.get("ocr_languages", ["eng"]):
+                    self.ws.path(
+                        str((tessdata / f"{language}.traineddata").relative_to(self.ws.root))
+                    )
+            elif self.registry.settings.ocr_tessdata_path:
+                # Settings are selected by the user, not by tool arguments.
+                tessdata = Path(self.registry.settings.ocr_tessdata_path).expanduser().resolve()
+            pages = await self.pdf_pages(
+                data,
+                ocr=a.get("ocr", False),
+                languages=a.get("ocr_languages", ["eng"]),
+                tessdata_path=tessdata,
+                provenance=extraction,
+            )
         else:
+            if a.get("ocr") or a.get("tessdata_path"):
+                raise ValueError("OCR import currently supports PDF files only")
             text = data.decode("utf-8")
             pages = [text]
         return index_pages(
@@ -334,13 +376,13 @@ class ResearchTools:
             {
                 "path": str(path.relative_to(self.ws.root)),
                 "file_sha256": hashlib.sha256(data).hexdigest(),
-                **({"extraction": PARSER.copy()} if path.suffix.lower() == ".pdf" else {}),
+                **({"extraction": extraction} if path.suffix.lower() == ".pdf" else {}),
             },
             paper_id=a.get("paper_id"),
         )
 
-    async def pdf_pages(self, data):
-        return await parse_pdf_pages(data)
+    async def pdf_pages(self, data, **options):
+        return await parse_pdf_pages(data, **options)
 
     async def download_arxiv(self, a):
         base_id, version = canonical_arxiv(a["arxiv_id"])
@@ -524,7 +566,7 @@ class ResearchTools:
         )
         r.add(
             "import_document",
-            "Index a local UTF-8/PDF document with source hash and page/chunk positions; no OCR.",
+            "Index local UTF-8/PDF with source hash and page/chunk positions. Optional local OCR (20-page limit) requires verified language packs; recognized text must be checked against the original page.",
             Import,
             self.import_document,
         )

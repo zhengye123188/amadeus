@@ -1,9 +1,52 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { copyFile, lstat, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { deflateSync } from "node:zlib";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { parseDocument, projectPages } from "../bin/document-parser.mjs";
+
+function scannedPdf() {
+  const glyphs = {
+    R: ["11110", "10001", "10001", "11110", "10100", "10010", "10001"],
+    E: ["11111", "10000", "10000", "11110", "10000", "10000", "11111"],
+    S: ["01111", "10000", "10000", "01110", "00001", "00001", "11110"],
+    A: ["01110", "10001", "10001", "11111", "10001", "10001", "10001"],
+    C: ["01111", "10000", "10000", "10000", "10000", "10000", "01111"],
+    H: ["10001", "10001", "10001", "11111", "10001", "10001", "10001"],
+    N: ["10001", "11001", "11001", "10101", "10011", "10011", "10001"],
+  };
+  const width = 1400, height = 260, scale = 12;
+  const pixels = Buffer.alloc(width * height, 255);
+  for (const [index, character] of Array.from("RESEARCH SCAN").entries()) {
+    for (const [row, values] of (glyphs[character] ?? []).entries()) {
+      for (const [column, value] of Array.from(values).entries()) {
+        if (value === "1") for (let y = 0; y < scale; y++) {
+          pixels.fill(0, (70 + row * scale + y) * width + 80 + index * 7 * scale + column * scale,
+            (70 + row * scale + y) * width + 80 + index * 7 * scale + (column + 1) * scale);
+        }
+      }
+    }
+  }
+  const image = deflateSync(pixels);
+  const content = "q 700 0 0 130 0 0 cm /Scan Do Q";
+  const objects = [
+    Buffer.from("<< /Type /Catalog /Pages 2 0 R >>"),
+    Buffer.from("<< /Type /Pages /Kids [3 0 R] /Count 1 >>"),
+    Buffer.from("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 700 130] /Resources << /XObject << /Scan 5 0 R >> >> /Contents 4 0 R >>"),
+    Buffer.from(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`),
+    Buffer.concat([Buffer.from(`<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length ${image.length} >>\nstream\n`), image, Buffer.from("\nendstream")]),
+  ];
+  const chunks = [Buffer.from("%PDF-1.4\n")], offsets = [0];
+  let bytes = chunks[0].length;
+  for (const [index, object] of objects.entries()) {
+    offsets.push(bytes);
+    const chunk = Buffer.concat([Buffer.from(`${index + 1} 0 obj\n`), object, Buffer.from("\nendobj\n")]);
+    chunks.push(chunk); bytes += chunk.length;
+  }
+  chunks.push(Buffer.from(`xref\n0 6\n0000000000 65535 f \n${offsets.slice(1).map(offset => `${String(offset).padStart(10, "0")} 00000 n \n`).join("")}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${bytes}\n%%EOF\n`));
+  return Buffer.concat(chunks);
+}
 
 test("page projection preserves blank positions, ordering, and exact text", () => {
   assert.deepEqual(projectPages({ pages: [
@@ -62,6 +105,80 @@ test("changed page counts fail without a success result and dispose the parser",
       }),
     }), /page count changed/);
     assert.equal(disposed, true);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test("OCR fails before starting a worker for unavailable, corrupt, or unsupported local language data", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "research-parser-ocr-policy-"));
+  const inputPath = join(directory, "scan.pdf");
+  await writeFile(inputPath, scannedPdf());
+  const request = { inputPath, expectedPages: 1, ocr: true, tessdataPath: directory };
+  const executorFactory = async () => { throw new Error("worker must not start"); };
+  try {
+    await assert.rejects(parseDocument(request, { executorFactory }), /missing.*no automatic download/);
+    await writeFile(join(directory, "eng.traineddata"), "corrupted model");
+    await assert.rejects(parseDocument(request, { executorFactory }), /SHA256/);
+    await assert.rejects(parseDocument({ ...request, ocrLanguages: ["eng", "eng"] }, { executorFactory }), /distinct supported/);
+    await assert.rejects(parseDocument({ ...request, ocrLanguages: ["..\/secret"] }, { executorFactory }), /distinct supported/);
+    await assert.rejects(parseDocument({ ...request, expectedPages: 21 }, { executorFactory }), /20 pages/);
+    await assert.rejects(parseDocument({ ...request, ocr: "auto" }, { executorFactory }), /explicit boolean/);
+    await rm(join(directory, "eng.traineddata"));
+    await symlink(inputPath, join(directory, "eng.traineddata"));
+    await assert.rejects(parseDocument(request, { executorFactory }), /regular file/);
+    const controller = new AbortController();
+    controller.abort();
+    await assert.rejects(parseDocument(request, { signal: controller.signal, executorFactory }), /aborted/);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+const ocrData = process.env.RESEARCH_OCR_TEST_DATA;
+test("OCR workers use a complete private language snapshot even if the source cache changes", {
+  skip: !ocrData && "set RESEARCH_OCR_TEST_DATA to installed verified language files for the snapshot test",
+}, async () => {
+  const directory = await mkdtemp(join(tmpdir(), "research-parser-ocr-snapshot-"));
+  const inputPath = join(directory, "scan.pdf");
+  const sourceModel = join(directory, "eng.traineddata");
+  let snapshot;
+  await writeFile(inputPath, scannedPdf());
+  await copyFile(join(ocrData, "eng.traineddata"), sourceModel);
+  const model = await readFile(sourceModel);
+  try {
+    const result = await parseDocument({ inputPath, expectedPages: 1, ocr: true, tessdataPath: directory }, {
+      executorFactory: async () => ({
+        async execute(job) {
+          snapshot = job.config.tessdataPath;
+          assert.notEqual(snapshot, directory);
+          assert.equal(job.config.ocrLanguage, "eng");
+          assert.equal(job.config.ocrServerUrl, undefined);
+          await writeFile(sourceModel, "changed source cache");
+          assert.deepEqual(await readFile(join(snapshot, "eng.traineddata")), model);
+          await writeFile(job.outputPath, JSON.stringify({ pages: [{ pageNum: 1, text: "snapshot fixture" }] }));
+          return { pageCount: 1 };
+        },
+        async dispose() {},
+      }),
+    });
+    assert.deepEqual(result.pages, ["snapshot fixture"]);
+    await assert.rejects(lstat(snapshot), /ENOENT/);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test("native Tesseract extracts an image-only PDF locally and records the exact model identity", {
+  skip: !ocrData && "set RESEARCH_OCR_TEST_DATA to installed verified language files for the real OCR test",
+}, async () => {
+  const directory = await mkdtemp(join(tmpdir(), "research-parser-native-ocr-"));
+  const inputPath = join(directory, "scan.pdf");
+  await writeFile(inputPath, scannedPdf());
+  try {
+    assert.deepEqual((await parseDocument({ inputPath, expectedPages: 1 })).pages, [""]);
+    const result = await parseDocument({ inputPath, expectedPages: 1, ocr: true, ocrLanguages: ["eng"], tessdataPath: ocrData });
+    assert.match(result.pages[0], /RESEARCH\s+SCAN/);
+    assert.equal(result.ocr_engine, "tesseract");
+    assert.deepEqual(result.ocr_languages, ["eng"]);
+    assert.match(result.ocr_data[0].sha256, /^[a-f0-9]{64}$/);
+    assert.match(result.ocr_data[0].source, /87416418657359cb625c412a48b6e1d6d41c29bd\/eng.traineddata$/);
+    assert.equal((await lstat(join(ocrData, "eng.traineddata"))).isFile(), true);
+    assert.equal((await readFile(join(ocrData, "eng.traineddata"))).length, 4113088);
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 

@@ -59,6 +59,7 @@ test("package policy rejects wildcard tools, reserved names and broad resource p
     for (const invalid of [
       { extensions: ["extension.mjs"], effects: { "*": "read" } },
       { extensions: ["extension.mjs"], effects: { read: "read" } },
+      { extensions: ["extension.mjs"], effects: { agent_tasks: "read" } },
       { extensions: ["extension.mjs"], effects: { mcp__research__save_evidence: "read" } },
       { extensions: ["extension.mjs"], effects: { fixture: "unknown" } },
       { extensions: ["../outside.mjs"], effects: { fixture: "read" } },
@@ -141,7 +142,9 @@ test("bundled package resources use their exact dependency versions and independ
     assert.equal(selection.policies["query-docs"].network, true);
     assert.equal(selection.extensions.some(entry => entry.source.includes("pi-docparser")), false);
     await handlePackageCommand(["packages", "list"], f.options);
-    assert.equal(JSON.parse(f.output.at(-1)).bundled[0].status, "parser-engine");
+    const bundled = JSON.parse(f.output.at(-1)).bundled;
+    assert.equal(bundled.find(item => item.source === "npm:pi-docparser@4.0.0").status, "parser-engine");
+    assert.equal(bundled.find(item => item.source === "npm:pi-subagents@0.74.0").status, "delegation-engine");
     await assert.rejects(() => handlePackageCommand(["packages", "remove", "npm:pi-web-access@0.35.0"], f.options), /Bundled packages/);
   } finally { f.close(); }
 });

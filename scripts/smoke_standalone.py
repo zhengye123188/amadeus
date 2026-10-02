@@ -71,6 +71,7 @@ def main():
         assert "already includes" in run(research, "setup").stdout
         packages = json.loads(run(research, "packages", "list").stdout)
         expected_packages = {
+            "npm:pi-subagents@0.74.0": "delegation-engine",
             "npm:pi-docparser@4.0.0": "parser-engine",
             "npm:pi-web-access@0.35.0": "bundled-enabled",
             "npm:@upstash/context7-pi@0.1.2": "bundled-enabled",
@@ -79,6 +80,9 @@ def main():
             expected_packages
         ), "Standalone installation is missing bundled Pi packages"
         bundle = (prefix / "current").resolve(strict=True)
+        ocr = json.loads(run(research, "ocr", "list").stdout)
+        assert all(item["status"] == "ready" for item in ocr["models"])
+        assert Path(ocr["directory"]).is_relative_to(bundle)
         for item in packages["bundled"]:
             assert Path(item["path"]).is_relative_to(bundle)
         # Package installation must retain npm/npx and use bundled Node with poisoned PATH.
@@ -105,6 +109,7 @@ def main():
             **python_env,
             "RESEARCH_NODE": str(bundle / "runtime/node/bin/node"),
             "RESEARCH_DOCUMENT_PARSER": str(bundle / "app/bin/document-parser.mjs"),
+            "RESEARCH_OCR_TESSDATA": str(bundle / "app/ocr/tessdata"),
         }
         pdf_result = subprocess.run(
             [
@@ -116,7 +121,7 @@ def main():
 import asyncio, json
 from pathlib import Path
 from pypdf import PdfWriter
-from pypdf.generic import DictionaryObject, NameObject, DecodedStreamObject
+from pypdf.generic import DictionaryObject, NameObject, DecodedStreamObject, NumberObject
 from research_cli.config import Settings
 from research_cli.storage import Store
 from research_cli.tools import Registry
@@ -138,6 +143,38 @@ stream.set_data(b'BT /F1 12 Tf 20 150 Td (Standalone parser source on page two.)
 page[NameObject('/Contents')] = writer._add_object(stream)
 writer.write('source.pdf')
 
+# An image-only scan needs OCR; no font, image library or external runtime.
+glyphs = {
+    'R': '11110 10001 10001 11110 10100 10010 10001',
+    'E': '11111 10000 10000 11110 10000 10000 11111',
+    'S': '01111 10000 10000 01110 00001 00001 11110',
+    'A': '01110 10001 10001 11111 10001 10001 10001',
+    'C': '01111 10000 10000 10000 10000 10000 01111',
+    'H': '10001 10001 10001 11111 10001 10001 10001',
+    'N': '10001 11001 11001 10101 10011 10011 10001',
+}
+width, height, scale = 1400, 260, 12
+pixels = bytearray([255]) * width * height
+for index, char in enumerate('RESEARCH SCAN'):
+    for row, values in enumerate(glyphs.get(char, '').split()):
+        for column, value in enumerate(values):
+            if value == '1':
+                for y in range(scale):
+                    start = (70 + row * scale + y) * width + 80 + index * 7 * scale + column * scale
+                    pixels[start:start + scale] = bytes(scale)
+scan = PdfWriter()
+scan_page = scan.add_blank_page(width=700, height=130)
+image = DecodedStreamObject()
+image.set_data(bytes(pixels))
+image.update({NameObject('/Type'): NameObject('/XObject'), NameObject('/Subtype'): NameObject('/Image'),
+    NameObject('/Width'): NumberObject(width), NameObject('/Height'): NumberObject(height),
+    NameObject('/ColorSpace'): NameObject('/DeviceGray'), NameObject('/BitsPerComponent'): NumberObject(8)})
+scan_page[NameObject('/Resources')] = DictionaryObject({NameObject('/XObject'): DictionaryObject({NameObject('/Scan'): scan._add_object(image)})})
+scan_stream = DecodedStreamObject()
+scan_stream.set_data(b'q 700 0 0 130 0 0 cm /Scan Do Q')
+scan_page[NameObject('/Contents')] = scan._add_object(scan_stream)
+scan.write('scan.pdf')
+
 async def main():
     store = Store(Path.cwd())
     tools = ResearchTools(Registry(store, Settings(permission='workspace-write', allow_network=False)))
@@ -147,7 +184,9 @@ async def main():
             {'position': json.loads(row[0]), 'text': row[1]}
             for row in store.db.execute('SELECT position,text FROM chunks')
         ]
-        print(json.dumps({'source': result, 'chunks': chunks}))
+        scanned = await tools.import_document({'path': 'scan.pdf', 'ocr': True, 'ocr_languages': ['eng']})
+        ocr_text = ' '.join(row[0] for row in store.db.execute('SELECT text FROM chunks WHERE source=?', (scanned['source_id'],)))
+        print(json.dumps({'source': result, 'chunks': chunks, 'ocr': scanned, 'ocr_text': ocr_text}))
     finally:
         await tools.close()
         store.close()
@@ -173,6 +212,8 @@ asyncio.run(main())
             chunk["position"]["page"] == 2 for chunk in parsed["chunks"]
         ), "Native parser lost the leading blank page"
         assert any("Standalone parser source" in chunk["text"] for chunk in parsed["chunks"])
+        assert "RESEARCH SCAN" in " ".join(parsed["ocr_text"].split())
+        assert parsed["ocr"]["provenance"]["extraction"]["ocr"] is True
 
         fixture_key = "standalone-fixture-not-a-real-key"
         requests, failures = [], []
@@ -190,9 +231,27 @@ asyncio.run(main())
                 body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
                 requests.append(body)
                 number = len(requests)
-                if number < 3:
+                is_child = "Research child role:" in json.dumps(body.get("messages", []))
+                child_has_result = any(
+                    message.get("role") == "tool" for message in body.get("messages", [])
+                )
+                if is_child and not child_has_result:
+                    name, arguments = "mcp__research__project_status", {}
+                elif not is_child and number < 3:
                     name = "read" if number == 1 else "mcp__research__project_status"
                     arguments = {"path": "README.md"} if number == 1 else {}
+                elif not is_child and number == 3:
+                    name, arguments = (
+                        "agent_tasks",
+                        {
+                            "tasks": [
+                                {"role": "code", "task": "Inspect the shared workspace status."}
+                            ]
+                        },
+                    )
+                else:
+                    name, arguments = None, None
+                if name:
                     delta = {
                         "role": "assistant",
                         "tool_calls": [
@@ -217,9 +276,7 @@ asyncio.run(main())
                 self.send_header("Content-Type", "text/event-stream")
                 self.end_headers()
                 self.wfile.write(("data: " + json.dumps(chunk) + "\n\n").encode())
-                chunk["choices"][0].update(
-                    delta={}, finish_reason="tool_calls" if number < 3 else "stop"
-                )
+                chunk["choices"][0].update(delta={}, finish_reason="tool_calls" if name else "stop")
                 self.wfile.write(("data: " + json.dumps(chunk) + "\n\ndata: [DONE]\n\n").encode())
 
         server = ThreadingHTTPServer(("127.0.0.1", 0), Endpoint)
@@ -286,8 +343,10 @@ asyncio.run(main())
                     if event.get("type") == "agent_settled":
                         break
                 tools = [e for e in events if e.get("type") == "tool_execution_end"]
-                assert len(tools) == 2 and all(not e.get("isError") for e in tools), events
-                assert len(requests) == 3 and not failures
+                assert all(not e.get("isError") for e in tools), events
+                assert any(e.get("toolName") == "agent_tasks" for e in tools), events
+                assert len(requests) == 6 and not failures
+                assert "completed" in json.dumps(tools)
                 assert "Standalone fixture" in json.dumps(requests[-1])
                 assert str(workspace) in json.dumps(requests[-1], ensure_ascii=False)
                 assert fixture_key not in json.dumps(events)
@@ -358,6 +417,8 @@ asyncio.run(main())
                     "bundled_node": doctor["node"],
                     "bundled_packages": sorted(expected_packages),
                     "native_pdf_import": True,
+                    "native_ocr_import": True,
+                    "real_pi_child_agent": True,
                     "no_external_runtimes": True,
                     "relocation_with_spaces": True,
                     "hidden_persistent_config": True,

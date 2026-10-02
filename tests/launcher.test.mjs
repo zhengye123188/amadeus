@@ -30,7 +30,7 @@ function launcherFixture() {
   const checkout = fileURLToPath(new URL("../", import.meta.url));
   const app = join(directory, "app");
   mkdirSync(join(app, "bin"), { recursive: true });
-  for (const name of ["research.mjs", "api-config.mjs", "api-doctor.mjs", "model-profile.mjs", "packages.mjs"]) copyFileSync(join(checkout, "bin", name), join(app, "bin", name));
+  for (const name of ["research.mjs", "api-config.mjs", "api-doctor.mjs", "model-profile.mjs", "packages.mjs", "ocr.mjs"]) copyFileSync(join(checkout, "bin", name), join(app, "bin", name));
   copyFileSync(join(checkout, "package.json"), join(app, "package.json"));
   const version = JSON.parse(readFileSync(join(app, "package.json"), "utf8")).version;
   const pi = join(app, "node_modules", "@earendil-works", "pi-coding-agent");
@@ -63,6 +63,7 @@ function launcherFixture() {
     if (process.env.FIXTURE_HANG === "1") setInterval(() => {}, 1000);
   `);
   for (const [name, version, entry] of [
+    ["pi-subagents", "0.74.0", null],
     ["pi-docparser", "4.0.0", null],
     ["pi-web-access", "0.35.0", "dist/index.js"],
     ["@upstash/context7-pi", "0.1.2", "extensions/context7.ts"],
@@ -88,7 +89,7 @@ test("package commands run before credential parsing and Python checks", () => {
     writeFileSync(configPath(fixture.env), "invalid private configuration");
     const result = fixture.launch(["packages", "list"], { RESEARCH_SKIP_CONFIG: "0", RESEARCH_PYTHON: "/missing/python" });
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(JSON.parse(result.stdout).bundled.length, 3);
+    assert.equal(JSON.parse(result.stdout).bundled.length, 4);
     assert.equal(fixture.launch(["packages", "--help"], { RESEARCH_PYTHON: "/missing/python" }).status, 0);
   } finally { fixture.cleanup(); }
 });

@@ -5,7 +5,7 @@ import type { PackagePolicy, PackageSelection, SelectedPackageExtension } from "
 import { packageModuleAliases } from "../bin/packages.mjs";
 import { recordPackageUsage } from "./usage.ts";
 
-const reserved = new Set(["read", "write", "edit", "bash", "powershell", "grep", "find", "ls", "codemode", "tool_search", "constructor", "__proto__", "prototype"]);
+const reserved = new Set(["read", "write", "edit", "bash", "powershell", "grep", "find", "ls", "codemode", "tool_search", "agent_tasks", "agent_followup", "agent_status", "agent_cancel", "constructor", "__proto__", "prototype"]);
 const requestScope = new AsyncLocalStorage<AbortSignal>();
 let scopedFetch: typeof fetch | undefined;
 

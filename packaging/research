@@ -10,6 +10,9 @@ done
 bundle=$(CDPATH= cd -P -- "$(dirname -- "$entry")/.." && pwd)
 export RESEARCH_BUNDLE_ROOT="$bundle"
 export RESEARCH_PYTHON="$bundle/runtime/python/bin/python3"
+if [ -z "${RESEARCH_OCR_TESSDATA:-}" ]; then
+  export RESEARCH_OCR_TESSDATA="$bundle/app/ocr/tessdata"
+fi
 export PATH="$bundle/runtime/node/bin:$bundle/runtime/python/bin:$PATH"
 export PYTHONNOUSERSITE=1 PYTHONSAFEPATH=1 PYTHONDONTWRITEBYTECODE=1 PYTHONUTF8=1
 unset PYTHONHOME PYTHONPATH

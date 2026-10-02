@@ -9,6 +9,7 @@ import { configPath, configure, loadApiConfig } from "./api-config.mjs";
 import { checkApi } from "./api-doctor.mjs";
 import { loadModelProfile } from "./model-profile.mjs";
 import { handlePackageCommand, loadPackageSelection, packagePaths } from "./packages.mjs";
+import { handleOcrCommand } from "./ocr.mjs";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
@@ -22,6 +23,8 @@ if (major < 22 || (major === 22 && minor < 19)) {
 try {
   const result = await handlePackageCommand(args, { cwd: process.cwd(), root, env: process.env });
   if (result !== undefined) process.exit(result);
+  const ocr = await handleOcrCommand(args, { env: process.env });
+  if (ocr !== undefined) process.exit(ocr);
 } catch (error) { console.error(error.message); process.exit(2); }
 if (args.includes("--version") || args[0] === "version") {
   console.log(`${pkg.version} (Pi ${pkg.dependencies["@earendil-works/pi-coding-agent"]})`);
@@ -37,6 +40,8 @@ research project backup|restore|info   Manage project archives and metadata
 research packages list                Show bundled and explicitly installed Pi packages
 research packages install SOURCE [--policy FILE]   Install a pinned package
 research packages remove SOURCE       Remove a selected package
+research ocr install [--languages eng,chi_sim,chi_tra]   Install local OCR language data
+research ocr list                     Check local OCR models without network access
 research [options]                     Open the interactive terminal
 research [options] -p "question"        Run a noninteractive prompt
 
@@ -61,7 +66,7 @@ Research options:
 Pi options pass through: --provider, --model, -p, --mode json, --continue, --resume.
 Set provider keys in environment or use /login. OPENAI_BASE_URL + RESEARCH_MODEL
 select an OpenAI-compatible endpoint; RESEARCH_API=chat|responses selects protocol.
-Interactive commands: /memory /evidence /jobs /usage /review-memory /research-status /packages /mcp /compact /tree.
+Interactive commands: /agents /agents roles /memory /evidence /jobs /usage /review-memory /research-status /packages /mcp /compact /tree.
 For full upstream options: research --pi-help
 Python prototype: research-legacy (separate command).
 `);
