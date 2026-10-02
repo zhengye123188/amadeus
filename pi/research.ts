@@ -1,7 +1,9 @@
 import { randomBytes } from "node:crypto";
-import { realpathSync } from "node:fs";
+import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { createMcpExtension, convertToLlm, serializeConversation, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { createMcpExtension, createReadToolDefinition, createWriteToolDefinition, createEditToolDefinition, convertToLlm, serializeConversation, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { loadPackageSelection, type PackageSelection } from "../bin/packages.mjs";
+import { preparePackageTools, packageToolArguments } from "./packages.ts";
 import { approvalToken, autoApprove, effects, plain, safePath, type Effect, type Permission } from "./policy.ts";
 import { injectMemory, queryProject, reviewProjectMemory } from "./memory.ts";
 import { loadModelProfile, estimateUsageCost, loadTrustedMcpConfig } from "./profiles.ts";
@@ -46,6 +48,16 @@ export default async function research(pi: ExtensionAPI) {
   const trustedSkillFiles = new Set(["research-evidence", "reproduction"].map(name => realpathSync(fileURLToPath(new URL(`./skills/${name}/SKILL.md`, import.meta.url)))));
   for (const file of selectedSkillFiles(process.env.RESEARCH_TRUSTED_SKILL_PATHS)) trustedSkillFiles.add(file);
   const instructions = selectedInstructions(process.env.RESEARCH_INSTRUCTIONS);
+  const selection: PackageSelection = process.env.RESEARCH_PACKAGE_SELECTION
+    ? JSON.parse(process.env.RESEARCH_PACKAGE_SELECTION)
+    : await loadPackageSelection({ file: process.env.RESEARCH_PACKAGE_CONFIG, cwd: process.cwd(), root: fileURLToPath(new URL("../", import.meta.url)) });
+  const packages = await preparePackageTools(pi, selection, {
+    offline: process.env.RESEARCH_OFFLINE === "1",
+    authorize: async (policy, name, args, ctx) => {
+      if (policy.effect === "execute" && execution === "disabled") return false;
+      return approve(policy.effect, name, args, ctx);
+    },
+  });
 
   if (process.env.OPENAI_BASE_URL && process.env.RESEARCH_MODEL) {
     pi.registerProvider("research-endpoint", {
@@ -75,7 +87,7 @@ export default async function research(pi: ExtensionAPI) {
           ...(process.env.RESEARCH_CONFIG ? ["--config", process.env.RESEARCH_CONFIG] : [])],
         cwd: ctx.cwd, exposure: "direct", timeout: 120,
         env: { RESEARCH_APPROVAL_SECRET: secret,
-          ...Object.fromEntries(["GITHUB_TOKEN", "OPENAI_API_KEY", "OPENAI_BASE_URL", "TYPESAFE_API_KEY", "XDG_CONFIG_HOME"].filter(k => process.env[k]).map(k => [k, process.env[k]!])) },
+          ...Object.fromEntries(["GITHUB_TOKEN", "OPENAI_API_KEY", "OPENAI_BASE_URL", "TYPESAFE_API_KEY", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "PI_CODING_AGENT_DIR", "RESEARCH_PACKAGE_CONFIG", "RESEARCH_NODE", "RESEARCH_DOCUMENT_PARSER"].filter(k => process.env[k]).map(k => [k, process.env[k]!])) },
       }}, ...(process.env.RESEARCH_OFFLINE === "1" ? [] : external.servers)],
       };
     },
@@ -98,13 +110,20 @@ export default async function research(pi: ExtensionAPI) {
     let name = event.toolName;
     if (name.startsWith("mcp__research__")) {
       name = name.slice("mcp__research__".length);
-      if (!(name in effects)) return { block: true, reason: "Unknown research tool; update the trusted policy before using it." };
+      if (!Object.hasOwn(effects, name)) return { block: true, reason: "Unknown research tool; update the trusted policy before using it." };
       effect = effects[name];
       if (name === "remember_research" || name === "update_memory") args.session_id = ctx.sessionManager.getSessionId();
       if (effect === "execute" && execution === "disabled") return { block: true, reason: "Experiments are disabled. Relaunch with --execution docker or --execution local." };
-    } else if (name in externalEffects) {
+    } else if (Object.hasOwn(externalEffects, name)) {
       effect = externalEffects[name];
       if (effect === "execute" && execution === "disabled") return { block: true, reason: "Execution is disabled for external MCP tools." };
+    } else if (Object.hasOwn(packages.policies, name)) {
+      const policy = packages.policies[name];
+      if (policy.network && process.env.RESEARCH_OFFLINE === "1") return { block: true, reason: "Package network tools are disabled in offline mode." };
+      try { packageToolArguments(policy.source, name, args); }
+      catch (error) { return { block: true, reason: (error as Error).message }; }
+      // Native package wrappers perform the one permission check immediately before execution.
+      return;
     } else if (["read", "edit", "write"].includes(name)) {
       effect = name === "read" ? "read" : "write";
       try {
@@ -136,6 +155,7 @@ export default async function research(pi: ExtensionAPI) {
       "Inspect existing jobs before repeating an experiment. Reuse request_id for retries of the same run; a new request_id requests a new run. Report actual verification limits.",
       "Use structured experiment specs and compare_experiments for comparable baselines. Hypothesis supported/refuted states need explicit assessment conditions and verified metrics or claim-matched quotations; model review is not human confirmation.",
       "Before code changes consider create_checkpoint for selected files. Use run_project_check to validate the prepared project and run_experiment for isolated experiments. Preserve user edits; inspect current checkpoint hashes before restoring.",
+      "Use native Pi package tools for general web access and library documentation. Search results and source_check output are leads, not verified research evidence. Import original documents and save exact evidence in the research library. Use pinned repository tools for GitHub code.",
     );
     if (instructions) event.systemPromptOptions.promptGuidelines.push("User-selected project instructions (follow the current user request when it changes direction):\n" + instructions);
   });
@@ -213,5 +233,25 @@ export default async function research(pi: ExtensionAPI) {
         pi.sendMessage({ customType: "research-inspect", content: plain(JSON.stringify(data, null, 2)), display: true });
       } catch (error) { ctx.ui.notify(plain((error as Error).message), "error"); }
     }});
+  }
+  packages.register();
+  pi.on("session_start", (_event, ctx) => {
+    // Builtins are disabled at launch; file tools are registered only by the trusted core.
+    pi.registerTool(createReadToolDefinition(ctx.cwd));
+    pi.registerTool(createWriteToolDefinition(ctx.cwd));
+    pi.registerTool(createEditToolDefinition(ctx.cwd));
+    const allowed = pi.getAllTools().filter(tool =>
+      ["read", "write", "edit"].includes(tool.name)
+      || Object.hasOwn(packages.policies, tool.name) || Object.hasOwn(externalEffects, tool.name)
+      || tool.name.startsWith("mcp__research__") && Object.hasOwn(effects, tool.name.slice("mcp__research__".length)),
+    ).map(tool => tool.name);
+    pi.setActiveTools(allowed);
+  });
+  if (process.env.RESEARCH_STARTUP_FILE && process.env.RESEARCH_STARTUP_TOKEN) {
+    try { writeFileSync(process.env.RESEARCH_STARTUP_FILE, process.env.RESEARCH_STARTUP_TOKEN, { flag: "wx", mode: 0o600 }); }
+    catch (error) {
+      // /reload uses the same launcher nonce; an unrelated file is never overwritten.
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST" || readFileSync(process.env.RESEARCH_STARTUP_FILE, "utf8") !== process.env.RESEARCH_STARTUP_TOKEN) throw error;
+    }
   }
 }

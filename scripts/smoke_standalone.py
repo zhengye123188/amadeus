@@ -43,6 +43,7 @@ def main():
                 "PATH": str(poison) + ":/usr/bin:/bin",
                 "XDG_CONFIG_HOME": str(root / "config"),
                 "XDG_CACHE_HOME": str(root / "cache"),
+                "XDG_DATA_HOME": str(root / "data"),
                 "PI_CODING_AGENT_DIR": str(root / "agent"),
                 "PI_OFFLINE": "1",
                 "PI_TELEMETRY": "0",
@@ -68,6 +69,23 @@ def main():
         assert doctor["backend"] == doctor["version"]
         assert Path(doctor["python"]).is_relative_to(prefix)
         assert "already includes" in run(research, "setup").stdout
+        packages = json.loads(run(research, "packages", "list").stdout)
+        expected_packages = {
+            "npm:pi-docparser@4.0.0": "parser-engine",
+            "npm:pi-web-access@0.35.0": "bundled-enabled",
+            "npm:@upstash/context7-pi@0.1.2": "bundled-enabled",
+        }
+        assert {item["source"]: item["status"] for item in packages["bundled"]} == (
+            expected_packages
+        ), "Standalone installation is missing bundled Pi packages"
+        bundle = (prefix / "current").resolve(strict=True)
+        for item in packages["bundled"]:
+            assert Path(item["path"]).is_relative_to(bundle)
+        # Package installation must retain npm/npx and use bundled Node with poisoned PATH.
+        bundled_node = str(bundle / "runtime/node/bin/node")
+        run(bundled_node, "--version")
+        for executable in ("npm", "npx"):
+            run(bundled_node, str(bundle / "runtime/node/bin" / executable), "--version")
         python_env = {**env, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONNOUSERSITE": "1"}
         subprocess.run(
             [
@@ -81,6 +99,80 @@ def main():
             env=python_env,
             check=True,
         )
+
+        # Import through the installed backend and native parser; preserve blank page positions.
+        pdf_env = {
+            **python_env,
+            "RESEARCH_NODE": str(bundle / "runtime/node/bin/node"),
+            "RESEARCH_DOCUMENT_PARSER": str(bundle / "app/bin/document-parser.mjs"),
+        }
+        pdf_result = subprocess.run(
+            [
+                doctor["python"],
+                "-I",
+                "-B",
+                "-c",
+                """
+import asyncio, json
+from pathlib import Path
+from pypdf import PdfWriter
+from pypdf.generic import DictionaryObject, NameObject, DecodedStreamObject
+from research_cli.config import Settings
+from research_cli.storage import Store
+from research_cli.tools import Registry
+from research_cli.research import ResearchTools
+
+writer = PdfWriter()
+writer.add_blank_page(width=300, height=200)
+page = writer.add_blank_page(width=300, height=200)
+font = DictionaryObject({
+    NameObject('/Type'): NameObject('/Font'),
+    NameObject('/Subtype'): NameObject('/Type1'),
+    NameObject('/BaseFont'): NameObject('/Helvetica'),
+})
+page[NameObject('/Resources')] = DictionaryObject({
+    NameObject('/Font'): DictionaryObject({NameObject('/F1'): font}),
+})
+stream = DecodedStreamObject()
+stream.set_data(b'BT /F1 12 Tf 20 150 Td (Standalone parser source on page two.) Tj ET')
+page[NameObject('/Contents')] = writer._add_object(stream)
+writer.write('source.pdf')
+
+async def main():
+    store = Store(Path.cwd())
+    tools = ResearchTools(Registry(store, Settings(permission='workspace-write', allow_network=False)))
+    try:
+        result = await tools.import_document({'path': 'source.pdf'})
+        chunks = [
+            {'position': json.loads(row[0]), 'text': row[1]}
+            for row in store.db.execute('SELECT position,text FROM chunks')
+        ]
+        print(json.dumps({'source': result, 'chunks': chunks}))
+    finally:
+        await tools.close()
+        store.close()
+
+asyncio.run(main())
+""",
+            ],
+            cwd=workspace,
+            env=pdf_env,
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        assert pdf_result.returncode == 0, pdf_result.stderr + pdf_result.stdout
+        parsed = json.loads(pdf_result.stdout)
+        assert parsed["source"]["pages"] == 2
+        assert parsed["source"]["provenance"]["extraction"] == {
+            "parser": "pi-docparser",
+            "version": "4.0.0",
+            "ocr": False,
+        }
+        assert parsed["chunks"] and all(
+            chunk["position"]["page"] == 2 for chunk in parsed["chunks"]
+        ), "Native parser lost the leading blank page"
+        assert any("Standalone parser source" in chunk["text"] for chunk in parsed["chunks"])
 
         fixture_key = "standalone-fixture-not-a-real-key"
         requests, failures = [], []
@@ -264,6 +356,8 @@ def main():
                 {
                     "standalone": doctor["version"],
                     "bundled_node": doctor["node"],
+                    "bundled_packages": sorted(expected_packages),
+                    "native_pdf_import": True,
                     "no_external_runtimes": True,
                     "relocation_with_spaces": True,
                     "hidden_persistent_config": True,

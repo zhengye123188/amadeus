@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0 — 2026-10-02
+
+- Reuse `pi-docparser` 4.0.0 for local PDF text extraction, preserving blank pages, source hashes, chunk positions and evidence records; remove the separate PDF text-extraction implementation.
+- Add native `pi-web-access` 0.35.0 and Context7 0.1.2 tools for foreground web retrieval and library documentation. Default online tool count is 62.
+- Add `research packages list/install/remove` using Pi's public package manager, pinned sources, explicit tool/skill selection and install-without-enabling behavior.
+- Apply research permissions, offline network selection, scoped cancellation and separate service-call usage records to native package tools.
+- Isolate Pi package/session state; protect selected manifests and private state paths, reject raw loader/tool flags, and stop startup if the trusted core fails to initialize.
+- Retain npm/npx in standalone builds and verify npm dependency hoisting, real installed PDF parsing and native CLI calls.
+- Keep research-specific memory, evidence and experiment semantics; document reviewed generic alternatives and their adaptation requirements.
+
 ## 0.3.0 — 2026-10-01
 
 ### Batch 1: project data

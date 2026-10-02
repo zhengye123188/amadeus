@@ -37,11 +37,13 @@ function checkParts(path: string) {
 export function safePath(workspace: string, value: unknown, write = false): string {
   if (typeof value !== "string" || value.includes("\0")) throw new Error("Expected a regular workspace path");
   const root = realpathSync(workspace), target = resolve(root, value);
-  for (const name of ["RESEARCH_CONFIG", "RESEARCH_MCP_CONFIG", "RESEARCH_MODEL_PROFILE"]) {
+  const protectedFiles = new Set<string>();
+  for (const name of ["RESEARCH_CONFIG", "RESEARCH_MCP_CONFIG", "RESEARCH_MODEL_PROFILE", "RESEARCH_PACKAGE_CONFIG"]) {
     if (process.env[name]) {
       const configured = resolve(process.env[name]!);
       let realConfigured = configured;
       try { realConfigured = realpathSync(configured); } catch { /* optional file validation occurs in loader */ }
+      protectedFiles.add(configured); protectedFiles.add(realConfigured);
       if (target === configured || target === realConfigured) throw new Error("Explicit configuration files are blocked from model file tools");
     }
   }
@@ -49,6 +51,11 @@ export function safePath(workspace: string, value: unknown, write = false): stri
   let realCredential = credential;
   try { realCredential = realpathSync(credential); } catch { /* not configured yet */ }
   if (target === credential || target === realCredential) throw new Error("Saved API credentials are blocked");
+  const state = resolve(process.env.PI_CODING_AGENT_DIR || resolve(process.env.XDG_DATA_HOME || resolve(homedir(), ".local", "share"), "research-cli", "pi-packages"));
+  let realState = state;
+  try { realState = realpathSync(state); } catch { /* state is created during startup */ }
+  const under = (base: string, path: string) => { const r = relative(base, path); return r !== ".." && !r.startsWith(".." + sep) && !isAbsolute(r); };
+  if (under(state, target) || under(realState, target)) throw new Error("Private Pi package state is blocked");
   const inside = (p: string) => { const r = relative(root, p); return r !== ".." && !r.startsWith(".." + sep) && !isAbsolute(r); };
   if (!inside(target)) throw new Error("Path is outside the workspace");
   checkParts(relative(root, target));
@@ -61,6 +68,8 @@ export function safePath(workspace: string, value: unknown, write = false): stri
   }
   const real = realpathSync(ancestor);
   if (real === realCredential) throw new Error("Saved API credentials are blocked");
+  if (protectedFiles.has(real)) throw new Error("Explicit configuration files are blocked from model file tools");
+  if (under(state, real) || under(realState, real)) throw new Error("Private Pi package state is blocked");
   if (!inside(real)) throw new Error("Symlink escapes the workspace");
   checkParts(relative(root, real));
   if (ancestor === target) {

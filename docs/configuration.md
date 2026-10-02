@@ -82,9 +82,23 @@ Every callable tool requires an exact local `effects` entry: `read`, `write`, `e
 
 The name `research` is reserved. Wildcard effects, command-based `!cmd` value interpolation and ambiguous tool-name aliases are rejected. Environment/header values support `${NAME}` for present environment variables. Keep tokens outside the JSON file. HTTP and stdio connection management uses Pi's native MCP adapter and `/mcp` interface.
 
+## Explicit Pi package selection
+
+Research CLI bundles `pi-web-access`, `@upstash/context7-pi` and the `pi-docparser` PDF engine at exact versions. Use `research packages list` to inspect them. General web tools are native Pi tools; they do not add another research MCP server. The default online set is 53 research MCP tools, three file tools and six package tools.
+
+```sh
+research packages install npm:package-name@1.2.3 --policy ./package-policy.json
+research packages remove npm:package-name@1.2.3
+research --package-config ./packages.json
+```
+
+Without `--policy`, a new package is installed but disabled. Policy JSON selects exact extension/skill paths, an exact `effects` tool allowlist, and `networkTools`. Omitted `networkTools` treats all selected tools as network tools; use an explicit empty array only for trusted local tools. CLI permission modes apply to each tool, and execution also requires the execution setting. The generic adapter exposes tools and selected skills; package commands, provider registrations and arbitrary lifecycle hooks require a dedicated adapter.
+
+The default manifest is `~/.config/research-cli/packages.json`; Pi package storage and sessions use `~/.local/share/research-cli/pi-packages`. XDG configuration/data directories can override these paths. Startup does not install missing packages or load ambient project extensions. See the [package guide](pi-packages.md) for complete JSON examples and old-session restoration. These features are part of v0.4.0.
+
 ## Usage, budgets and selected project instructions
 
-`/usage` summarizes local model usage and separately recorded embedding/Jev usage. Unknown prices remain unknown. Model requests, including custom compaction calls, append numeric entries to `.research/usage.jsonl`; prompts and credentials are excluded. External MCP billing is not automatically available. Local estimates are not provider invoices.
+`/usage` summarizes local model usage and separately recorded embedding/Jev and native package service calls. Unknown prices remain unknown. Model requests, including custom compaction calls, append numeric entries to `.research/usage.jsonl`; prompts and credentials are excluded. Native service calls record package/tool names without inputs, with unknown cost. External MCP billing is not automatically available. Local estimates are not provider invoices.
 
 `--max-tokens N` (default 60000) and `--max-cost-usd N` are soft per-prompt limits. A completed/in-flight request can exceed the limit; the CLI cancels further model requests after recording its usage. A cost limit requires all four profile prices. These limits do not cap external service bills.
 
@@ -98,7 +112,7 @@ From the source checkout:
 
 ```sh
 node scripts/version.mjs --check
-node scripts/version.mjs 0.3.0
+node scripts/version.mjs 0.4.1
 uv lock --check
 npm run check
 npm test

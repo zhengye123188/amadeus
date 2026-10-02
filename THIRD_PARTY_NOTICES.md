@@ -16,3 +16,28 @@ Standalone installers redistribute the official Node.js binary distribution (inc
 Intel Mac bundles build the locked cryptography source distribution with a statically linked, checksum-pinned OpenSSL. Its Apache-2.0 license is included as `licenses/openssl.txt`; source version and digest appear in the bundle manifest. OpenSSL source: https://github.com/openssl/openssl.
 
 The optional [public CPU case](examples/public_research_case/README.md) downloads selected files from the authors' LIBSVM repository at a pinned commit. LIBSVM code is BSD-3-Clause; the runner retains its COPYRIGHT file. The upstream `heart_scale` dataset is downloaded separately, with no separate dataset license asserted here. No upstream source or dataset is redistributed in this repository or its packages. See [case provenance](examples/public_research_case/provenance.json) for URLs, hashes and scope.
+
+## Reused Pi packages
+
+Research CLI reuses the following independently maintained npm packages. Listing a package in the Pi catalog does not make it Pi-authored or imply an endorsement by Pi's maintainers.
+
+| Package | Pinned version | Author / source | License | Reused work |
+| --- | --- | --- | --- | --- |
+| `pi-docparser` | 4.0.0 | Maximilian Schwarzmüller / [maxedapps/pi-docparser](https://github.com/maxedapps/pi-docparser) | MIT | Native PDF executor and isolated LiteParse worker implementation; the package's three document tools are not exposed by Research CLI. |
+| `pi-web-access` | 0.35.0 | Nico Bailon / [nicobailon/pi-web-access](https://github.com/nicobailon/pi-web-access) | MIT | Native Pi web search, content retrieval and search-content cache tools. |
+| `@upstash/context7-pi` | 0.1.2 | Upstash / [upstash/context7, packages/pi](https://github.com/upstash/context7/tree/master/packages/pi) | MIT | Native library ID resolution and current documentation tools. |
+
+These packages and their dependency implementations remain upstream work. Research CLI supplies the selected-package configuration, tool-only adapter, research policy integration and durable research records around them. No upstream package is claimed as an original Research CLI implementation. Exact resolved dependencies are recorded in `package-lock.json`; installed runtime distributions retain their bundled licenses and notices. These source-tree integrations do not imply that a new Research CLI distribution has already been published.
+
+### LiteParse
+
+`pi-docparser` 4.0.0 depends on **`@llamaindex/liteparse` 2.10.1**, developed by LlamaIndex and distributed under the **Apache License 2.0**. Research CLI uses that dependency for local document extraction through the upstream worker; the dependency includes platform-specific native packages. LiteParse and its native dependencies are not relicensed under Research CLI's MIT license.
+
+- Source: https://github.com/run-llama/liteparse
+- License: https://github.com/run-llama/liteparse/blob/main/LICENSE
+- Upstream adapter notices: https://github.com/maxedapps/pi-docparser/blob/main/THIRD_PARTY_NOTICES.md
+- Adapter-distributed Apache-2.0 license copy: `node_modules/pi-docparser/licenses/LiteParse-APACHE-2.0.txt`
+
+Redistributions must retain the applicable upstream license files and any notices supplied by these distributions, including the license files in `pi-docparser`, `@llamaindex/liteparse` and the selected native package. Standalone bundles include the locked installed npm runtime tree with those files. Inspect each installed distribution for its additional native-library attribution; this summary does not replace its full notices.
+
+Optional user-installed packages are governed by their own licenses. Research CLI's package audit and selection rationale are documented in [docs/pi-packages.md](docs/pi-packages.md).

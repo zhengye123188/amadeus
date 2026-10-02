@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import base64
 import hashlib
-import io
 import json
 import math
 import os
@@ -16,6 +15,7 @@ from datetime import date
 import httpx
 from pydantic import Field
 
+from research_cli.document_parser import PARSER, parse_pdf_pages
 from research_cli.research_map import PaperIdentity, canonical_arxiv, canonical_doi
 from research_cli.storage import Store, encode, identifier
 from research_cli.tools import Args, Empty, Registry, Workspace
@@ -334,25 +334,13 @@ class ResearchTools:
             {
                 "path": str(path.relative_to(self.ws.root)),
                 "file_sha256": hashlib.sha256(data).hexdigest(),
+                **({"extraction": PARSER.copy()} if path.suffix.lower() == ".pdf" else {}),
             },
             paper_id=a.get("paper_id"),
         )
 
     async def pdf_pages(self, data):
-        import asyncio
-
-        from pypdf import PdfReader
-
-        def extract():
-            reader = PdfReader(io.BytesIO(data))
-            if len(reader.pages) > 200:
-                raise ValueError("PDF exceeds the 200-page import limit")
-            pages = [page.extract_text() or "" for page in reader.pages]
-            if sum(map(len, pages)) > 2_000_000:
-                raise ValueError("Extracted text exceeds 2 million characters")
-            return pages
-
-        return await asyncio.to_thread(extract)
+        return await parse_pdf_pages(data)
 
     async def download_arxiv(self, a):
         base_id, version = canonical_arxiv(a["arxiv_id"])
@@ -379,6 +367,7 @@ class ResearchTools:
                 or "latest; resolved version not independently verified",
                 "file_sha256": hashlib.sha256(data).hexdigest(),
                 "retrieved_at": time.time(),
+                "extraction": PARSER.copy(),
             },
             paper_id=identity["paper_id"],
         )

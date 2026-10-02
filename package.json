@@ -1,14 +1,33 @@
 {
   "name": "@lelouch_021015/research-cli",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "An evidence-aware research CLI built on Pi with Python MCP tools",
   "type": "module",
   "license": "MIT",
-  "repository": {"type": "git", "url": "git+https://github.com/zhengye123188/research-cli.git"},
-  "engines": {"node": ">=22.19.0"},
-  "os": ["darwin", "linux"],
-  "bin": {"research": "bin/research.mjs"},
-  "files": ["bin", "pi", "src/research_cli/*.py", "pyproject.toml", "uv.lock", "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhengye123188/research-cli.git"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "bin": {
+    "research": "bin/research.mjs"
+  },
+  "files": [
+    "bin",
+    "pi",
+    "src/research_cli/*.py",
+    "pyproject.toml",
+    "uv.lock",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
   "scripts": {
     "start": "node bin/research.mjs",
     "check": "tsc --noEmit",
@@ -19,7 +38,24 @@
     "version:check": "node scripts/version.mjs --check",
     "version:set": "node scripts/version.mjs"
   },
-  "dependencies": {"@earendil-works/pi-coding-agent": "0.99.1"},
-  "devDependencies": {"@types/node": "^22.19.0", "tsx": "^4.20.0", "typescript": "^5.9.0"},
-  "pi": {"extensions": ["./pi/research.ts"], "skills": ["./pi/skills"]}
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "0.99.1",
+    "@upstash/context7-pi": "0.1.2",
+    "jiti": "2.7.0",
+    "pi-docparser": "4.0.0",
+    "pi-web-access": "0.35.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  },
+  "pi": {
+    "extensions": [
+      "./pi/research.ts"
+    ],
+    "skills": [
+      "./pi/skills"
+    ]
+  }
 }

@@ -1,6 +1,17 @@
 # 验证记录
 
-更新日期：2026-10-01。开发环境为 macOS ARM64、Node 22.23.1、Python 3.12.13、Pi 0.99.1；依赖由 `package-lock.json` 和 `uv.lock` 固定。
+更新日期：2026-10-02。开发环境为 macOS ARM64、Node 22.23.1、Python 3.12.13、Pi 0.99.1；依赖由 `package-lock.json` 和 `uv.lock` 固定。
+
+## v0.4.0：Pi 包复用（源码待发布）
+
+- Python **185 项通过**；Node/TypeScript **56 项通过**。类型检查、Ruff/格式、版本同步和 `uv lock --check --offline` 通过。
+- 真实 Pi CLI 默认联网请求中确认 **62 个工具**：53 个科研 MCP、3 个文件工具、6 个原生包工具。取消、权限、工具白名单、离线选择和核心初始化失败检查通过。
+- 真实 Context7 factory 在 CLI 中完成库标识解析和文档查询；HTTP 返回由测试 fixture 提供。包适配器还验证预先取消、并发取消信号隔离和服务调用独立审计。网页供应商的在线配额、真实检索质量及界面全部呈现仍未验证。
+- `pi-docparser` 原生引擎解析真实双页 PDF，保留空白第一页及第二页文本。导入链检查来源哈希、解析器版本、chunks 页码；错误、页数不全、超限、取消及超时测试通过。
+- npm tarball 在独立临时目录实装，`setup` 建立版本匹配的 Python 缓存环境，`doctor`、三个内置包、真实 Pi 扩展及安装后 PDF 导入通过。已修复 scoped npm 依赖提升时的包路径解析问题。没有改动用户的全局安装和 API 配置。
+- 新版独立构建脚本保留 npm/npx；**v0.4.0 四个平台安装器尚未构建或发布**，也未发布新版 npm/PyPI/GitHub Release。历史 v0.3.0 构建通过不等于新原生依赖在其他平台已经验证。
+
+依赖审计仍有一项上游 Pi 0.99.1 内部 `brace-expansion` 5.0.9 告警：[上游公告](https://github.com/advisories/GHSA-qhr7-859c-m2p7)。该版本已存在于原锁文件，并由 Pi 的 npm shrinkwrap 锁定；普通 update、override 和非 force 的 `npm audit fix` 未消除它。本次没有强制升级 Pi 或修改上游源码。包的工具许可与宿主代码信任边界见 [安全说明](../SECURITY.md)。
 
 ## v0.3.0：工程验证
 
@@ -33,7 +44,7 @@
 
 公开 `latest/download/install.sh` 入口已实际验证：下载脚本逐字节匹配已审查源码，再下载 macOS ARM64 安装包，在临时中文/空格路径安装；CLI 与后端均为 0.3.0，`doctor` 确认使用包内运行环境。没有调用模型，临时安装已清理，用户现有安装和配置未改变。
 
-npm 当前公开版本仍为 0.2.0；本次 GitHub 发布没有上传 npm 或 PyPI。
+这次 GitHub 发布没有自动上传 npm 或 PyPI；这些渠道需要另行发布，不能根据 GitHub Release 推断安装到的 npm 版本。
 
 ## v0.2.0：历史工程验证
 

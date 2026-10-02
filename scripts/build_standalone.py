@@ -327,9 +327,9 @@ def main():
             shutil.copy2(ROOT / name, bundle / name)
         shutil.copy2(ROOT / "docs/standalone.md", bundle / "INSTALL.md")
         shutil.copy2(requirements, bundle / "python-requirements.txt")
-        # Do not ship npm: the bundled Node runtime is sufficient after npm ci.
-        shutil.rmtree(runtime / "node" / "lib")
-        for name in ("npm", "npx", "corepack"):
+        # Pi's package manager uses the bundled npm/npx for explicit package installs.
+        # Preserve node/lib and their relative links so standalone users need no npm.
+        for name in ("corepack",):
             (runtime / "node" / "bin" / name).unlink(missing_ok=True)
         write_manifest(bundle, version, target, lock, sources)
         archive = output / f"{folder}.tar.gz"

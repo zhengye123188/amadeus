@@ -13,6 +13,7 @@ def usage_summary(store):
     totals = {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0}
     records = unknown = invalid = 0
     cost = 0.0
+    package_calls = []
     if ledger.exists():
         if ledger.is_symlink() or not ledger.is_file() or ledger.stat().st_size > 50_000_000:
             raise ValueError("Expected a regular usage ledger no larger than 50 MB")
@@ -20,6 +21,24 @@ def usage_summary(store):
             for line in stream:
                 try:
                     row = json.loads(line)
+                    if row.get("category") == "package-tool":
+                        if (
+                            not all(
+                                isinstance(row.get(key), str) and 0 < len(row[key]) <= 512
+                                for key in ("source", "tool", "session_id")
+                            )
+                            or row.get("estimated_cost_usd") is not None
+                        ):
+                            raise ValueError("Invalid package usage")
+                        package_calls.append(
+                            {
+                                "type": "billable_tool_usage",
+                                "provider": row["source"],
+                                "tool": row["tool"],
+                                "cost_usd": None,
+                            }
+                        )
+                        continue
                     tokens = row["tokens"]
                     values = {key: tokens[key] for key in totals}
                     if any(
@@ -47,7 +66,7 @@ def usage_summary(store):
                         cost += estimate
                 except (ValueError, KeyError, TypeError):
                     invalid += 1
-    tools = []
+    tools = package_calls
     for row in store.db.execute("SELECT body FROM events ORDER BY id"):
         event = json.loads(row[0])
         if event.get("type") == "billable_tool_usage":

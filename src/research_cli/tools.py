@@ -92,7 +92,12 @@ class Workspace:
 
     def path(self, value: str, write=False) -> Path:
         path = (self.root / value).resolve()
-        for name in ["RESEARCH_CONFIG", "RESEARCH_MCP_CONFIG", "RESEARCH_MODEL_PROFILE"]:
+        for name in [
+            "RESEARCH_CONFIG",
+            "RESEARCH_MCP_CONFIG",
+            "RESEARCH_MODEL_PROFILE",
+            "RESEARCH_PACKAGE_CONFIG",
+        ]:
             if os.environ.get(name) and path == Path(os.environ[name]).resolve():
                 raise ValueError("Explicit configuration files are blocked")
         credentials = (
@@ -102,6 +107,17 @@ class Workspace:
         ).resolve()
         if path == credentials:
             raise ValueError("Saved API credentials are blocked")
+        state = Path(
+            os.environ.get(
+                "PI_CODING_AGENT_DIR",
+                str(
+                    Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local/share")))
+                    / "research-cli/pi-packages"
+                ),
+            )
+        ).resolve()
+        if path.is_relative_to(state):
+            raise ValueError("Private Pi package state is blocked")
         if not path.is_relative_to(self.root):
             raise ValueError("Path is outside the workspace")
         parts = path.relative_to(self.root).parts

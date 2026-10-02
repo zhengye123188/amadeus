@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, readFileSync, realpathSync } from "node:fs";
-import { homedir } from "node:os";
+import { existsSync, lstatSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { configPath, configure, loadApiConfig } from "./api-config.mjs";
 import { checkApi } from "./api-doctor.mjs";
 import { loadModelProfile } from "./model-profile.mjs";
+import { handlePackageCommand, loadPackageSelection, packagePaths } from "./packages.mjs";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
@@ -17,6 +18,11 @@ if (major < 22 || (major === 22 && minor < 19)) {
   console.error("Research CLI needs Node >=22.19.0. Activate a supported Node version first.");
   process.exit(2);
 }
+// Package management is independent of model credentials and the Python backend.
+try {
+  const result = await handlePackageCommand(args, { cwd: process.cwd(), root, env: process.env });
+  if (result !== undefined) process.exit(result);
+} catch (error) { console.error(error.message); process.exit(2); }
 if (args.includes("--version") || args[0] === "version") {
   console.log(`${pkg.version} (Pi ${pkg.dependencies["@earendil-works/pi-coding-agent"]})`);
   process.exit(0);
@@ -28,6 +34,9 @@ research setup [--jev]                 Install the Python backend using uv
 research configure                    Save API settings locally (hidden key input)
 research doctor [--check-api]           Check runtimes; optionally GET /models (no generation)
 research project backup|restore|info   Manage project archives and metadata
+research packages list                Show bundled and explicitly installed Pi packages
+research packages install SOURCE [--policy FILE]   Install a pinned package
+research packages remove SOURCE       Remove a selected package
 research [options]                     Open the interactive terminal
 research [options] -p "question"        Run a noninteractive prompt
 
@@ -41,6 +50,7 @@ Research options:
   --config FILE                        Python backend TOML configuration
   --model-profile FILE                 Explicit model capability/pricing JSON
   --mcp-config FILE                    Trusted external MCP JSON with per-tool allowlist
+  --package-config FILE                Explicit Pi package selection and tool policies
   --instructions FILE                  Explicitly selected project instructions (e.g. AGENTS.md)
   --skill PATH                         Explicit Pi skill file or directory
   --max-turns N                        Model-step limit per prompt (default: 32)
@@ -51,21 +61,43 @@ Research options:
 Pi options pass through: --provider, --model, -p, --mode json, --continue, --resume.
 Set provider keys in environment or use /login. OPENAI_BASE_URL + RESEARCH_MODEL
 select an OpenAI-compatible endpoint; RESEARCH_API=chat|responses selects protocol.
-Interactive commands: /memory /evidence /jobs /usage /review-memory /research-status /mcp /compact /tree.
+Interactive commands: /memory /evidence /jobs /usage /review-memory /research-status /packages /mcp /compact /tree.
 For full upstream options: research --pi-help
 Python prototype: research-legacy (separate command).
 `);
   process.exit(0);
 }
 
+const piRoot = dirname(dirname(fileURLToPath(import.meta.resolve("@earendil-works/pi-coding-agent"))));
+const piBin = join(piRoot, "dist", "bundle", "cli.js");
+if (args.includes("--pi-help")) {
+  const result = spawnSync(process.execPath, [piBin, "--help"], { stdio: "inherit" });
+  process.exit(result.status ?? 2);
+}
+// Pi's raw loader/tool flags bypass Research's package selection and activation.
+const forbiddenFlags = new Set(["--extension", "-e", "--no-extensions", "-ne", "--tools", "-t", "--exclude-tools", "-xt", "--no-tools", "-nt", "--no-builtin-tools", "-nbt"]);
+const valueFlags = new Set(["--workspace", "--permission", "--execution", "--memory", "--config", "--model-profile", "--mcp-config", "--package-config", "--instructions", "--skill", "--max-turns", "--max-seconds", "--max-tokens", "--max-cost-usd", "--provider", "--model", "--api-key", "--system-prompt", "--append-system-prompt", "--name", "-n", "--session", "--session-id", "--fork", "--session-dir", "--models", "--thinking", "--mode", "--export", "--prompt-template", "--theme", "--use-theme", "--tui-mode"]);
+for (let index = 0; index < args.length; index++) {
+  const flag = args[index].split("=", 1)[0];
+  if (forbiddenFlags.has(flag)) {
+    console.error(`Research CLI manages extension loading and tool permissions. Use research packages install SOURCE --policy FILE instead of ${flag}.`);
+    process.exit(2);
+  }
+  if (valueFlags.has(args[index])) index++;
+}
+if (["install", "remove", "update", "list"].includes(args[0])) {
+  console.error("Use research packages install|remove|list to manage Pi packages with an explicit tool policy.");
+  process.exit(2);
+}
+
 try {
   if (args[0] === "configure") { await configure(); process.exit(0); }
-  for (const flag of ["--model-profile", "--mcp-config"]) {
+  for (const flag of ["--model-profile", "--mcp-config", "--package-config"]) {
     const index = args.indexOf(flag);
     if (index !== -1) {
       const value = args[index + 1];
       if (!value || value.startsWith("--")) throw new Error(`Missing value for ${flag}`);
-      process.env[flag === "--model-profile" ? "RESEARCH_MODEL_PROFILE" : "RESEARCH_MCP_CONFIG"] = resolve(value);
+      process.env[{ "--model-profile": "RESEARCH_MODEL_PROFILE", "--mcp-config": "RESEARCH_MCP_CONFIG", "--package-config": "RESEARCH_PACKAGE_CONFIG" }[flag]] = resolve(value);
     }
   }
   loadApiConfig();
@@ -125,10 +157,11 @@ if (args[0] === "project") {
   process.exit(result.status ?? 2);
 }
 
-const env = { ...process.env, RESEARCH_PYTHON: python, RESEARCH_APPROVAL_SECRET: randomBytes(32).toString("hex") };
+const env = { ...process.env, RESEARCH_PYTHON: python, RESEARCH_APPROVAL_SECRET: randomBytes(32).toString("hex"),
+  RESEARCH_NODE: process.execPath, RESEARCH_DOCUMENT_PARSER: join(root, "bin", "document-parser.mjs") };
 let workspace = process.cwd();
 const forwarded = [];
-const researchOptions = { "--permission": "RESEARCH_PERMISSION", "--execution": "RESEARCH_EXECUTION", "--memory": "RESEARCH_MEMORY", "--config": "RESEARCH_CONFIG", "--model-profile": "RESEARCH_MODEL_PROFILE", "--mcp-config": "RESEARCH_MCP_CONFIG", "--instructions": "RESEARCH_INSTRUCTIONS", "--max-turns": "RESEARCH_MAX_TURNS", "--max-seconds": "RESEARCH_MAX_SECONDS", "--max-tokens": "RESEARCH_MAX_TOKENS", "--max-cost-usd": "RESEARCH_MAX_COST_USD" };
+const researchOptions = { "--permission": "RESEARCH_PERMISSION", "--execution": "RESEARCH_EXECUTION", "--memory": "RESEARCH_MEMORY", "--config": "RESEARCH_CONFIG", "--model-profile": "RESEARCH_MODEL_PROFILE", "--mcp-config": "RESEARCH_MCP_CONFIG", "--package-config": "RESEARCH_PACKAGE_CONFIG", "--instructions": "RESEARCH_INSTRUCTIONS", "--max-turns": "RESEARCH_MAX_TURNS", "--max-seconds": "RESEARCH_MAX_SECONDS", "--max-tokens": "RESEARCH_MAX_TOKENS", "--max-cost-usd": "RESEARCH_MAX_COST_USD" };
 const selectedSkills = [];
 for (let i = 0; i < args.length; i++) {
   const arg = args[i];
@@ -136,35 +169,79 @@ for (let i = 0; i < args.length; i++) {
     const value = args[++i];
     if (!value || value.startsWith("--")) { console.error(`Missing value for ${arg}`); process.exit(2); }
     if (arg === "--workspace") workspace = resolve(value);
-    else env[researchOptions[arg]] = ["--config", "--model-profile", "--mcp-config", "--instructions"].includes(arg) ? resolve(value) : value;
+    else env[researchOptions[arg]] = ["--config", "--model-profile", "--mcp-config", "--package-config", "--instructions"].includes(arg) ? resolve(value) : value;
   } else if (arg === "--skill") {
     const value = args[++i];
     if (!value || value.startsWith("--")) { console.error("Missing value for --skill"); process.exit(2); }
     selectedSkills.push(resolve(value)); forwarded.push("--skill", resolve(value));
   } else if (arg === "--offline") env.RESEARCH_OFFLINE = "1";
   else if (arg === "--approve-experiments") env.RESEARCH_APPROVE_EXPERIMENTS = "1";
-  else if (arg === "--pi-help") forwarded.push("--help");
   else forwarded.push(arg);
 }
 for (const [key, values] of Object.entries({ RESEARCH_PERMISSION: ["ask", "read-only", "workspace-write"], RESEARCH_EXECUTION: ["disabled", "docker", "local"], RESEARCH_MEMORY: ["on", "off"] })) {
   if (env[key] && !values.includes(env[key])) { console.error(`Invalid ${key}: ${env[key]}`); process.exit(2); }
 }
 try { workspace = realpathSync(workspace); } catch { console.error("Workspace does not exist"); process.exit(2); }
+try {
+  const selection = await loadPackageSelection({ file: env.RESEARCH_PACKAGE_CONFIG, cwd: workspace, root, env });
+  env.RESEARCH_PACKAGE_SELECTION = JSON.stringify(selection);
+  env.RESEARCH_PACKAGE_CONFIG = selection.configFile;
+  for (const path of selection.skills) {
+    if (!selectedSkills.includes(path)) { selectedSkills.push(path); forwarded.push("--skill", path); }
+  }
+} catch (error) { console.error(error.message); process.exit(2); }
 env.RESEARCH_TRUSTED_SKILL_PATHS = JSON.stringify(selectedSkills);
-const piRoot = dirname(dirname(fileURLToPath(import.meta.resolve("@earendil-works/pi-coding-agent"))));
-const piBin = join(piRoot, "dist", "bundle", "cli.js");
+env.PI_CODING_AGENT_DIR = env.PI_CODING_AGENT_DIR || packagePaths(env).agentDir;
 if (env.OPENAI_BASE_URL && env.RESEARCH_MODEL && !forwarded.includes("--model")) forwarded.unshift("--provider", "research-endpoint", "--model", env.RESEARCH_MODEL);
 else if (env.RESEARCH_MODEL && !forwarded.includes("--model")) forwarded.unshift("--model", env.RESEARCH_MODEL);
 
+const startupDirectory = mkdtempSync(join(tmpdir(), "research-startup-"));
+env.RESEARCH_STARTUP_FILE = join(startupDirectory, "ready");
+env.RESEARCH_STARTUP_TOKEN = randomBytes(32).toString("hex");
+let ready = false, failed = false;
+function checkReady() {
+  if (ready) return true;
+  try {
+    const info = lstatSync(env.RESEARCH_STARTUP_FILE);
+    ready = info.isFile() && !info.isSymbolicLink() && info.size === env.RESEARCH_STARTUP_TOKEN.length && readFileSync(env.RESEARCH_STARTUP_FILE, "utf8") === env.RESEARCH_STARTUP_TOKEN;
+  } catch { /* An extension still initializing has not written its receipt. */ }
+  return ready;
+}
 const child = spawn(process.execPath, [piBin,
   "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-themes", "--no-context-files",
+  "--no-builtin-tools",
   "--extension", join(root, "pi", "research.ts"),
   // Explicit skills are loaded while ambient skill discovery remains disabled.
-  "--skill", join(root, "pi", "skills"), "--exclude-tools", "bash,powershell,grep,find,ls",
+  "--skill", join(root, "pi", "skills"),
   ...forwarded,
 ], { cwd: workspace, env, stdio: "inherit" });
-child.on("error", error => { console.error(error.message); process.exitCode = 2; });
-for (const sig of ["SIGTERM", "SIGHUP"]) process.on(sig, () => child.kill(sig));
+const poll = setInterval(() => { if (checkReady()) { clearInterval(poll); clearTimeout(startupTimeout); } }, 50);
+let forceKill;
+const startupTimeout = setTimeout(() => {
+  if (checkReady()) return;
+  failed = true;
+  console.error("Research safety and package initialization did not finish within 30 seconds; stopping the agent.");
+  child.kill("SIGTERM");
+  forceKill = setTimeout(() => child.kill("SIGKILL"), 5000);
+}, 30_000);
+child.on("error", error => { failed = true; console.error(error.message); process.exitCode = 2; });
+const signalHandlers = new Map();
+for (const sig of ["SIGTERM", "SIGHUP"]) {
+  const handler = () => child.kill(sig);
+  signalHandlers.set(sig, handler); process.on(sig, handler);
+}
 // In a terminal both processes receive Ctrl-C; let Pi use it to cancel the active turn.
-process.on("SIGINT", () => { if (!process.stdin.isTTY) child.kill("SIGINT"); });
-child.on("exit", (code, signal) => { process.exitCode = code ?? (signal === "SIGINT" ? 130 : 1); });
+const interrupt = () => { if (!process.stdin.isTTY) child.kill("SIGINT"); };
+process.on("SIGINT", interrupt);
+await new Promise(resolve => child.on("close", (code, signal) => {
+  if (!checkReady()) {
+    if (!failed) console.error("Research safety and package initialization failed; no agent tools were enabled.");
+    failed = true;
+  }
+  process.exitCode = failed ? 2 : code ?? (signal === "SIGINT" ? 130 : 1);
+  resolve();
+}));
+clearInterval(poll); clearTimeout(startupTimeout); clearTimeout(forceKill);
+for (const [sig, handler] of signalHandlers) process.off(sig, handler);
+process.off("SIGINT", interrupt);
+rmSync(startupDirectory, { recursive: true, force: true });

@@ -51,3 +51,24 @@ test("saved API credentials remain protected inside the workspace", () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("selected package manifests and private Pi state reject symlink aliases", () => {
+  const root = mkdtempSync(join(tmpdir(), "research-package-policy-"));
+  const previous = { config: process.env.RESEARCH_PACKAGE_CONFIG, state: process.env.PI_CODING_AGENT_DIR };
+  try {
+    const config = join(root, "packages.json"), state = join(root, "agent-state");
+    writeFileSync(config, "{}"); mkdirSync(state);
+    writeFileSync(join(state, "auth.json"), "fixture");
+    symlinkSync(config, join(root, "manifest-alias.json"));
+    symlinkSync(state, join(root, "state-alias"));
+    process.env.RESEARCH_PACKAGE_CONFIG = config; process.env.PI_CODING_AGENT_DIR = state;
+    assert.throws(() => safePath(root, "manifest-alias.json"), /configuration/);
+    assert.throws(() => safePath(root, "agent-state/auth.json"), /Private Pi/);
+    assert.throws(() => safePath(root, "state-alias/auth.json"), /Private Pi/);
+  } finally {
+    for (const [name, value] of [["RESEARCH_PACKAGE_CONFIG", previous.config], ["PI_CODING_AGENT_DIR", previous.state]]) {
+      if (value === undefined) delete process.env[name!]; else process.env[name!] = value;
+    }
+    rmSync(root, { recursive: true, force: true });
+  }
+});

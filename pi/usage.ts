@@ -11,8 +11,23 @@ export interface UsageRecord {
   pricing_source: "configured_profile" | "provider_catalog";
 }
 
+export interface PackageUsageRecord {
+  session_id: string;
+  source: string;
+  tool: string;
+}
+
 /** Audit numeric usage only. Do not store prompts, credentials or transport headers. */
 export function recordUsage(workspace: string, record: UsageRecord): void {
+  appendLedger(workspace, record);
+}
+
+/** Separate service calls have unknown prices; never add them to model-token totals. */
+export function recordPackageUsage(workspace: string, record: PackageUsageRecord): void {
+  appendLedger(workspace, { ...record, category: "package-tool", estimated_cost_usd: null });
+}
+
+function appendLedger(workspace: string, record: object): void {
   const root = realpathSync(workspace), state = join(root, ".research");
   if (existsSync(state) && (lstatSync(state).isSymbolicLink() || realpathSync(state) !== resolve(state))) throw new Error("Usage directory may not be a symlink");
   mkdirSync(state, { recursive: true, mode: 0o700 });
