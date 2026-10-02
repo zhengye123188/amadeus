@@ -2,7 +2,7 @@
 
 Research CLI uses Pi packages for document parsing, OCR, delegated agent execution, web access and current library documentation. It keeps the research records that connect papers, source passages, hypotheses, repositories and experiments. A generic memory or background-process extension does not implement those relationships.
 
-Document parsing, web access and Context7 were introduced in v0.4.0. Delegation and local OCR are available from v0.5.0, whose publication is in progress; see the [README](../README.md) for the public distribution status. Updating the source does not update an installed distribution; install the corresponding npm version or standalone release and check `research --version`.
+Document parsing, web access and Context7 were introduced in v0.4.0. Delegation and local OCR are available in npm v0.5.0 and the [GitHub Release v0.5.0](https://github.com/zhengye123188/research-cli/releases/tag/v0.5.0), both published on 2026-10-02. All four standalone builds passed native installation checks; see the [validation record](validation.md) for the verification scope. Updating the source does not update an installed distribution; install the corresponding npm version or standalone release and check `research --version`.
 
 The [Pi package catalog](https://pi.dev/packages) is a discovery directory for independently published packages. Catalog inclusion does not mean that the Pi maintainers wrote, reviewed or guaranteed a package. The decisions below are based on maintainer source, published manifests and the actual npm package contents, checked on 2026-10-01 against the project's Pi **0.99.1**.
 

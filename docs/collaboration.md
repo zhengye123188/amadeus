@@ -1,6 +1,6 @@
 # 按工具职责分工的协作与本地 OCR
 
-这些能力从 v0.5.0 开始提供。该版本正在发布，公开 npm 和独立安装器状态见 [README](../README.md)；用 `research --version` 核对安装版本。源码运行使用 `npm ci`、`uv sync --frozen --all-extras` 和 `npm start`。
+这些能力从 v0.5.0 开始提供。该版本已发布到 npm 和 [GitHub Release](https://github.com/zhengye123188/research-cli/releases/tag/v0.5.0)，四平台独立安装器通过原生构建与实装检查（2026-10-02）；实际检查范围见 [验证记录](validation.md)。用 `research --version` 核对安装版本。源码运行使用 `npm ci`、`uv sync --frozen --all-extras` 和 `npm start`。
 
 ## 动态协作
 

@@ -2,7 +2,7 @@
 
 安装包自带 Node 22.23.1、Python 3.12.14、Pi 和科研后端依赖（含 Jev extra）。用户无需预装 Node、npm、Python、uv 或 Pi。下载完成后，安装过程不访问网络；使用模型和网络科研工具仍需要网络及自己的 API 账号。
 
-v0.5.0 安装器包含 `pi-docparser`、`pi-subagents`、`pi-web-access` 和 Context7 四个内置包，以及本地 OCR 使用的英语、简体和繁体中文语言数据；保留内置 npm/npx，供 `research packages install` 使用。用户额外安装 Pi 包时仍可能需要网络及该包自己的依赖。v0.5.0 正在发布，各平台本次构建及公开状态见 [验证记录](validation.md)。
+v0.5.0 安装器包含 `pi-docparser`、`pi-subagents`、`pi-web-access` 和 Context7 四个内置包，以及本地 OCR 使用的英语、简体和繁体中文语言数据；保留内置 npm/npx，供 `research packages install` 使用。用户额外安装 Pi 包时仍可能需要网络及该包自己的依赖。2026-10-02 的 [四平台构建与实装检查](https://github.com/zhengye123188/research-cli/actions/runs/37019987067) 全部通过，[GitHub Release v0.5.0](https://github.com/zhengye123188/research-cli/releases/tag/v0.5.0) 已公开并设为 latest；实际检查范围见 [验证记录](validation.md)。
 
 ## 用户安装
 

@@ -1,6 +1,6 @@
 # npm CLI 与 PyPI 后端发布
 
-交互式主 CLI 发布到 npm；Python 科研后端可以单独发布到 PyPI。本项目当前版本为 `0.4.0`；GitHub 四平台独立安装器与 npm `@lelouch_021015/research-cli@0.4.0` 均已公开发布（2026-10-02 核对）。各渠道需要分别发布；GitHub 推送或独立安装包发布不会更新 npm。实际发布和安装验证见 [验证记录](validation.md)。
+交互式主 CLI 发布到 npm；Python 科研后端可以单独发布到 PyPI。本项目当前版本为 `0.5.0`，[npm `@lelouch_021015/research-cli@0.5.0`](https://www.npmjs.com/package/@lelouch_021015/research-cli/v/0.5.0) 与 [GitHub 四平台独立安装器](https://github.com/zhengye123188/research-cli/releases/tag/v0.5.0) 均已公开并设为 latest（2026-10-02 核对）。PyPI 后端尚未发布，本次也没有上传 PyPI。各渠道需要分别发布；GitHub 推送或独立安装包发布不会更新 npm。实际发布和安装验证见 [验证记录](validation.md)。
 
 | 发布渠道 | 包名 | 安装后命令 | 用途 |
 |---|---|---|---|
@@ -13,7 +13,7 @@ npm 包携带 Python 后端源码及 `uv.lock`，`research setup` 用 uv 安装�
 
 ## 发布 npm 主 CLI
 
-本节展示后续版本的发布步骤。v0.4.0 已发布，同一版本不能重复上传；更新先按文末步骤增加版本号。
+本节展示后续版本的发布步骤。v0.5.0 已发布，同一版本不能重复上传；更新先按文末步骤增加版本号。
 
 先注册并登录自己的 [npm 账号](https://www.npmjs.com/signup)。包名中的 `@lelouch_021015` 是 npm scope，登录账号必须拥有该 scope 的发布权限；GitHub 同名账号不自动获得 npm 权限。若使用其他 npm 用户名，先修改 `package.json` 的 `name` 并更新 `package-lock.json`。
 
@@ -37,7 +37,7 @@ npm publish --access public --registry=https://registry.npmjs.org
 发布后检查注册表：
 
 ```bash
-npm view @lelouch_021015/research-cli@0.4.0 version --registry=https://registry.npmjs.org
+npm view @lelouch_021015/research-cli@0.5.0 version --registry=https://registry.npmjs.org
 ```
 
 用户安装时，需要 Node `>=22.19.0` 和 [uv](https://docs.astral.sh/uv/getting-started/installation/)：
@@ -80,16 +80,16 @@ gh workflow run publish.yml --ref main -f publish=false
 git fetch origin --tags
 ```
 
-如果对应版本已经通过独立安装器工作流发布，复用它创建的标签，不要移动或重新创建。否则，为已经通过 CI 的提交创建并推送完全匹配的标签。在 GitHub **Actions → PyPI release → Run workflow** 中选择该标签，再勾选 `publish`。以 0.4.0 为例，只有 `v0.4.0` 标签存在且指向通过验证的源码时运行：
+如果对应版本已经发布独立安装器，复用该发布的标签，不要移动或重新创建。否则，为已经通过 CI 的提交创建并推送完全匹配的标签。在 GitHub **Actions → PyPI release → Run workflow** 中选择该标签，再勾选 `publish`。以 0.5.0 为例，只有 `v0.5.0` 标签存在且指向通过验证的源码、并且决定发布 PyPI 后端时运行：
 
 ```bash
-gh workflow run publish.yml --ref v0.4.0 -f publish=true
+gh workflow run publish.yml --ref v0.5.0 -f publish=true
 ```
 
 `publish=true` 会真实上传。只有工作流上传成功并能从 PyPI 查询到版本后，才向用户提供安装命令：
 
 ```bash
-uv tool install 'research-terminal[mcp]==0.4.0'
+uv tool install 'research-terminal[mcp]==0.5.0'
 research-mcp --version
 ```
 
@@ -106,7 +106,7 @@ uv run ruff format --check .
 uv run pytest -q
 uv build --no-sources --out-dir dist/python
 uvx --from 'twine>=6,<7' twine check --strict dist/python/*
-uv run python scripts/smoke_install.py dist/python/research_terminal-0.4.0-py3-none-any.whl
+uv run python scripts/smoke_install.py dist/python/research_terminal-0.5.0-py3-none-any.whl
 uvx --from 'twine>=6,<7' twine upload dist/python/*
 ```
 
@@ -114,10 +114,10 @@ uvx --from 'twine>=6,<7' twine upload dist/python/*
 
 ## 后续版本更新
 
-使用统一脚本更新版本，避免前端、后端和安装入口不一致。下面的 0.4.1 只是下一补丁版本示例：
+使用统一脚本更新版本，避免前端、后端和安装入口不一致。下面的 0.5.1 只是下一补丁版本示例：
 
 ```bash
-npm run version:set -- 0.4.1
+npm run version:set -- 0.5.1
 npm run version:check
 ```
 
