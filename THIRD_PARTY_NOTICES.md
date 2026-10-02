@@ -23,6 +23,7 @@ Research CLI reuses the following independently maintained npm packages. Listing
 
 | Package | Pinned version | Author / source | License | Reused work |
 | --- | --- | --- | --- | --- |
+| `pi-subagents` | 0.74.0 | Nico Bailon / [nicobailon/pi-subagents](https://github.com/nicobailon/pi-subagents) | MIT | Foreground in-process child executor, lifecycle/results, cancellation and timeouts, through a version/file-hash-pinned internal API adapter. Upstream full extension and workflows are not loaded. |
 | `pi-docparser` | 4.0.0 | Maximilian Schwarzmüller / [maxedapps/pi-docparser](https://github.com/maxedapps/pi-docparser) | MIT | Native PDF executor and isolated LiteParse worker implementation; the package's three document tools are not exposed by Research CLI. |
 | `pi-web-access` | 0.35.0 | Nico Bailon / [nicobailon/pi-web-access](https://github.com/nicobailon/pi-web-access) | MIT | Native Pi web search, content retrieval and search-content cache tools. |
 | `@upstash/context7-pi` | 0.1.2 | Upstash / [upstash/context7, packages/pi](https://github.com/upstash/context7/tree/master/packages/pi) | MIT | Native library ID resolution and current documentation tools. |
@@ -41,3 +42,7 @@ These packages and their dependency implementations remain upstream work. Resear
 Redistributions must retain the applicable upstream license files and any notices supplied by these distributions, including the license files in `pi-docparser`, `@llamaindex/liteparse` and the selected native package. Standalone bundles include the locked installed npm runtime tree with those files. Inspect each installed distribution for its additional native-library attribution; this summary does not replace its full notices.
 
 Optional user-installed packages are governed by their own licenses. Research CLI's package audit and selection rationale are documented in [docs/pi-packages.md](docs/pi-packages.md).
+
+### Tesseract language data
+
+Optional OCR uses official [tesseract-ocr/tessdata_fast](https://github.com/tesseract-ocr/tessdata_fast) language models at commit `87416418657359cb625c412a48b6e1d6d41c29bd`, under Apache-2.0. Explicit `research ocr install` downloads `eng`, `chi_sim` and/or `chi_tra` with pinned size/SHA-256 verification. Standalone builds include all three models, model provenance and the pinned upstream license in `licenses/tessdata-fast.txt`. The npm package contains the downloader and manifest rather than the model data. Parsing does not download missing models. Full model/license hashes are recorded in `bin/ocr.mjs` and the standalone manifest; the Apache-2.0 license is not replaced by this project's MIT license.

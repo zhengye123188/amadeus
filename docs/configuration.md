@@ -84,7 +84,7 @@ The name `research` is reserved. Wildcard effects, command-based `!cmd` value in
 
 ## Explicit Pi package selection
 
-Research CLI bundles `pi-web-access`, `@upstash/context7-pi` and the `pi-docparser` PDF engine at exact versions. Use `research packages list` to inspect them. General web tools are native Pi tools; they do not add another research MCP server. The default online set is 53 research MCP tools, three file tools and six package tools.
+Research CLI bundles `pi-web-access`, `@upstash/context7-pi`, the `pi-docparser` PDF/OCR engine and (v0.5.0 source) `pi-subagents` at exact versions. Use `research packages list` to inspect them. Native tools do not add another research MCP server. The v0.5.0 source online set is 53 research MCP tools, three file tools, six package tools and four collaboration tools.
 
 ```sh
 research packages install npm:package-name@1.2.3 --policy ./package-policy.json
@@ -98,9 +98,11 @@ The default manifest is `~/.config/research-cli/packages.json`; Pi package stora
 
 ## Usage, budgets and selected project instructions
 
-`/usage` summarizes local model usage and separately recorded embedding/Jev and native package service calls. Unknown prices remain unknown. Model requests, including custom compaction calls, append numeric entries to `.research/usage.jsonl`; prompts and credentials are excluded. Native service calls record package/tool names without inputs, with unknown cost. External MCP billing is not automatically available. Local estimates are not provider invoices.
+`/usage` summarizes local parent/child model usage and separately recorded embedding/Jev and native package service calls. Unknown prices remain unknown. Model requests, including child responses and custom compaction calls, append numeric entries to `.research/usage.jsonl`; child entries add agent/role/parent IDs, while prompts and credentials are excluded. Native service calls record package/tool names without inputs, with unknown cost. External MCP billing is not automatically available. Local estimates are not provider invoices.
 
 `--max-tokens N` (default 60000) and `--max-cost-usd N` are soft per-prompt limits. A completed/in-flight request can exceed the limit; the CLI cancels further model requests after recording its usage. A cost limit requires all four profile prices. These limits do not cap external service bills.
+
+Parent and child requests share model-step, time, token and cost budgets. Delegated role tools are intersected with the parent's active tools and forwarded through its existing permission hooks/MCP connection. For role lists, follow-up, cancellation and optional local OCR settings, see [collaboration](collaboration.md).
 
 Use `--instructions ./AGENTS.md` to select project guidance and `--skill ./skills/my-skill` to select a skill. Ambient discovery stays disabled. Explicit configuration files are protected from model file tools. Instructions apply alongside the user's current question and never turn the CLI into a fixed workflow.
 

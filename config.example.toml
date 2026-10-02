@@ -20,6 +20,8 @@ docker_memory_mb = 1024
 # docker_gpus = "all"           # or "0", "0,1"
 
 tool_timeout = 90
+# Optional local OCR cache. Install verified data first with research ocr install.
+# ocr_tessdata_path = "/absolute/path/to/tessdata"
 tool_result_chars = 10000
 max_job_seconds = 600
 max_job_output_bytes = 2000000

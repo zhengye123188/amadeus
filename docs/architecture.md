@@ -1,4 +1,4 @@
-# Research CLI v0.4.0架构
+# Research CLI v0.5.0 源码架构
 
 ## 交互与运行时
 
@@ -24,7 +24,13 @@ flowchart TD
 
 Pi 根据当前问题选择工具，用户可以转向、停止或接着任意记录讨论。工具不强制执行文献、假设、实验的固定顺序。启动器复用依赖中的 Pi CLI，扩展通过公开 `createMcpExtension` 接口连接 MCP，没有复制上游内核。
 
-默认联网配置是 53 个科研 MCP 工具、3 个 Pi 文件工具和 6 个 Pi 原生包工具，共 62 个；配置 embeddings 后新增 2 个工具，外部工具按显式白名单暴露。PDF 提取复用 `pi-docparser` 原生 executor，保留科研导入、来源哈希、页码、chunks 和证据接口。[包复用与替换](pi-packages.md)
+当前源码默认联网配置是 53 个科研 MCP 工具、3 个 Pi 文件工具、6 个 Pi 原生包工具和 4 个协作工具，共 66 个；配置 embeddings 后新增 2 个工具，外部工具按显式白名单暴露。PDF/OCR 提取复用 `pi-docparser` 原生 executor，保留科研导入、来源哈希、页码、chunks 和证据接口。[包复用与替换](pi-packages.md)
+
+## 按工具职责分工的子 Agent
+
+`pi-subagents 0.74.0` 的前台执行器驱动受控 Pi Agent 子会话，角色为文献、文档、代码、实验分析、记忆和审阅。主 Agent 按当前请求动态委派，最多三个并发任务；子 Agent 独立历史保留在本进程，可追问、查看状态和取消。角色工具与主会话激活工具取交集，并由 `ctx.executeTool` 转发至同一个 MCP 服务和审批链，避免工作区数据库 owner 锁冲突。
+
+子 Agent 继承当前模型/认证/思考级别，共用主提示预算，不加载环境中的 Agent 定义或扩展。代码、记忆写入和实验执行保留在主 Agent。执行器内部 API 按固定版本与文件哈希校验，升级需重新审查；上游背景 fleet 和工作流没有启用。[协作与 OCR](collaboration.md)
 
 ## 状态与信任
 
@@ -84,6 +90,8 @@ Pi read/write/edit 经过工作区与私有路径检查；写入保护覆盖 sym
 | `bin/research.mjs`、`bin/api-doctor.mjs`、`bin/model-profile.mjs` | CLI 入口、环境安装、明确 API 检查与模型 profile |
 | `bin/packages.mjs`、`pi/packages.ts` | Pi 包安装/选择、原生工具适配与权限 |
 | `bin/document-parser.mjs`、`document_parser.py` | Pi 原生 PDF executor、跨语言取消/超时与页码完整性 |
+| `bin/ocr.mjs` | 固定版本语言数据显式安装、校验与本地状态 |
+| `pi/agent-roles.ts`、`pi/subagents.ts`、`pi/subagent-runner.ts` | 角色工具范围、受控子会话、复用执行器与父工具转发 |
 | `pi/research.ts`、`pi/policy.ts` | Pi 生命周期、审批、上下文、压缩和用户命令 |
 | `pi/profiles.ts`、`pi/trust.ts`、`pi/usage.ts` | 外部 MCP、显式材料选择、主模型用量与预算 |
 | `research.py`、`research_map.py` | 检索、来源、论文身份、比较、引用导出与复现记录 |
@@ -96,4 +104,4 @@ Pi read/write/edit 经过工作区与私有路径检查；写入保护覆盖 sym
 
 原 Python CLI 保留为 `research-legacy`，主入口不调用其模型运行时。[旧 CLI](legacy-cli.md)
 
-目前检索使用小规模 SQLite 扫描；OCR、大型检索索引、Windows、SSH/集群远程作业和多 Agent 尚未支持。模拟模型评测证明机制接通，不能替代真实模型质量评测或公开论文复现。
+目前检索使用小规模 SQLite 扫描。多 Agent 是前台协作，退出后不能恢复子会话历史；OCR 支持英文/中文本地语言数据，复杂版式和公式仍需人工核对。大型检索索引、Windows、SSH/集群远程作业尚未支持。模拟模型测试验证机制接通，不能替代真实模型质量评测或公开论文复现。
