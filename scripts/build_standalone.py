@@ -30,8 +30,11 @@ def run(*args, cwd=ROOT, capture=False, env=None):
 
 
 def sha256(path):
+    digest = hashlib.sha256()
     with Path(path).open("rb") as handle:
-        return hashlib.file_digest(handle, "sha256").hexdigest()
+        while chunk := handle.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def download(url, checksum, cache):

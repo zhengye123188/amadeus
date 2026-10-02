@@ -1,6 +1,6 @@
 # 按工具职责分工的协作与本地 OCR
 
-这些能力属于 v0.5.0 源码开发版，尚未更新已发布的 npm 和独立安装器。用 `npm ci`、`uv sync --frozen --all-extras` 安装源码依赖，再运行 `npm start`。
+这些能力从 v0.5.0 开始提供。该版本正在发布，公开 npm 和独立安装器状态见 [README](../README.md)；用 `research --version` 核对安装版本。源码运行使用 `npm ci`、`uv sync --frozen --all-extras` 和 `npm start`。
 
 ## 动态协作
 
@@ -55,7 +55,7 @@ research ocr list
 research ocr install --languages chi_tra
 ```
 
-源码运行可将 `research` 替换为 `npm start --`。安装默认选择英语和简体中文。下载来自官方 `tesseract-ocr/tessdata_fast` 的固定 Git commit，大小和 SHA-256 通过后原子保存。默认目录为 `~/.config/research-cli/tessdata`，支持 `XDG_CONFIG_HOME` 和用户设置的 `RESEARCH_OCR_TESSDATA`。新版独立安装器构建将包含三种语言及 Apache-2.0 许可。
+源码运行可将 `research` 替换为 `npm start --`。安装默认选择英语和简体中文。下载来自官方 `tesseract-ocr/tessdata_fast` 的固定 Git commit，大小和 SHA-256 通过后原子保存。默认目录为 `~/.config/research-cli/tessdata`，支持 `XDG_CONFIG_HOME` 和用户设置的 `RESEARCH_OCR_TESSDATA`。v0.5.0 独立安装器内置三种语言及 Apache-2.0 许可，无须另行下载。
 
 科研工具参数为：
 

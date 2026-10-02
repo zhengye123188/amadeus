@@ -2,7 +2,7 @@
 
 安装包自带 Node 22.23.1、Python 3.12.14、Pi 和科研后端依赖（含 Jev extra）。用户无需预装 Node、npm、Python、uv 或 Pi。下载完成后，安装过程不访问网络；使用模型和网络科研工具仍需要网络及自己的 API 账号。
 
-v0.4.0 安装器包含 `pi-docparser`、`pi-web-access` 和 Context7 原生包，并保留内置 npm/npx，供 `research packages install` 使用。用户额外安装 Pi 包时仍可能需要网络及该包自己的依赖。各平台发布情况见 [验证记录](validation.md)。
+v0.5.0 安装器包含 `pi-docparser`、`pi-subagents`、`pi-web-access` 和 Context7 四个内置包，以及本地 OCR 使用的英语、简体和繁体中文语言数据；保留内置 npm/npx，供 `research packages install` 使用。用户额外安装 Pi 包时仍可能需要网络及该包自己的依赖。v0.5.0 正在发布，各平台本次构建及公开状态见 [验证记录](validation.md)。
 
 ## 用户安装
 
@@ -19,10 +19,10 @@ curl -fsSL https://github.com/zhengye123188/research-cli/releases/latest/downloa
 选择与机器匹配的 `.run` 文件，在终端执行：
 
 ```bash
-sh ~/Downloads/research-cli-0.4.0-darwin-arm64.run
+sh ~/Downloads/research-cli-0.5.0-darwin-arm64.run
 ```
 
-请把命令中的路径替换为实际下载位置。安装器会自动校验内嵌内容；也可在两个文件所在目录提前运行 `shasum -a 256 -c research-cli-0.4.0-darwin-arm64.run.sha256`（Linux 可使用 `sha256sum -c`）。
+请把命令中的路径替换为实际下载位置。安装器会自动校验内嵌内容；也可在两个文件所在目录提前运行 `shasum -a 256 -c research-cli-0.5.0-darwin-arm64.run.sha256`（Linux 可使用 `sha256sum -c`）。
 
 | 文件后缀 | 平台 |
 |---|---|
@@ -65,7 +65,7 @@ research
 更新时运行新安装器；它先验证校验和、复制到新目录、检查运行环境，成功后原子切换 `current` 链接。不会覆盖其他来源的同名 `research` 命令；遇到冲突可以使用不同命令目录：
 
 ```bash
-sh research-cli-0.4.0-darwin-arm64.run --prefix "$HOME/Apps/research-cli" --bin-dir "$HOME/Apps/bin"
+sh research-cli-0.5.0-darwin-arm64.run --prefix "$HOME/Apps/research-cli" --bin-dir "$HOME/Apps/bin"
 ```
 
 下载入口同样支持这些参数：
@@ -84,11 +84,11 @@ Intel Mac 构建机还需要 Xcode 命令行工具、Rust、make 和 Perl。由�
 
 ```bash
 uv run --python 3.12 python scripts/build_standalone.py
-uv run --python 3.12 python scripts/smoke_standalone.py dist/standalone/research-cli-0.4.0-darwin-arm64.run
+uv run --python 3.12 python scripts/smoke_standalone.py dist/standalone/research-cli-0.5.0-darwin-arm64.run
 # 将文件名替换为本机平台对应的产物
 ```
 
-产物在 `dist/standalone/`：自解压 `.run`、可手动解压的 `.tar.gz`、各自 `.sha256`。运行环境 URL/哈希锁定在 `packaging/runtimes.json`；JS/Python 依赖锁定在 package-lock.json / uv.lock。包内 bundle.json 记录所有文件与符号链接，保留第三方许可证。校验和用于检测损坏，不等于代码签名或发布者认证。
+产物在 `dist/standalone/`：自解压 `.run`、可手动解压的 `.tar.gz`、各自 `.sha256`。运行环境 URL/哈希锁定在 `packaging/runtimes.json`；JS/Python 依赖锁定在 package-lock.json / uv.lock；OCR 语言数据的固定 commit、大小和 SHA-256 在 `bin/ocr.mjs`。包内 bundle.json 记录所有文件与符号链接，保留第三方许可证。校验和用于检测损坏，不等于代码签名或发布者认证。
 
 GitHub 的 [Standalone installers](https://github.com/zhengye123188/research-cli/actions/workflows/standalone.yml) 手动工作流在四种平台构建、进行独立安装测试，并上传 Actions artifacts。默认 `publish=false` 只构建；选择 `publish=true` 时，四个平台全部通过后才会校验产物并创建同版本的 GitHub Release。工作流先上传完整草稿，再公开发布，包含四组 `.run` / `.sha256` 和 `install.sh` 下载入口。已有版本不会被覆盖。
 

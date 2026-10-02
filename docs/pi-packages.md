@@ -2,7 +2,7 @@
 
 Research CLI uses Pi packages for document parsing, OCR, delegated agent execution, web access and current library documentation. It keeps the research records that connect papers, source passages, hypotheses, repositories and experiments. A generic memory or background-process extension does not implement those relationships.
 
-Document parsing, web access and Context7 are published in v0.4.0. Delegation and local OCR are implemented in v0.5.0 source, which is not yet published. Updating the source does not update an installed distribution; install the corresponding npm version or standalone release and check `research --version`.
+Document parsing, web access and Context7 were introduced in v0.4.0. Delegation and local OCR are available from v0.5.0, whose publication is in progress; see the [README](../README.md) for the public distribution status. Updating the source does not update an installed distribution; install the corresponding npm version or standalone release and check `research --version`.
 
 The [Pi package catalog](https://pi.dev/packages) is a discovery directory for independently published packages. Catalog inclusion does not mean that the Pi maintainers wrote, reviewed or guaranteed a package. The decisions below are based on maintainer source, published manifests and the actual npm package contents, checked on 2026-10-01 against the project's Pi **0.99.1**.
 
@@ -30,7 +30,7 @@ The adapter exposes exactly six native package tools, without an MCP prefix:
 | `resolve-library-id` | Context7 | `read` | Yes |
 | `query-docs` | Context7 | `read` | Yes |
 
-The default research MCP service still exposes **53 tools**; PDF extraction changed implementation, not its public import tool names. Alongside three Pi file tools, six package tools and four collaboration tools, v0.5.0 source has **66 tools** online (published v0.4.0 has 62). Configured embeddings add two research MCP tools. Offline configuration and user-selected packages change the visible set.
+The default research MCP service still exposes **53 tools**; PDF extraction changed implementation, not its public import tool names. Alongside three Pi file tools, six package tools and four collaboration tools, v0.5.0 has **66 tools** online. Configured embeddings add two research MCP tools. Offline configuration and user-selected packages change the visible set.
 
 `web_search` runs in the foreground with at most four queries, no summary-generation workflow and no background content fetching. `source_check` gathers search leads without automatically fetching result pages. `fetch_content` accepts one to five public HTTP(S) URLs in readable or raw mode. The adapter rejects curator, cookie/auth, model-answer, video and per-call proxy options, GitHub source URLs and explicit PDF/arXiv PDF URLs. Use `inspect_repository` / `read_repository_file` for pinned GitHub code, and `import_document` / `download_arxiv` for PDF evidence. General retrieval may encounter redirects or URLs whose content type is not indicated by their path; its output remains a lead rather than a saved page-aware research source. These restrictions do not turn the interactive CLI into a fixed research workflow.
 

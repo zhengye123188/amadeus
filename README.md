@@ -2,13 +2,13 @@
 
 基于 [Pi](https://github.com/earendil-works/pi) 的交互式科研 Agent。在项目目录打开终端，直接讨论论文、检查代码、整理证据和验证改进，由 Agent 根据当前问题选择工具。用户可以从任意问题开始、继续已有记录或随时转向。
 
-**v0.4.0 · macOS / Linux · MIT**
+**v0.5.0 · macOS / Linux · MIT**
 
-源码正在开发 **v0.5.0**：按工具职责分工的多 Agent 协作，以及英文/中文本地 OCR。已发布的 npm 和独立安装包仍是 v0.4.0；新能力用源码运行，发布后再更新安装版本。[协作与 OCR 用法](docs/collaboration.md)
+本版新增按工具职责分工的多 Agent 协作，以及英文/中文本地 OCR。[协作与 OCR 用法](docs/collaboration.md)
 
-[npm 包](https://www.npmjs.com/package/@lelouch_021015/research-cli) · [独立安装包](https://github.com/zhengye123188/research-cli/releases/latest) · [版本说明](docs/releases/v0.4.0.md) · [架构](docs/architecture.md)
+[npm 包](https://www.npmjs.com/package/@lelouch_021015/research-cli) · [独立安装包](https://github.com/zhengye123188/research-cli/releases/latest) · [版本说明](docs/releases/v0.5.0.md) · [架构](docs/architecture.md)
 
-GitHub 已发布 **v0.4.0** 独立安装包，覆盖 macOS/Linux ARM64 与 x64，四个平台均通过原生构建和安装检查。安装后用 `research --version` 核对版本。新版 Pi 原生工具包和包管理能力详见 [版本说明](docs/releases/v0.4.0.md)。
+安装后用 `research --version` 核对实际版本。各平台构建及公开下载检查见 [验证记录](docs/validation.md)。
 
 ## 安装
 
@@ -28,7 +28,7 @@ research
 
 ### npm
 
-npm **v0.4.0** 已发布，与独立安装器提供相同的 Pi 包复用和包管理能力。
+npm 与独立安装器提供相同的科研、协作和本地 OCR 能力。
 
 需要 Node ≥22.19 和 [uv](https://docs.astral.sh/uv/getting-started/installation/)。Pi 作为依赖安装，无需单独安装：
 
@@ -106,10 +106,10 @@ research --workspace "/另一个项目目录"       # 显式指定工作区
 | 持续任务 | 可选独立 worker、跨 CLI 会话查询与取消；显式从已结束任务的保存文件发起新恢复运行 |
 | 代码验证 | 项目搜索与 Python 符号检查、Git diff、选定文件检查点、冲突检查回退、项目原目录测试/构建 |
 | 配置与维护 | 模型 profile、显式外部 MCP/技能/项目指令、软预算、用量记录、数据库迁移和校验备份 |
-| 多 Agent 协作（v0.5.0 源码） | 文献、文档、代码、实验分析、记忆、审阅六类工具范围；动态并行委派、追问、状态、取消，共用模型、工作区、科研服务与预算 |
-| 本地 OCR（v0.5.0 源码） | 复用 `pi-docparser` 的 LiteParse/Tesseract，支持英语、简体/繁体中文；语言模型固定版本和哈希，解析时不隐式下载 |
+| 多 Agent 协作 | 文献、文档、代码、实验分析、记忆、审阅六类工具范围；动态并行委派、追问、状态、取消，共用模型、工作区、科研服务与预算 |
+| 本地 OCR | 复用 `pi-docparser` 的 LiteParse/Tesseract，支持英语、简体/繁体中文；语言模型固定版本和哈希，解析时不隐式下载 |
 
-当前源码默认联网配置提供 **53 个科研 MCP 工具 + 3 个 Pi 文件工具（read/write/edit）+ 6 个 Pi 包工具 + 4 个协作工具**，合计 66 个；已发布 v0.4.0 为 62 个。配置 embeddings 后增加 2 个工具；离线模式移除联网包工具，外部 MCP 和用户安装的包按工具白名单增加。Jev 工具默认可发现，调用需要依赖、账号和审批。
+v0.5.0 默认联网配置提供 **53 个科研 MCP 工具 + 3 个 Pi 文件工具（read/write/edit）+ 6 个 Pi 包工具 + 4 个协作工具**，合计 66 个。配置 embeddings 后增加 2 个工具；离线模式移除联网包工具，外部 MCP 和用户安装的包按工具白名单增加。Jev 工具默认可发现，调用需要依赖、账号和审批。
 
 PDF 解析底层已改用 `pi-docparser`，其原生文档工具不重复暴露；导入与证据保存仍通过科研 MCP。科研记忆的证据、作业、修订和人工确认关系，以及实验数据/协议/指标校验，保留项目自身实现。包审查、替换理由与完整工具列表见 [Pi 包复用指南](docs/pi-packages.md)。
 
@@ -124,17 +124,17 @@ research --package-config ./packages.json
 
 Pi 提供终端、模型接入、工具循环和会话管理，本项目通过扩展提供科研能力与权限。科研记录在 `.research/state.sqlite3`，同一项目的不同会话共享；会话分支不会回滚数据库。
 
-在源码版中可以直接说“让文献 Agent 调研论文，同时让代码 Agent 分析当前实现，最后汇总分歧”。子 Agent 按角色只读取、检索和导入资料，由主 Agent 执行批准的修改、记忆更新和实验。每次最多并行 3 个，每会话最多保留 16 个任务；追问历史保存在当前进程中，退出后不恢复子 Agent。[详细说明](docs/collaboration.md)
+可以直接说“让文献 Agent 调研论文，同时让代码 Agent 分析当前实现，最后汇总分歧”。子 Agent 按角色只读取、检索和导入资料，由主 Agent 执行批准的修改、记忆更新和实验。每次最多并行 3 个，每会话最多保留 16 个任务；追问历史保存在当前进程中，退出后不恢复子 Agent。[详细说明](docs/collaboration.md)
 
 扫描 PDF 首次使用前安装本地语言模型，然后在对话中要求 OCR 导入：
 
 ```bash
-npm start -- ocr install --languages eng,chi_sim
-npm start -- ocr list
-npm start
+research ocr install --languages eng,chi_sim
+research ocr list
+research
 ```
 
-例如“使用英文和简体中文 OCR 导入 papers/scan.pdf”。解析全程在本地，OCR 每份 PDF 限制 20 页、20 MB；公式、复杂版式和引文仍需人工核对。新版独立安装器构建会包含三种语言模型，尚未发布。
+例如“使用英文和简体中文 OCR 导入 papers/scan.pdf”。解析全程在本地，OCR 每份 PDF 限制 20 页、20 MB；公式、复杂版式和引文仍需人工核对。npm/源码安装需显式下载语言数据；v0.5.0 独立安装器内置三种语言模型，可直接使用。
 
 ## 权限、执行与预算
 
