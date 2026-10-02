@@ -13,7 +13,7 @@
 - [四平台构建与安装检查](https://github.com/zhengye123188/research-cli/actions/runs/36966520191) 全部通过，包含 macOS ARM64/x64、Linux ARM64/x64。隔离外部 Node/Python/uv，验证内置 npm/npx、三个 Pi 包、原生 PDF 导入、Pi/MCP 循环、终端工作区、重装、命令冲突及损坏包拒绝。
 - [GitHub Release v0.4.0](https://github.com/zhengye123188/research-cli/releases/tag/v0.4.0) 已公开，标签对应 `34ebdf77973e5dddc65e7303914bff638fedc262`。九个资产的 GitHub SHA-256 与已验证本地文件全部一致，包含四个安装器、四个校验文件和 `install.sh`。安装包内置 Node 22.23.1、Python 3.12.14、Pi 0.99.1、npm/npx 与科研后端。
 - 公开 `latest/download/install.sh` 已逐字节比对审查源码，再实际下载 macOS ARM64 安装器，在临时中文/空格路径安装。`research --version` 为 **0.4.0 (Pi 0.99.1)**，`doctor` 确认后端 0.4.0 与内置 Node 22.23.1，三个 Pi 包可用；没有外部开发运行环境、付费模型调用或现有安装修改。
-- npm v0.4.0 tarball 已构建并实装验证，注册表新版上传未完成；2026-10-02 只读核对 `latest` 仍为 **0.3.0**。本次没有发布 PyPI。独立安装包发布不会更新 npm 或 PyPI。
+- [npm v0.4.0](https://www.npmjs.com/package/@lelouch_021015/research-cli/v/0.4.0) 已公开，2026-10-02 核对注册表 `latest` 为 **0.4.0**。注册表 SHA-512 与已验证的 tarball 一致，公开下载文件的 SHA-512 也一致。 从注册表下载后，在临时环境再次通过 `setup`、`doctor`、三个 Pi 包、原生 PDF 导入和真实 Pi 扩展加载检查，CLI 与后端均为 0.4.0；没有改动现有全局安装。本次没有发布 PyPI；独立安装包发布不会自动更新 npm 或 PyPI。
 
 依赖审计仍有一项上游 Pi 0.99.1 内部 `brace-expansion` 5.0.9 告警：[上游公告](https://github.com/advisories/GHSA-qhr7-859c-m2p7)。该版本已存在于原锁文件，并由 Pi 的 npm shrinkwrap 锁定；普通 update、override 和非 force 的 `npm audit fix` 未消除它。本次没有强制升级 Pi 或修改上游源码。包的工具许可与宿主代码信任边界见 [安全说明](../SECURITY.md)。
 

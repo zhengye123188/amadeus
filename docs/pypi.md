@@ -1,6 +1,6 @@
 # npm CLI 与 PyPI 后端发布
 
-交互式主 CLI 发布到 npm；Python 科研后端可以单独发布到 PyPI。本项目当前版本为 `0.4.0`；GitHub 四平台独立安装器已公开，npm `latest` 仍为 `0.3.0`，新版尚未上传（2026-10-02 核对）。各渠道需要分别发布；GitHub 推送或独立安装包发布不会更新 npm。实际发布和安装验证见 [验证记录](validation.md)。
+交互式主 CLI 发布到 npm；Python 科研后端可以单独发布到 PyPI。本项目当前版本为 `0.4.0`；GitHub 四平台独立安装器与 npm `@lelouch_021015/research-cli@0.4.0` 均已公开发布（2026-10-02 核对）。各渠道需要分别发布；GitHub 推送或独立安装包发布不会更新 npm。实际发布和安装验证见 [验证记录](validation.md)。
 
 | 发布渠道 | 包名 | 安装后命令 | 用途 |
 |---|---|---|---|
@@ -13,7 +13,7 @@ npm 包携带 Python 后端源码及 `uv.lock`，`research setup` 用 uv 安装�
 
 ## 发布 npm 主 CLI
 
-本节展示尚未上传版本的发布步骤。已发布的同一版本不能重复上传；后续更新先按文末步骤增加版本号。
+本节展示后续版本的发布步骤。v0.4.0 已发布，同一版本不能重复上传；更新先按文末步骤增加版本号。
 
 先注册并登录自己的 [npm 账号](https://www.npmjs.com/signup)。包名中的 `@lelouch_021015` 是 npm scope，登录账号必须拥有该 scope 的发布权限；GitHub 同名账号不自动获得 npm 权限。若使用其他 npm 用户名，先修改 `package.json` 的 `name` 并更新 `package-lock.json`。
 

@@ -26,7 +26,7 @@ research
 
 ### npm
 
-当前 npm `latest` 为 **0.3.0**，v0.4.0 尚未上传（2026-10-02 核对）。需要本版 Pi 包复用功能，请先使用上方独立安装器或源码安装。
+npm **v0.4.0** 已发布，与独立安装器提供相同的 Pi 包复用和包管理能力。
 
 需要 Node ≥22.19 和 [uv](https://docs.astral.sh/uv/getting-started/installation/)。Pi 作为依赖安装，无需单独安装：
 
