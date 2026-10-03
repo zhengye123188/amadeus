@@ -10,6 +10,7 @@ import { checkApi } from "./api-doctor.mjs";
 import { loadModelProfile } from "./model-profile.mjs";
 import { handlePackageCommand, loadPackageSelection, packagePaths } from "./packages.mjs";
 import { handleOcrCommand } from "./ocr.mjs";
+import { shouldUseResearchTui } from "./interactive.mjs";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
@@ -52,6 +53,8 @@ Research options:
   --approve-experiments                 Explicitly allow experiment calls without dialogs
   --offline                            Disable backend network tools (model may still use network)
   --memory on|off                       Project context/compaction ablation (default: on)
+  --ui-avatar pixel|off                 Pixel character portrait (default: pixel)
+  --ui-theme pixel|system               Interactive colors (default: pixel)
   --config FILE                        Python backend TOML configuration
   --model-profile FILE                 Explicit model capability/pricing JSON
   --mcp-config FILE                    Trusted external MCP JSON with per-tool allowlist
@@ -66,7 +69,7 @@ Research options:
 Pi options pass through: --provider, --model, -p, --mode json, --continue, --resume.
 Set provider keys in environment or use /login. OPENAI_BASE_URL + RESEARCH_MODEL
 select an OpenAI-compatible endpoint; RESEARCH_API=chat|responses selects protocol.
-Interactive commands: /agents /agents roles /memory /evidence /jobs /usage /review-memory /research-status /packages /mcp /compact /tree.
+Interactive commands: /ui /agents /agents roles /memory /evidence /jobs /usage /review-memory /research-status /packages /mcp /compact /tree.
 For full upstream options: research --pi-help
 Python prototype: research-legacy (separate command).
 `);
@@ -81,8 +84,9 @@ if (args.includes("--pi-help")) {
 }
 // Pi's raw loader/tool flags bypass Research's package selection and activation.
 const forbiddenFlags = new Set(["--extension", "-e", "--no-extensions", "-ne", "--tools", "-t", "--exclude-tools", "-xt", "--no-tools", "-nt", "--no-builtin-tools", "-nbt"]);
-const valueFlags = new Set(["--workspace", "--permission", "--execution", "--memory", "--config", "--model-profile", "--mcp-config", "--package-config", "--instructions", "--skill", "--max-turns", "--max-seconds", "--max-tokens", "--max-cost-usd", "--provider", "--model", "--api-key", "--system-prompt", "--append-system-prompt", "--name", "-n", "--session", "--session-id", "--fork", "--session-dir", "--models", "--thinking", "--mode", "--export", "--prompt-template", "--theme", "--use-theme", "--tui-mode"]);
+const valueFlags = new Set(["--workspace", "--permission", "--execution", "--memory", "--ui-avatar", "--ui-theme", "--config", "--model-profile", "--mcp-config", "--package-config", "--instructions", "--skill", "--max-turns", "--max-seconds", "--max-tokens", "--max-cost-usd", "--provider", "--model", "--api-key", "--system-prompt", "--append-system-prompt", "--name", "-n", "--session", "--session-id", "--fork", "--session-dir", "--models", "--thinking", "--mode", "--export", "--prompt-template", "--theme", "--use-theme", "--tui-mode"]);
 for (let index = 0; index < args.length; index++) {
+  if (args[index] === "--") break;
   const flag = args[index].split("=", 1)[0];
   if (forbiddenFlags.has(flag)) {
     console.error(`Research CLI manages extension loading and tool permissions. Use research packages install SOURCE --policy FILE instead of ${flag}.`);
@@ -166,10 +170,11 @@ const env = { ...process.env, RESEARCH_PYTHON: python, RESEARCH_APPROVAL_SECRET:
   RESEARCH_NODE: process.execPath, RESEARCH_DOCUMENT_PARSER: join(root, "bin", "document-parser.mjs") };
 let workspace = process.cwd();
 const forwarded = [];
-const researchOptions = { "--permission": "RESEARCH_PERMISSION", "--execution": "RESEARCH_EXECUTION", "--memory": "RESEARCH_MEMORY", "--config": "RESEARCH_CONFIG", "--model-profile": "RESEARCH_MODEL_PROFILE", "--mcp-config": "RESEARCH_MCP_CONFIG", "--package-config": "RESEARCH_PACKAGE_CONFIG", "--instructions": "RESEARCH_INSTRUCTIONS", "--max-turns": "RESEARCH_MAX_TURNS", "--max-seconds": "RESEARCH_MAX_SECONDS", "--max-tokens": "RESEARCH_MAX_TOKENS", "--max-cost-usd": "RESEARCH_MAX_COST_USD" };
+const researchOptions = { "--permission": "RESEARCH_PERMISSION", "--execution": "RESEARCH_EXECUTION", "--memory": "RESEARCH_MEMORY", "--ui-avatar": "RESEARCH_UI_AVATAR", "--ui-theme": "RESEARCH_UI_THEME", "--config": "RESEARCH_CONFIG", "--model-profile": "RESEARCH_MODEL_PROFILE", "--mcp-config": "RESEARCH_MCP_CONFIG", "--package-config": "RESEARCH_PACKAGE_CONFIG", "--instructions": "RESEARCH_INSTRUCTIONS", "--max-turns": "RESEARCH_MAX_TURNS", "--max-seconds": "RESEARCH_MAX_SECONDS", "--max-tokens": "RESEARCH_MAX_TOKENS", "--max-cost-usd": "RESEARCH_MAX_COST_USD" };
 const selectedSkills = [];
 for (let i = 0; i < args.length; i++) {
   const arg = args[i];
+  if (arg === "--") { forwarded.push(...args.slice(i)); break; }
   if (arg === "--workspace" || arg in researchOptions) {
     const value = args[++i];
     if (!value || value.startsWith("--")) { console.error(`Missing value for ${arg}`); process.exit(2); }
@@ -183,7 +188,7 @@ for (let i = 0; i < args.length; i++) {
   else if (arg === "--approve-experiments") env.RESEARCH_APPROVE_EXPERIMENTS = "1";
   else forwarded.push(arg);
 }
-for (const [key, values] of Object.entries({ RESEARCH_PERMISSION: ["ask", "read-only", "workspace-write"], RESEARCH_EXECUTION: ["disabled", "docker", "local"], RESEARCH_MEMORY: ["on", "off"] })) {
+for (const [key, values] of Object.entries({ RESEARCH_PERMISSION: ["ask", "read-only", "workspace-write"], RESEARCH_EXECUTION: ["disabled", "docker", "local"], RESEARCH_MEMORY: ["on", "off"], RESEARCH_UI_AVATAR: ["pixel", "off"], RESEARCH_UI_THEME: ["pixel", "system"] })) {
   if (env[key] && !values.includes(env[key])) { console.error(`Invalid ${key}: ${env[key]}`); process.exit(2); }
 }
 try { workspace = realpathSync(workspace); } catch { console.error("Workspace does not exist"); process.exit(2); }
@@ -212,7 +217,8 @@ function checkReady() {
   } catch { /* An extension still initializing has not written its receipt. */ }
   return ready;
 }
-const child = spawn(process.execPath, [piBin,
+const interactive = shouldUseResearchTui(forwarded);
+const child = spawn(process.execPath, [interactive ? join(root, "bin", "interactive.mjs") : piBin,
   "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-themes", "--no-context-files",
   "--no-builtin-tools",
   "--extension", join(root, "pi", "research.ts"),

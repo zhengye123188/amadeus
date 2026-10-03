@@ -11,6 +11,7 @@ import { positiveBudget, recordUsage } from "./usage.ts";
 import { selectedInstructions, selectedSkillFiles } from "./trust.ts";
 import { prepareCollaboration } from "./subagents.ts";
 import { collaborationTools } from "./agent-roles.ts";
+import { registerResearchUI } from "./ui.ts";
 
 export default async function research(pi: ExtensionAPI) {
   const python = process.env.RESEARCH_PYTHON;
@@ -21,6 +22,7 @@ export default async function research(pi: ExtensionAPI) {
   const execution = process.env.RESEARCH_EXECUTION || "disabled";
   const allowExperiments = process.env.RESEARCH_APPROVE_EXPERIMENTS === "1";
   const memoryEnabled = process.env.RESEARCH_MEMORY !== "off";
+  registerResearchUI(pi);
   let query = "continue research";
   let approvalQueue: Promise<unknown> = Promise.resolve();
   const maxTurns = Number(process.env.RESEARCH_MAX_TURNS || 32);
@@ -87,7 +89,7 @@ export default async function research(pi: ExtensionAPI) {
         cost: { input: profile.prices.input ?? 0, output: profile.prices.output ?? 0, cacheRead: profile.prices.cacheRead ?? 0, cacheWrite: profile.prices.cacheWrite ?? 0 } }],
     });
     pi.on("session_start", (_event, ctx) => {
-      if (!profile.pricingKnown) ctx.ui.notify("Custom endpoint: some token prices are unknown; Pi's displayed $0 is not a verified zero cost. /usage records unknown estimates. Configure --model-profile for model capabilities and pricing.", "warning");
+      if (!profile.pricingKnown) ctx.ui.notify("Custom endpoint: some token prices are unknown. /usage records unknown estimates. Configure --model-profile for model capabilities and pricing.", "warning");
     });
   }
 

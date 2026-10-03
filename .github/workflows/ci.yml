@@ -38,6 +38,8 @@ jobs:
           RESEARCH_OCR_TESSDATA="$RUNNER_TEMP/research-ocr/tessdata" node bin/research.mjs ocr install --languages eng,chi_sim,chi_tra
           echo "RESEARCH_OCR_TEST_DATA=$RUNNER_TEMP/research-ocr/tessdata" >> "$GITHUB_ENV"
       - run: npm test
+      - name: Exercise the interactive terminal in a real PTY
+        run: uv run python scripts/smoke_ui.py
       - run: npm run eval:memory
       - run: npm run eval:research -- --mock --output /tmp/research-evaluation.json
       - run: npm pack --dry-run

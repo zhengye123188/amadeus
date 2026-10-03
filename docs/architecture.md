@@ -4,7 +4,7 @@
 
 ```mermaid
 flowchart TD
-    U[终端用户：自由对话与明确审批] <--> P[Pi CLI：模型、工具循环、会话树]
+    U[终端用户：自由对话与明确审批] <--> P[Research 像素终端：Pi SDK 模型、工具循环、会话树]
     L[research 启动器与显式配置] --> P
     P <--> X[TypeScript 科研扩展]
     X <--> N[Pi 原生包：网页与 Context7 文档工具]
@@ -22,7 +22,9 @@ flowchart TD
     X --> A[模型用量账本]
 ```
 
-Pi 根据当前问题选择工具，用户可以转向、停止或接着任意记录讨论。工具不强制执行文献、假设、实验的固定顺序。启动器复用依赖中的 Pi CLI，扩展通过公开 `createMcpExtension` 接口连接 MCP，没有复制上游内核。
+Pi 根据当前问题选择工具，用户可以转向、停止或接着任意记录讨论。工具不强制执行文献、假设、实验的固定顺序。交互模式使用公开 Pi SDK 的 session services/runtime 和 `InteractiveMode`，由科研扩展安装头部、状态栏、编辑器与主题；print/JSON/RPC 继续使用 Pi CLI。两条启动路径都关闭环境资源和内置工具，并要求核心初始化回执。扩展通过公开 `createMcpExtension` 接口连接 MCP，没有复制上游内核。
+
+像素头像来自随包提供的透明 PNG，预先转换为 48×48 调色板网格，终端使用 ANSI 半块字符显示。运行时不解码图片，不依赖 Kitty/iTerm 图片协议；按终端宽高收紧布局，`NO_COLOR` / `TERM=dumb` 时使用单色组件。工作区、模型、上下文和协作状态读取实际会话数据。[UI 结构与定制](ui.md)
 
 当前源码默认联网配置是 53 个科研 MCP 工具、3 个 Pi 文件工具、6 个 Pi 原生包工具和 4 个协作工具，共 66 个；配置 embeddings 后新增 2 个工具，外部工具按显式白名单暴露。PDF/OCR 提取复用 `pi-docparser` 原生 executor，保留科研导入、来源哈希、页码、chunks 和证据接口。[包复用与替换](pi-packages.md)
 
@@ -88,6 +90,7 @@ Pi read/write/edit 经过工作区与私有路径检查；写入保护覆盖 sym
 | 位置 | 职责 |
 | --- | --- |
 | `bin/research.mjs`、`bin/api-doctor.mjs`、`bin/model-profile.mjs` | CLI 入口、环境安装、明确 API 检查与模型 profile |
+| `bin/interactive.mjs`、`pi/ui.ts`、`pi/assets` | 公开 Pi SDK 交互宿主、像素主题/头部/状态栏、字符头像数据 |
 | `bin/packages.mjs`、`pi/packages.ts` | Pi 包安装/选择、原生工具适配与权限 |
 | `bin/document-parser.mjs`、`document_parser.py` | Pi 原生 PDF executor、跨语言取消/超时与页码完整性 |
 | `bin/ocr.mjs` | 固定版本语言数据显式安装、校验与本地状态 |

@@ -3,11 +3,13 @@
 Research CLI is an independent project built on **Pi**, maintained by Mario Zechner and the Pi contributors.
 
 - Upstream: https://github.com/earendil-works/pi
-- Package: `@earendil-works/pi-coding-agent`, pinned to `0.99.1`
+- Packages: `@earendil-works/pi-coding-agent`, `@earendil-works/pi-agent-core` and `@earendil-works/pi-tui`, pinned to `0.99.1`
 - License: MIT (see the upstream repository and installed package notices)
 - Reused: terminal UI, model/provider integration, agent loop, session management and native MCP integration.
 
-Pi is installed as an npm dependency. This repository does not vendor its implementation. Upstream functionality is not claimed as original Research CLI work. Original work here includes the Python research service, evidence/memory model, extension policy and context integration, experiment ledger and evaluations.
+Pi is installed as an npm dependency. This repository does not vendor its implementation. Upstream functionality is not claimed as original Research CLI work. Original work here includes the Python research service, evidence/memory model, extension policy and context integration, experiment ledger, pixel terminal components and evaluations.
+
+The optional pixel illustration in `pi/assets/kurisu-pixel.png` and its terminal bitmap depict Kurisu Makise from STEINS;GATE. This project-specific illustration was AI-generated from the selected UI concept, not taken from official game/anime artwork. STEINS;GATE and its character belong to their respective rights holders; Research CLI is an independent project, with no affiliation or endorsement asserted. The source-code MIT license does not grant rights in the underlying character. Use `--ui-avatar off` to hide the illustration.
 
 Python and other npm dependencies retain their own licenses; inspect `uv.lock`, `package-lock.json` and the installed distributions for the complete dependency set. User-imported papers, datasets and third-party repository code remain subject to their own licenses and access conditions. Synthetic evaluation fixtures in this repository are original project material, not copied publications or empirical scientific results.
 
