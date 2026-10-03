@@ -2,6 +2,17 @@
 
 更新日期：2026-10-03。开发环境为 macOS ARM64、Node 22.23.1、Python 3.12.13、Pi 0.99.1；依赖由 `package-lock.json` 和 `uv.lock` 固定。
 
+## v0.6.3：概念图像素提取与字符显示
+
+[npm v0.6.3](https://www.npmjs.com/package/@lelouch_021015/amadeus/v/0.6.3) 与 [GitHub Release v0.6.3](https://github.com/zhengye123188/amadeus/releases/tag/v0.6.3) 已公开，2026-10-03 核对两者均为 latest。最终源码为 `3573549686f6d6dc3fa9758ed53f58a14f8a3b4e`，Release 标签精确对应该提交；启动命令仍只有 `research`。本次未发布 PyPI。
+
+- 随包 PNG 与用户选定的 [284×184 概念图](assets/kurisu-concept-reference.png)逐字节一致，SHA-256 为 `b452c28928058ddb3d95b030718bd8362f6a8a814ec4fc1920c5cafa74260a62`。schema 4 包含七档完整场景，移除全图 63 色限制；公开包所有调色板 RGB 均实际存在于源图，284×184 的半块网格逐像素对应原图。默认四分块每字符仍以两种源颜色近似四个子像素，缩小网格不能保留全部细节。
+- [Menlo 字符预览](assets/amadeus-concept-ansi-preview.png)根据实际 ANSI 颜色和字形绘制。源码、临时 npm 实装和四平台独立安装器的真实 PTY 检查覆盖 135×37 / 138×41 场景、缩放、四分块与半块切换、中文输入和会话操作；不发送 PNG 图片协议。`visual_font_verification` 仍为 false：预览不是终端 GUI 截图，PTY 通过不能证明用户终端的字体和行距视觉效果。测试使用本机模拟模型服务。
+- [完整 CI](https://github.com/zhengye123188/amadeus/actions/runs/37126116375)在 macOS/Linux × Python 3.10/3.12 四组全部通过。每组 Python **192 项通过、3 项 ripgrep 可选测试跳过**；macOS Node **101 项通过、无跳过**，Linux Node **100 项通过、1 项 macOS 专属测试跳过**。四组均完成原生 PDF/OCR、真实 PTY、npm tarball 和 Python wheel 实装。
+- 公开 npm tarball 为 **806,495 字节**，逐字节等于已实装测试的包；SHA-256 为 `be4cb7afb25c75dc550abf79739ebbc31b7da5af87441096151fa3d342516e9e`，SHA-512 为 `sha512-90/D8dQWPl+J70PpA11ssZeRy7n3Z27Bpg/ejt8hbvX8LLtvTdLwQzX2UN4pvxutZl4T63NXSUG03UI/771r+A==`。公开元数据与下载字节一致，包内前后端均为 0.6.3，唯一命令为 `research`。
+- [四平台原生构建、实装与发布](https://github.com/zhengye123188/amadeus/actions/runs/37126181197)全部通过，源码与上述 CI 相同。检查包含内置运行环境、四个 Pi 包、原生 PDF/OCR、真实子 Agent 与 MCP 工具循环、像素界面、重装和损坏包拒绝。稳定 Release 的九个资产均已上传，所有公开下载终点 HEAD 为 HTTP 200，大小与资产记录一致；四份公开校验文件匹配 GitHub 安装器 SHA-256。实装证据来自原生 CI，没有再次完整下载执行公开大安装包。
+- 公开 `latest/download/install.sh` 为 **2,709 字节**，逐字节等于发布源码，SHA-256 为 `5c7086c1ef5280cb6f53d0fc6cba04efc2b867cc606055e1792676de0c0aab98`。本机 Node 22 的全局 npm 安装已更新为 0.6.3，前后端、概念图和 UI 数据与公开包一致，API 配置字节未改变。实际安装的 `research` 命令通过隔离临时状态的全套 PTY 检查，包括四分块/半块/关闭模式和 135×37 / 138×41 缩放，stderr 为空；这仍不包含 GUI 字体视觉验收。
+
 ## v0.6.2：Amadeus 更名与完整半身像
 
 项目展示品牌改为 **Amadeus**，npm 包名为 `@lelouch_021015/amadeus`，GitHub 仓库为 `zhengye123188/amadeus`。启动命令仍为 `research`；用户配置、会话和 `.research/` 数据保留原有路径。旧 npm 包需先卸载再安装新包，以免占用同一个命令。
@@ -11,10 +22,10 @@
 - schema 3 包含完整场景的原生 `32×20 / 48×32 / 64×40` 网格。独立采样、不裁头，保留人物、托腮手势、白大褂、领带、试管、书本与星星；UI 按实际终端尺寸选择。
 - 本机 Python **195 项通过**；Node/TypeScript **98 项通过、2 项可选 OCR 测试跳过**。TypeScript、Ruff/格式、版本同步、离线锁文件和 diff 检查通过。模型请求来自本机 fixture，不使用用户密钥。
 - 实际 npm tarball 临时安装通过，包名为 `@lelouch_021015/amadeus`，唯一命令为 `research`，前后端均为 **0.6.2**。四个 Pi 包、原生 PDF 导入、真实科研扩展加载与整套 PTY 交互验证通过；135×37、160×48、80×24、窄屏和短屏隐藏/恢复均覆盖。
-- [npm v0.6.2](https://www.npmjs.com/package/@lelouch_021015/amadeus/v/0.6.2) 已公开且 `latest=0.6.2`。公开 tarball 为 **1,733,752 字节**，逐字节等于实装测试产物；SHA-256 为 `10be1686170aa14796eb4046764c56f9984bcf52d43f8892673a34ed428b8421`，SHA-512 为 `sha512-O/fG6ogYMJ2HGoIqPnmjQJbyDQGbYobliJH6b81AWAuVflwULldcdvLBLZ/nwomIlUIWYYCHyHsi3Xos+XNUEQ==`。包内 56 个文件、唯一 `research` 命令、PNG、schema 3 和 UI 均与发布源码 `fd0859ac25c6818b2451c1d599ff5bc50fa80cb4` 对应。
+- [npm v0.6.2](https://www.npmjs.com/package/@lelouch_021015/amadeus/v/0.6.2) 已公开，发布时 `latest=0.6.2`。公开 tarball 为 **1,733,752 字节**，逐字节等于实装测试产物；SHA-256 为 `10be1686170aa14796eb4046764c56f9984bcf52d43f8892673a34ed428b8421`，SHA-512 为 `sha512-O/fG6ogYMJ2HGoIqPnmjQJbyDQGbYobliJH6b81AWAuVflwULldcdvLBLZ/nwomIlUIWYYCHyHsi3Xos+XNUEQ==`。包内 56 个文件、唯一 `research` 命令、PNG、schema 3 和 UI 均与发布源码 `fd0859ac25c6818b2451c1d599ff5bc50fa80cb4` 对应。
 - 最终发布源码的[完整 CI](https://github.com/zhengye123188/amadeus/actions/runs/37122059575)在 macOS/Linux × Python 3.10/3.12 四组全部通过。每组 Python **192 项通过、3 项 ripgrep 可选测试跳过**；macOS Node **100 项通过、无跳过**，Linux Node **99 项通过、1 项 macOS 专属测试跳过**。四组均实际完成原生 PDF/OCR、真实 PTY、npm tarball 和 Python wheel 实装。
 - [四平台原生构建、实装与发布](https://github.com/zhengye123188/amadeus/actions/runs/37122082317)全部成功，源码同为上述提交；真实检查覆盖内置 Node 22.23.1 / Python 3.12.14、四个 Pi 包、PDF/OCR、子 Agent、MCP 工具循环、半身界面、单色模式、会话操作、重装与损坏包拒绝。
-- [GitHub Release v0.6.2](https://github.com/zhengye123188/amadeus/releases/tag/v0.6.2)已公开且为 latest，标签精确对应发布源码，非草稿、非预发布，九个资产均已上传。四个公开校验文件匹配 GitHub 安装器资产 digest；公开下载终点 HEAD 均 HTTP 200，Content-Length 匹配资产大小。没有再次完整下载实装公开大安装包，四平台实装证据来自原生 CI。
+- [GitHub Release v0.6.2](https://github.com/zhengye123188/amadeus/releases/tag/v0.6.2)已公开，发布时为 latest，标签精确对应发布源码，非草稿、非预发布，九个资产均已上传。四个公开校验文件匹配 GitHub 安装器资产 digest；公开下载终点 HEAD 均 HTTP 200，Content-Length 匹配资产大小。没有再次完整下载实装公开大安装包，四平台实装证据来自原生 CI。
 - 公开 `latest/download/install.sh` 为 **2,709 字节**，逐字节等于发布源码；SHA-256 为 `668a97633c24fde7117c5511c740d6ae8be60b5f7f9e795295513575637d0a44`，`sh -n` 通过。本次未发布 PyPI。
 
 | 安装器平台 | 字节数 | 公开资产 SHA-256 |
