@@ -1,6 +1,6 @@
 # npm CLI 与 PyPI 后端发布
 
-交互式主 CLI 发布到 npm，Python 科研后端可以单独发布到 PyPI。项目自 v0.6.2 更名为 **Amadeus**，新 npm 包名为 `@lelouch_021015/amadeus`，启动命令仍为 `research`。[npm v0.6.3](https://www.npmjs.com/package/@lelouch_021015/amadeus/v/0.6.3) 与[四平台 GitHub Release v0.6.3](https://github.com/zhengye123188/amadeus/releases/tag/v0.6.3) 均已公开并设为 latest，实装测试及公开下载校验通过；范围见[验证记录](validation.md)与[v0.6.3 版本说明](releases/v0.6.3.md)。各渠道需要分别发布；GitHub 推送或独立安装包发布不会更新 npm。PyPI 后端尚未发布，本次也不上传 PyPI。
+交互式主 CLI 发布到 npm，Python 科研后端可以单独发布到 PyPI。项目自 v0.6.2 更名为 **Amadeus**，新 npm 包名为 `@lelouch_021015/amadeus`，启动命令仍为 `research`。[npm v0.6.4](https://www.npmjs.com/package/@lelouch_021015/amadeus/v/0.6.4) 与[四平台 GitHub Release v0.6.4](https://github.com/zhengye123188/amadeus/releases/tag/v0.6.4) 均已公开并设为 latest，实装测试及公开下载校验通过；范围见[验证记录](validation.md)与[v0.6.4 版本说明](releases/v0.6.4.md)。各渠道需要分别发布；GitHub 推送或独立安装包发布不会更新 npm。PyPI 后端尚未发布，本次也不上传 PyPI。
 
 | 发布渠道 | 包名 | 安装后命令 | 用途 |
 |---|---|---|---|
@@ -37,7 +37,7 @@ npm publish --access public --registry=https://registry.npmjs.org
 发布后检查注册表：
 
 ```bash
-npm view @lelouch_021015/amadeus@0.6.3 version --registry=https://registry.npmjs.org
+npm view @lelouch_021015/amadeus@0.6.4 version --registry=https://registry.npmjs.org
 ```
 
 用户安装时，需要 Node `>=22.19.0` 和 [uv](https://docs.astral.sh/uv/getting-started/installation/)：
@@ -80,16 +80,16 @@ gh workflow run publish.yml --ref main -f publish=false
 git fetch origin --tags
 ```
 
-如果对应版本已经发布独立安装器，复用该发布的标签，不要移动或重新创建。否则，为已经通过 CI 的提交创建并推送完全匹配的标签。在 GitHub **Actions → PyPI release → Run workflow** 中选择该标签，再勾选 `publish`。以 0.6.3 为例，只有 `v0.6.3` 标签存在且指向通过验证的源码、并且另行决定发布 PyPI 后端时运行：
+如果对应版本已经发布独立安装器，复用该发布的标签，不要移动或重新创建。否则，为已经通过 CI 的提交创建并推送完全匹配的标签。在 GitHub **Actions → PyPI release → Run workflow** 中选择该标签，再勾选 `publish`。以 0.6.4 为例，只有 `v0.6.4` 标签存在且指向通过验证的源码、并且另行决定发布 PyPI 后端时运行：
 
 ```bash
-gh workflow run publish.yml --ref v0.6.3 -f publish=true
+gh workflow run publish.yml --ref v0.6.4 -f publish=true
 ```
 
 `publish=true` 会真实上传。只有工作流上传成功并能从 PyPI 查询到版本后，才向用户提供安装命令：
 
 ```bash
-uv tool install 'research-terminal[mcp]==0.6.3'
+uv tool install 'research-terminal[mcp]==0.6.4'
 research-mcp --version
 ```
 
@@ -106,7 +106,7 @@ uv run ruff format --check .
 uv run pytest -q
 uv build --no-sources --out-dir dist/python
 uvx --from 'twine>=6,<7' twine check --strict dist/python/*
-uv run python scripts/smoke_install.py dist/python/research_terminal-0.6.3-py3-none-any.whl
+uv run python scripts/smoke_install.py dist/python/research_terminal-0.6.4-py3-none-any.whl
 uvx --from 'twine>=6,<7' twine upload dist/python/*
 ```
 
@@ -114,10 +114,10 @@ uvx --from 'twine>=6,<7' twine upload dist/python/*
 
 ## 后续版本更新
 
-使用统一脚本更新版本，避免前端、后端和安装入口不一致。0.6.3 已公开，不能重复发布；下面的 0.6.4 是下一补丁版本示例：
+使用统一脚本更新版本，避免前端、后端和安装入口不一致。0.6.4 已公开，不能重复发布；下面的 0.6.5 是下一补丁版本示例：
 
 ```bash
-npm run version:set -- 0.6.4
+npm run version:set -- 0.6.5
 npm run version:check
 ```
 

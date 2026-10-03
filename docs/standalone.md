@@ -4,7 +4,7 @@
 
 安装器包含 `pi-docparser`、`pi-subagents`、`pi-web-access` 和 Context7 四个内置包，以及本地 OCR 使用的英语、简体和繁体中文语言数据；保留内置 npm/npx，供 `research packages install` 使用。用户额外安装 Pi 包时仍可能需要网络及该包自己的依赖。
 
-[Amadeus v0.6.3](https://github.com/zhengye123188/amadeus/releases/tag/v0.6.3) 已公开并设为 latest，四平台均通过原生构建和实装检查，包含从选定概念图提取的四分块字符半身场景及 `--ui-avatar half` 兼容模式。公开资产大小、校验文件与下载入口已核对；详细范围见[验证记录](validation.md)。启动命令仍为 `research`，GUI 实机字体效果仍需在用户终端核对。
+[Amadeus v0.6.4](https://github.com/zhengye123188/amadeus/releases/tag/v0.6.4) 已公开并设为 latest，四平台均通过原生构建和实装检查，包含从选定概念图提取的四分块字符半身场景及 `--ui-avatar half` 兼容模式。公开资产大小、校验文件与下载入口已核对；详细范围见[验证记录](validation.md)。启动命令仍为 `research`，GUI 实机字体效果仍需在用户终端核对。
 
 ## 用户安装
 
@@ -21,10 +21,10 @@ curl -fsSL https://github.com/zhengye123188/amadeus/releases/latest/download/ins
 选择与机器匹配的 `.run` 文件，在终端执行：
 
 ```bash
-sh ~/Downloads/amadeus-0.6.3-darwin-arm64.run
+sh ~/Downloads/amadeus-0.6.4-darwin-arm64.run
 ```
 
-上面以 v0.6.3 文件名为例，请将版本和路径替换为实际下载文件。安装器会自动校验内嵌内容；也可在两个文件所在目录提前运行 `shasum -a 256 -c amadeus-0.6.3-darwin-arm64.run.sha256`（Linux 可使用 `sha256sum -c`）。
+上面以 v0.6.4 文件名为例，请将版本和路径替换为实际下载文件。安装器会自动校验内嵌内容；也可在两个文件所在目录提前运行 `shasum -a 256 -c amadeus-0.6.4-darwin-arm64.run.sha256`（Linux 可使用 `sha256sum -c`）。
 
 | 文件后缀 | 平台 |
 |---|---|
@@ -67,7 +67,7 @@ research
 更新时运行新安装器；它先验证校验和、复制到新目录、检查运行环境，成功后原子切换 `current` 链接。不会覆盖其他来源的同名 `research` 命令；遇到冲突可以使用不同命令目录：
 
 ```bash
-sh amadeus-0.6.3-darwin-arm64.run --prefix "$HOME/Apps/research-cli" --bin-dir "$HOME/Apps/bin"
+sh amadeus-0.6.4-darwin-arm64.run --prefix "$HOME/Apps/research-cli" --bin-dir "$HOME/Apps/bin"
 ```
 
 下载入口同样支持这些参数：
@@ -86,7 +86,7 @@ Intel Mac 构建机还需要 Xcode 命令行工具、Rust、make 和 Perl。由�
 
 ```bash
 uv run --python 3.12 python scripts/build_standalone.py
-uv run --python 3.12 python scripts/smoke_standalone.py dist/standalone/amadeus-0.6.3-darwin-arm64.run
+uv run --python 3.12 python scripts/smoke_standalone.py dist/standalone/amadeus-0.6.4-darwin-arm64.run
 # 将文件名替换为本机平台对应的产物
 ```
 

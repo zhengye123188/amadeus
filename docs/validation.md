@@ -4,13 +4,27 @@
 
 ## v0.6.4：缩放重绘与像素细节
 
-发布准备已完成，npm 与四平台安装器的公开状态将在发布核验后补记；已有安装仍需更新才能使用本版。
+[npm v0.6.4](https://www.npmjs.com/package/@lelouch_021015/amadeus/v/0.6.4) 和 [GitHub Release v0.6.4](https://github.com/zhengye123188/amadeus/releases/tag/v0.6.4) 均已公开并设为 latest，2026-10-03 核对。发布源码及标签为 `71b491923e63a1ab81462f1ce62f35e385058c9f`；本次未发布 PyPI。
 
 - 本机 Node **101 项通过、2 项可选 OCR 跳过**；TypeScript、版本同步、Ruff/格式及 diff 检查通过。
 - 新增终端模拟器验证连续缩小、恢复、窄屏、短屏的最终字符和 RGB，并与独立逐字符着色参考比较；缩放恢复时不能残留旧行或错误颜色。监听原始 SIGWINCH 与尺寸事件，合并突发通知，在 120 毫秒后强制重绘；移除后不会执行待处理任务。`@xterm/headless` 只用于开发测试，不是 CLI 运行时依赖。
 - 真实 PTY 检查通过启动、中文输入、模型选择、主题、新建/重载、头像模式与退出；额外覆盖八次快速缩小又恢复原尺寸后的清屏重绘。待发布 npm tarball 已在隔离临时目录实装，CLI/后端均为 **0.6.4**，四个 Pi 包、科研扩展、原生 PDF 和完整 PTY 检查通过。
 - schema 5 含十四档完整半身场景。区域统计兼顾中心轮廓，最终回取源图真实颜色；低分辨率档合并通道差异不超过 3 的低对比区域。原尺寸网格逐像素相等及可重复生成检查继续通过，源 PNG 哈希保持不变。
 - [响应式字符预览](assets/amadeus-responsive-ansi-preview.png)由实际 ANSI 输出经模拟器解析后使用 Menlo 绘制，不是终端 GUI 截图。工程检查使用本机模型 fixture，没有调用用户 API；GUI 字体视觉验收仍未完成。
+
+
+- [完整 CI](https://github.com/zhengye123188/amadeus/actions/runs/37129401096) 在 macOS/Linux × Python 3.10/3.12 四组全部通过：每组 Python **192 项通过、3 项 ripgrep 可选测试跳过**；macOS Node **103 项通过**，Linux Node **102 项通过、1 项 macOS 专属测试跳过**。四组均完成原生 PDF/OCR、真实 PTY、npm tarball 和 Python wheel 实装。
+- 公开 npm 包 **923,950 字节**，与实装测试 tarball 逐字节一致。SHA-256 为 `e4fce74c28b18f53b25c9bded8b5f472de4533ce5985f715ac71565b4444938b`，完整性为 `sha512-zYiHm0NMwPFh64hkr057fJBL9bTt9FievCYiKN3uCPN2dSX2Myj/SyEYGckJJ8qt/VkvmLYTI/TJzSmxbeYN+w==`；包内 CLI/后端版本均为 0.6.4，唯一命令为 `research`。
+- [四平台原生构建、实装及发布](https://github.com/zhengye123188/amadeus/actions/runs/37129424116) 全部通过；Release 九个资产均为 HTTP 200，下载大小匹配元数据，四份公开 SHA256 文件与安装器 digest 匹配。公开 latest 安装入口逐字节匹配发布源码，SHA-256 为 `2d534d13dd96e455b21904b836d640166a60254fda4286b7e01106cd19a8a459`。大型安装器没有再次完整下载执行，实装证据来自四平台原生 CI。
+
+- 本机 Node 22 的全局 npm 安装和 Python 缓存后端均已更新为 **0.6.4**，界面与像素文件匹配公开源码；现有配置文件状态未改变。实际安装的 `research` 通过全套隔离 PTY 检查，包含八次快速缩放、窄屏/短屏保留头像及模式切换，stderr 为零。GUI 字体视觉验收仍未完成。
+
+| 安装器平台 | 字节数 | 公开资产 SHA-256 |
+|---|---:|---|
+| darwin-arm64 | 188,775,043 | `3b4ad1184e9e741d0c1c3e7e33fd7c2a3521a74005b7a35d13526c6a804cb0a6` |
+| darwin-x64 | 191,560,753 | `4d633ca08d462c92620ae1f6c089928d2306101bedc80e77b1ddb33aa8ddcde9` |
+| linux-arm64 | 201,672,143 | `4745398052bcf05821fdbc889b0b4e5aabc43f752d92ba1e3c97e9b840b9ccf7` |
+| linux-x64 | 224,281,724 | `a46a2bb21524472962122f9b5b8da2899cc901ac18f90922e185ccc380cc2750` |
 
 ## v0.6.3：概念图像素提取与字符显示
 
