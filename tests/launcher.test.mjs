@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { configPath, loadApiConfig, saveApiConfig } from "../bin/api-config.mjs";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { createInteractiveSession, createResearchSettings, researchWindowTitle, shouldUseResearchTui } from "../bin/interactive.mjs";
 
 test("saved API settings are private and explicit environment values win", () => {
   const directory = mkdtempSync(join(tmpdir(), "research-config-"));
@@ -30,7 +31,7 @@ function launcherFixture() {
   const checkout = fileURLToPath(new URL("../", import.meta.url));
   const app = join(directory, "app");
   mkdirSync(join(app, "bin"), { recursive: true });
-  for (const name of ["research.mjs", "api-config.mjs", "api-doctor.mjs", "model-profile.mjs", "packages.mjs", "ocr.mjs"]) copyFileSync(join(checkout, "bin", name), join(app, "bin", name));
+  for (const name of ["research.mjs", "interactive.mjs", "api-config.mjs", "api-doctor.mjs", "model-profile.mjs", "packages.mjs", "ocr.mjs"]) copyFileSync(join(checkout, "bin", name), join(app, "bin", name));
   copyFileSync(join(checkout, "package.json"), join(app, "package.json"));
   const version = JSON.parse(readFileSync(join(app, "package.json"), "utf8")).version;
   const pi = join(app, "node_modules", "@earendil-works", "pi-coding-agent");
@@ -57,7 +58,7 @@ function launcherFixture() {
     import fs from "node:fs";
     const argv = process.argv.slice(2);
     if (argv.includes("--help")) { console.log("Fixture Pi help"); process.exit(0); }
-    const names = ["RESEARCH_NODE", "RESEARCH_DOCUMENT_PARSER", "RESEARCH_PACKAGE_CONFIG", "RESEARCH_PACKAGE_SELECTION", "RESEARCH_TRUSTED_SKILL_PATHS", "PI_CODING_AGENT_DIR", "RESEARCH_STARTUP_FILE", "RESEARCH_STARTUP_TOKEN"];
+    const names = ["RESEARCH_NODE", "RESEARCH_DOCUMENT_PARSER", "RESEARCH_PACKAGE_CONFIG", "RESEARCH_PACKAGE_SELECTION", "RESEARCH_TRUSTED_SKILL_PATHS", "PI_CODING_AGENT_DIR", "RESEARCH_STARTUP_FILE", "RESEARCH_STARTUP_TOKEN", "RESEARCH_UI_AVATAR", "RESEARCH_UI_THEME"];
     fs.writeFileSync(process.env.FIXTURE_CAPTURE, JSON.stringify({ argv, cwd: process.cwd(), env: Object.fromEntries(names.map(name => [name, process.env[name]])) }));
     if (process.env.FIXTURE_READY !== "none") fs.writeFileSync(process.env.RESEARCH_STARTUP_FILE, process.env.FIXTURE_READY === "wrong" ? "0".repeat(64) : process.env.RESEARCH_STARTUP_TOKEN, { mode: 0o600 });
     if (process.env.FIXTURE_HANG === "1") setInterval(() => {}, 1000);
@@ -134,6 +135,100 @@ test("selected packages and skills reach only the wrapper, with isolated state a
     assert.equal(fixture.launch(["-p", "Fixture"], { PI_CODING_AGENT_DIR: explicit }).status, 0);
     assert.equal(JSON.parse(readFileSync(fixture.env.FIXTURE_CAPTURE, "utf8")).env.PI_CODING_AGENT_DIR, explicit);
   } finally { fixture.cleanup(); }
+});
+
+test("UI options are validated by Research and do not leak into Pi's headless arguments", () => {
+  const fixture = launcherFixture();
+  try {
+    const result = fixture.launch(["--ui-avatar", "off", "--ui-theme", "system", "-p", "Fixture"]);
+    assert.equal(result.status, 0, result.stderr);
+    const capture = JSON.parse(readFileSync(fixture.env.FIXTURE_CAPTURE, "utf8"));
+    assert.equal(capture.env.RESEARCH_UI_AVATAR, "off");
+    assert.equal(capture.env.RESEARCH_UI_THEME, "system");
+    assert.equal(capture.argv.includes("--ui-avatar"), false);
+    assert.equal(capture.argv.includes("--ui-theme"), false);
+    assert.equal(fixture.launch(["--ui-avatar", "unsupported", "-p", "Fixture"]).status, 2);
+    assert.equal(fixture.launch(["--ui-theme", "unsupported", "-p", "Fixture"]).status, 2);
+    assert.equal(fixture.launch(["--", "--ui-avatar", "unsupported", "--extension", "literal prompt"]).status, 0);
+    const literal = JSON.parse(readFileSync(fixture.env.FIXTURE_CAPTURE, "utf8"));
+    assert.deepEqual(literal.argv.slice(literal.argv.indexOf("--")), ["--", "--ui-avatar", "unsupported", "--extension", "literal prompt"]);
+    assert.equal(literal.env.RESEARCH_UI_AVATAR, undefined);
+  } finally { fixture.cleanup(); }
+});
+
+test("Research's interactive host preserves Pi's headless routes and treats values as data", () => {
+  const tty = { stdinTTY: true, stdoutTTY: true };
+  for (const args of [[], ["--resume"], ["--continue"], ["--session", "fixture.jsonl"], ["--mode", "text"], ["--", "-p"], ["--system-prompt", "-p"], ["--name", "--export"]]) {
+    assert.equal(shouldUseResearchTui(args, tty), true, JSON.stringify(args));
+  }
+  for (const args of [["-p", "Fixture"], ["--print"], ["--mode", "json"], ["--mode", "rpc"], ["--export", "fixture.jsonl"], ["--list-models"], ["auth", "status"], ["mcp", "list"], ["config"]]) {
+    assert.equal(shouldUseResearchTui(args, tty), false, JSON.stringify(args));
+  }
+  assert.equal(shouldUseResearchTui([], { stdinTTY: false, stdoutTTY: true }), false);
+  assert.equal(shouldUseResearchTui([], { stdinTTY: true, stdoutTTY: false }), false);
+  assert.equal(researchWindowTitle("π - fixture - workspace"), "Research CLI - fixture - workspace");
+  assert.equal(researchWindowTitle("Research CLI - workspace"), "Research CLI - workspace");
+  assert.equal(researchWindowTitle("π - bad\x1b]0;title\x07"), "Research CLI - bad ]0;title ");
+});
+
+test("Research branding survives real Pi settings saves and reloads without persisting host overrides", async () => {
+  const { SettingsManager, VERSION } = await import("@earendil-works/pi-coding-agent");
+  const stored = SettingsManager.inMemory({ quietStartup: false, lastChangelogVersion: "0.1.0", theme: "dark" });
+  const settings = createResearchSettings(stored, VERSION);
+  assert.ok(settings instanceof SettingsManager);
+  settings.applyOverrides({ quietStartup: true, lastChangelogVersion: VERSION, theme: "research-pixel" });
+  // SDK model initialization saves default provider/model before TUI init.
+  settings.setDefaultModelAndProvider("fixture-provider", "fixture-model");
+  await settings.flush();
+  await settings.reload();
+  assert.equal(settings.getThemeSetting(), "research-pixel");
+  assert.equal(settings.getTheme(), "research-pixel");
+  assert.equal(settings.getSettings().theme, "research-pixel");
+  assert.equal(stored.getTheme(), "dark");
+  // An explicit interactive theme change still saves the user's preference.
+  settings.setTheme("light");
+  await settings.flush();
+  await settings.reload();
+  assert.equal(settings.getQuietStartup(), true);
+  assert.equal(settings.getLastChangelogVersion(), VERSION);
+  assert.equal(settings.getSettings().quietStartup, true);
+  assert.equal(settings.getSettings().lastChangelogVersion, VERSION);
+  assert.equal(settings.getDefaultProvider(), "fixture-provider");
+  assert.equal(settings.getDefaultModel(), "fixture-model");
+  assert.equal(settings.getTheme(), "light");
+  assert.equal(stored.getQuietStartup(), false);
+  assert.equal(stored.getLastChangelogVersion(), "0.1.0");
+  assert.equal(settings.getGlobalSettings().quietStartup, false);
+  assert.equal(settings.getGlobalSettings().lastChangelogVersion, "0.1.0");
+});
+
+test("interactive session selection keeps continue, resume, explicit files and forks available", async () => {
+  const calls = [];
+  const record = method => (...args) => { calls.push({ method, args }); return { method, args }; };
+  const sessions = {
+    inMemory: record("inMemory"), create: record("create"), open: record("open"), forkFrom: record("forkFrom"), continueRecent: record("continueRecent"),
+    findById: (_cwd, id) => id === "exact-id" ? "/fixture/exact.jsonl" : undefined,
+    list: async () => [{ id: "local-prefix-id", path: "/fixture/local.jsonl" }],
+    listAll: async () => [{ id: "global-prefix-id", path: "/fixture/global.jsonl" }],
+  };
+  assert.equal((await createInteractiveSession({ continue: true }, "/fixture", "/sessions", sessions)).method, "continueRecent");
+  assert.equal((await createInteractiveSession({ resume: true }, "/fixture", "/sessions", sessions)).method, "inMemory");
+  assert.equal((await createInteractiveSession({ noSession: true }, "/fixture", "/sessions", sessions)).method, "inMemory");
+  assert.equal((await createInteractiveSession({ session: "named.jsonl" }, "/fixture", "/sessions", sessions)).args[0], "/fixture/named.jsonl");
+  assert.equal((await createInteractiveSession({ session: "exact-id" }, "/fixture", "/sessions", sessions)).args[0], "/fixture/exact.jsonl");
+  assert.equal((await createInteractiveSession({ session: "local-prefix" }, "/fixture", "/sessions", sessions)).args[0], "/fixture/local.jsonl");
+  assert.equal((await createInteractiveSession({ session: "global-prefix" }, "/fixture", "/sessions", sessions)).method, "inMemory");
+  assert.equal((await createInteractiveSession({ session: "local-prefix", resume: true }, "/fixture", "/sessions", sessions)).method, "open");
+  assert.equal((await createInteractiveSession({ noSession: true, session: "local-prefix", resume: true }, "/fixture", "/sessions", sessions)).method, "inMemory");
+  assert.equal((await createInteractiveSession({ fork: "global-prefix", sessionId: "new-id" }, "/fixture", "/sessions", sessions)).method, "forkFrom");
+  assert.deepEqual(calls.at(-1).args, ["/fixture/global.jsonl", "/fixture", "/sessions", { id: "new-id" }]);
+  assert.equal((await createInteractiveSession({ sessionId: "exact-id" }, "/fixture", "/sessions", sessions)).method, "open");
+  assert.equal((await createInteractiveSession({ sessionId: "new-id" }, "/fixture", "/sessions", sessions)).method, "create");
+  await assert.rejects(() => createInteractiveSession({ fork: "exact-id", resume: true }, "/fixture", "/sessions", sessions), /cannot be combined/);
+  await assert.rejects(() => createInteractiveSession({ fork: "local-prefix", sessionId: "exact-id" }, "/fixture", "/sessions", sessions), /already exists/);
+  await assert.rejects(() => createInteractiveSession({ sessionId: "../escape" }, "/fixture", "/sessions", sessions), /Invalid --session-id/);
+  await assert.rejects(() => createInteractiveSession({ session: "missing" }, "/fixture", "/sessions", sessions), /No session found/);
+  await assert.rejects(() => createInteractiveSession({ name: " " }, "/fixture", "/sessions", sessions), /non-empty/);
 });
 
 test("missing core initialization fails closed even if Pi exits successfully", () => {

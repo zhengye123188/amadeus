@@ -81,5 +81,12 @@ asyncio.run(main())
     child.on("exit", code => { clearTimeout(timer); checked && code === 0 ? resolve() : reject(new Error(`Installed Pi extension failed: ${stderr}`)); });
     child.stdin.write(JSON.stringify({ id: "commands", type: "get_commands" }) + "\n");
   });
-  console.log(JSON.stringify({ npm_cli: "installed tarball", version: version.trim(), backend: doctor.backend, isolated_cache: true, real_pi_extension_loaded: true, bundled_packages: packages.bundled.map(item => item.source), native_pdf_import: true }));
+  // Drive the installed executable through a real PTY, using the checkout's test
+  // Python only as the fixture driver; the CLI uses its isolated installed backend.
+  const terminal = JSON.parse(run(resolve(".venv/bin/python"), [
+    fileURLToPath(new URL("./smoke_ui.py", import.meta.url)),
+    "--cli", executable, "--python", doctor.python, "--node", process.execPath,
+  ]));
+  if (!terminal.real_terminal || !terminal.pixel_header) throw new Error("Installed terminal UI did not pass the PTY check");
+  console.log(JSON.stringify({ npm_cli: "installed tarball", version: version.trim(), backend: doctor.backend, isolated_cache: true, real_pi_extension_loaded: true, bundled_packages: packages.bundled.map(item => item.source), native_pdf_import: true, interactive_terminal: terminal }));
 } finally { rmSync(temp, { recursive: true, force: true }); }
