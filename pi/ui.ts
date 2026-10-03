@@ -16,6 +16,9 @@ export interface PixelGrid {
   height: number;
   palette: (string | null)[];
   pixels: number[][];
+  quadrants: string[];
+  foreground: number[][];
+  background: number[][];
 }
 
 export interface PixelBitmap {
@@ -56,27 +59,38 @@ function panel(text: string, theme: Theme, monochrome: boolean, color: ThemeColo
 
 function readAvatar(): PixelBitmap {
   const bitmap = JSON.parse(readFileSync(new URL("./assets/kurisu-pixel.json", import.meta.url), "utf8")) as PixelBitmap;
-  const dimensions = [[32, 20], [48, 32], [64, 40]];
-  if (bitmap.schemaVersion !== 3 || !Array.isArray(bitmap.variants) || bitmap.variants.length !== dimensions.length
+  const dimensions = [[48, 32], [56, 36], [72, 46], [88, 58], [112, 72], [144, 94], [284, 184]];
+  if (bitmap.schemaVersion !== 4 || !Array.isArray(bitmap.variants) || bitmap.variants.length !== dimensions.length
     || bitmap.variants.some((grid, i) => grid.width !== dimensions[i][0] || grid.height !== dimensions[i][1]
-      || !Array.isArray(grid.palette) || grid.palette[0] !== null || grid.palette.length > 64
+      || !Array.isArray(grid.palette) || grid.palette[0] !== null || grid.palette.length > 65537
       || grid.palette.some((color, j) => j > 0 && !/^#[a-f0-9]{6}$/i.test(color ?? ""))
       || !Array.isArray(grid.pixels) || grid.pixels.length !== grid.height || grid.pixels.some(row => !Array.isArray(row) || row.length !== grid.width
-        || row.some(index => !Number.isInteger(index) || index < 0 || index >= grid.palette.length)))) {
+        || row.some(index => !Number.isInteger(index) || index < 0 || index >= grid.palette.length))
+      || !Array.isArray(grid.quadrants) || grid.quadrants.length !== grid.height / 2
+      || grid.quadrants.some(row => row.length !== grid.width || !/^[ ▘▝▀▖▌▞▛▗▚▐▜▄▙▟█]+$/.test(row))
+      || [grid.foreground, grid.background].some(table => !Array.isArray(table) || table.length !== grid.height / 2
+        || table.some(row => !Array.isArray(row) || row.length !== grid.width
+          || row.some(index => !Number.isInteger(index) || index < 0 || index >= grid.palette.length))))) {
     throw new Error("Invalid bundled pixel avatar");
   }
   return bitmap;
 }
 
-function pixelPortrait(bitmap: PixelGrid, theme: Theme): string[] {
-  const pixel = (x: number, y: number) => {
-    const color = bitmap.palette[bitmap.pixels[y][x]];
+function pixelPortrait(bitmap: PixelGrid, theme: Theme, renderer: "quadrant" | "half"): string[] {
+  const colorAt = (index: number) => {
+    const color = bitmap.palette[index];
     return color ? parseColor(color) : theme.name === "research-pixel" ? parseColor(PANEL) : theme.colors.customMessageBg;
   };
   const lines: string[] = [];
   for (let y = 0; y < bitmap.height; y += 2) {
     let line = "";
-    for (let x = 0; x < bitmap.width; x++) line += styleText("▀", { fg: pixel(x, y), bg: pixel(x, y + 1) }, theme.getColorMode());
+    for (let x = 0; x < bitmap.width; x++) {
+      const row = y / 2;
+      const glyph = renderer === "half" ? "▀" : bitmap.quadrants[row][x];
+      const foreground = renderer === "half" ? bitmap.pixels[y][x] : bitmap.foreground[row][x];
+      const background = renderer === "half" ? bitmap.pixels[y + 1][x] : bitmap.background[row][x];
+      line += styleText(glyph, { fg: colorAt(foreground), bg: colorAt(background) }, theme.getColorMode());
+    }
     lines.push(line);
   }
   return lines;
@@ -87,16 +101,18 @@ export interface PixelHeaderOptions {
   avatar: boolean;
   monochrome?: boolean;
   bitmap?: PixelBitmap;
+  renderer?: "quadrant" | "half";
   getRows?: () => number;
 }
 
 export class PixelHeader implements Component {
   private bitmap?: PixelBitmap;
+  private portraitCache?: { grid: PixelGrid; theme: Theme; renderer: string; lines: string[] };
   constructor(private ctx: ExtensionContext, private options: PixelHeaderOptions) {
     // No image decoding, native image protocols, or network access in the UI.
     if (options.avatar && !options.monochrome) this.bitmap = options.bitmap ?? readAvatar();
   }
-  invalidate() {}
+  invalidate() { this.portraitCache = undefined; }
   render(width: number): string[] {
     if (width < 1) return [];
     const { ctx, options } = this;
@@ -104,13 +120,18 @@ export class PixelHeader implements Component {
     const mono = options.monochrome ?? false;
     const rows = options.getRows?.() ?? 40;
     const compact = width < 60 || rows < 24;
-    const avatar = Boolean(this.bitmap) && width >= 80 && !compact;
-    // Preserve the entire half-body laboratory scene. Each rectangular grid is
-    // prepared from the original PNG, and its height keeps the header <= half
-    // the viewport. A 135x37 window uses the 48x32 scene, not a face crop.
-    const variant = width >= 140 && rows >= 44 ? 2 : width >= 110 && rows >= 36 ? 1 : 0;
-    const grid = avatar ? this.bitmap!.variants[variant] : undefined;
-    const portrait = grid ? pixelPortrait(grid, theme) : [];
+    // Select a complete precomputed scene, leaving at least 40 text columns
+    // and 30% of the viewport for conversation, input and live statuses.
+    // More color-table entries preserve rare details without a global 63-color
+    // approximation. The original grid remains available in a large window.
+    const grid = !compact ? this.bitmap?.variants.filter(item => item.width <= width - 46
+      && item.height / 2 + 2 <= Math.floor(rows * .7)).at(-1) : undefined;
+    const avatar = Boolean(grid);
+    const renderer = options.renderer ?? "quadrant";
+    if (grid && (this.portraitCache?.grid !== grid || this.portraitCache.theme !== theme || this.portraitCache.renderer !== renderer)) {
+      this.portraitCache = { grid, theme, renderer, lines: pixelPortrait(grid, theme, renderer) };
+    }
+    const portrait = grid ? this.portraitCache!.lines : [];
     const avatarWidth = grid?.width ?? 0;
     const inside = Math.max(0, width - 4);
     const textWidth = Math.max(0, inside - (avatar ? avatarWidth + 2 : 0));
@@ -188,12 +209,12 @@ class PixelEditor extends CustomEditor {
 }
 
 export function registerResearchUI(pi: ExtensionAPI): void {
-  let avatar = process.env.RESEARCH_UI_AVATAR !== "off";
+  let avatarMode = process.env.RESEARCH_UI_AVATAR || "pixel";
   let themeChoice = process.env.RESEARCH_UI_THEME === "system" ? "system" : "pixel";
   const monochrome = process.env.NO_COLOR !== undefined || process.env.TERM === "dumb";
   let originalTheme: Theme | undefined;
   const version = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version as string;
-  const installHeader = (ctx: ExtensionContext) => ctx.ui.setHeader(tui => new PixelHeader(ctx, { version, avatar, monochrome, getRows: () => tui.terminal.rows }));
+  const installHeader = (ctx: ExtensionContext) => ctx.ui.setHeader(tui => new PixelHeader(ctx, { version, avatar: avatarMode !== "off", renderer: avatarMode === "half" ? "half" : "quadrant", monochrome, getRows: () => tui.terminal.rows }));
   pi.on("session_start", (_event, ctx) => {
     if (ctx.mode !== "tui") return;
     originalTheme = ctx.ui.getTheme(process.env.RESEARCH_UI_BASE_THEME || "system") ?? ctx.ui.getTheme("system") ?? ctx.ui.theme;
@@ -210,22 +231,22 @@ export function registerResearchUI(pi: ExtensionAPI): void {
     ctx.ui.setTitle("Amadeus");
   });
   pi.registerCommand("ui", {
-    description: "切换像素头像和配色：/ui avatar pixel|off 或 /ui theme pixel|system",
-    getArgumentCompletions: prefix => ["avatar pixel", "avatar off", "theme pixel", "theme system"]
+    description: "切换像素头像和配色：/ui avatar pixel|half|off 或 /ui theme pixel|system",
+    getArgumentCompletions: prefix => ["avatar pixel", "avatar half", "avatar off", "theme pixel", "theme system"]
       .filter(value => value.startsWith(prefix)).map(value => ({ value, label: value })),
     handler: async (args, ctx) => {
       if (ctx.mode !== "tui") { ctx.ui.notify("/ui is available in the interactive terminal.", "info"); return; }
       const choice = args.trim().split(/\s+/);
-      if (choice[0] === "avatar" && ["pixel", "off"].includes(choice[1]) && choice.length === 2) {
-        avatar = choice[1] === "pixel";
-        process.env.RESEARCH_UI_AVATAR = avatar ? "pixel" : "off";
+      if (choice[0] === "avatar" && ["pixel", "half", "off"].includes(choice[1]) && choice.length === 2) {
+        avatarMode = choice[1];
+        process.env.RESEARCH_UI_AVATAR = avatarMode;
         installHeader(ctx);
       } else if (choice[0] === "theme" && ["pixel", "system"].includes(choice[1]) && choice.length === 2 && originalTheme) {
         themeChoice = choice[1];
         process.env.RESEARCH_UI_THEME = themeChoice;
         ctx.ui.setTheme(monochrome ? "research-mono" : themeChoice === "pixel" ? "research-pixel" : originalTheme.name || "system");
       } else {
-        ctx.ui.notify(`UI: ${themeChoice}, avatar: ${avatar ? "pixel" : "off"}${monochrome ? " (monochrome)" : ""}. /ui avatar pixel|off · /ui theme pixel|system`, "info");
+        ctx.ui.notify(`UI: ${themeChoice}, avatar: ${avatarMode}${monochrome ? " (monochrome)" : ""}. /ui avatar pixel|half|off · /ui theme pixel|system`, "info");
       }
     },
   });

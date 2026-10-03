@@ -53,7 +53,7 @@ Research options:
   --approve-experiments                 Explicitly allow experiment calls without dialogs
   --offline                            Disable backend network tools (model may still use network)
   --memory on|off                       Project context/compaction ablation (default: on)
-  --ui-avatar pixel|off                 Pixel character portrait (default: pixel)
+  --ui-avatar pixel|half|off            Detailed quadrant / half-block / none (default: pixel)
   --ui-theme pixel|system               Interactive colors (default: pixel)
   --config FILE                        Python backend TOML configuration
   --model-profile FILE                 Explicit model capability/pricing JSON
@@ -188,7 +188,7 @@ for (let i = 0; i < args.length; i++) {
   else if (arg === "--approve-experiments") env.RESEARCH_APPROVE_EXPERIMENTS = "1";
   else forwarded.push(arg);
 }
-for (const [key, values] of Object.entries({ RESEARCH_PERMISSION: ["ask", "read-only", "workspace-write"], RESEARCH_EXECUTION: ["disabled", "docker", "local"], RESEARCH_MEMORY: ["on", "off"], RESEARCH_UI_AVATAR: ["pixel", "off"], RESEARCH_UI_THEME: ["pixel", "system"] })) {
+for (const [key, values] of Object.entries({ RESEARCH_PERMISSION: ["ask", "read-only", "workspace-write"], RESEARCH_EXECUTION: ["disabled", "docker", "local"], RESEARCH_MEMORY: ["on", "off"], RESEARCH_UI_AVATAR: ["pixel", "half", "off"], RESEARCH_UI_THEME: ["pixel", "system"] })) {
   if (env[key] && !values.includes(env[key])) { console.error(`Invalid ${key}: ${env[key]}`); process.exit(2); }
 }
 try { workspace = realpathSync(workspace); } catch { console.error("Workspace does not exist"); process.exit(2); }

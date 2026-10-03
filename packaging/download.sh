@@ -2,7 +2,7 @@
 # Public download entry point; the downloaded installer includes its runtimes.
 set -eu
 
-VERSION=0.6.2
+VERSION=0.6.3
 repository=zhengye123188/amadeus
 
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then

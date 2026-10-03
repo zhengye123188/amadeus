@@ -1,6 +1,6 @@
 {
   "name": "@lelouch_021015/amadeus",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "Amadeus: an evidence-aware research CLI built on Pi with Python MCP tools",
   "type": "module",
   "license": "MIT",

@@ -15,6 +15,9 @@ from pathlib import Path
 
 import pexpect
 
+PIXEL_GLYPHS = re.compile(r"[▀▄█▘▝▖▗▚▞▌▐▛▜▙▟]")
+QUADRANT_GLYPHS = re.compile(r"[▘▝▖▗▚▞▌▐▛▜▙▟]")
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -142,7 +145,7 @@ def main():
                 terminal.expect(re.compile("Amadeus", re.IGNORECASE))
                 terminal.expect_exact("PIXEL LAB")
                 terminal.expect_exact("amadeus ·")
-                assert "▀" not in transcript.getvalue(), (
+                assert not PIXEL_GLYPHS.search(transcript.getvalue()), (
                     "The upstream Pi logo must not flash before the Amadeus header when avatar is off"
                 )
                 checkpoints.append(("project status", transcript.tell()))
@@ -207,8 +210,11 @@ def main():
             assert "\x1b]1337;File=" not in output, "The terminal must not emit iTerm graphics"
             assert "\x1b_G" not in output, "The terminal must not emit Kitty graphics"
             assert "ui-fixture-only" not in output, "Credentials must not appear in the UI"
-            if "▀" in output:
-                index = output.index("▀")
+            # Pi's active-model spinner also uses quadrant characters. Startup
+            # above checks every pixel glyph before that spinner can appear;
+            # the full conversation retains the upstream-logo/half-block guard.
+            if match := re.search("▀", output):
+                index = match.start()
                 stage = next(name for name, start in reversed(checkpoints) if start <= index)
                 sample = re.sub(
                     r"\x1b\[[0-?]*[ -/]*[@-~]", "", output[max(0, index - 1000) : index + 1000]
@@ -223,7 +229,8 @@ def main():
                 executable,
                 [*launch_args, "--offline", "--permission", "workspace-write"],
                 cwd=str(workspace),
-                env={**env, "RESEARCH_UI_AVATAR": "pixel"},
+                # No avatar override: this exercises the installed CLI's default.
+                env={key: value for key, value in env.items() if key != "RESEARCH_UI_AVATAR"},
                 encoding="utf8",
                 timeout=35,
                 # Match the user's reported viewport: medium detail must fit here.
@@ -232,29 +239,37 @@ def main():
             avatar_terminal.logfile_read = avatar_log
             try:
                 avatar_terminal.expect_exact("PIXEL LAB / KURISU")
-                avatar_terminal.expect_exact("▀")
+                avatar_terminal.expect(QUADRANT_GLYPHS)
                 avatar_terminal.expect_exact("amadeus ·")
                 # Exercise every rectangular scene size in a running terminal.
                 # Waiting for the footer consumes the complete header redraw.
-                for rows, columns in ((48, 160), (24, 80), (36, 110), (37, 135)):
+                for rows, columns in ((48, 160), (26, 94), (36, 110), (41, 138), (37, 135)):
                     avatar_terminal.setwinsize(rows, columns)
                     avatar_terminal.expect_exact("PIXEL LAB / KURISU")
-                    avatar_terminal.expect_exact("▀")
+                    avatar_terminal.expect(QUADRANT_GLYPHS)
                     avatar_terminal.expect_exact("amadeus ·")
                 # Neither a narrow nor a short viewport should emit new avatar
                 # blocks. Verify fresh output, then restore the user's size.
-                for rows, columns in ((36, 79), (23, 135), (32, 54)):
+                for rows, columns in ((36, 93), (24, 80), (25, 135), (32, 54)):
                     start = avatar_log.tell()
                     avatar_terminal.setwinsize(rows, columns)
                     avatar_terminal.expect_exact("PIXEL LAB")
                     avatar_terminal.expect_exact("amadeus ·")
-                    assert "▀" not in avatar_log.getvalue()[start:], (
+                    assert not PIXEL_GLYPHS.search(avatar_log.getvalue()[start:]), (
                         f"The {columns}x{rows} fallback must preserve conversation space"
                     )
                 avatar_terminal.setwinsize(37, 135)
                 avatar_terminal.expect_exact("PIXEL LAB / KURISU")
-                avatar_terminal.expect_exact("▀")
+                avatar_terminal.expect(QUADRANT_GLYPHS)
                 avatar_terminal.expect_exact("amadeus ·")
+                avatar_terminal.send("/ui avatar half\r")
+                avatar_terminal.expect_exact("▀")
+                avatar_terminal.send("/ui\r")
+                avatar_terminal.expect_exact("avatar: half")
+                avatar_terminal.send("/ui avatar pixel\r")
+                avatar_terminal.expect(QUADRANT_GLYPHS)
+                avatar_terminal.send("/ui\r")
+                avatar_terminal.expect_exact("avatar: pixel")
                 avatar_terminal.send("/ui avatar off\r")
                 avatar_terminal.send("/ui\r")
                 avatar_terminal.expect_exact("avatar: off")
@@ -295,7 +310,9 @@ def main():
             print(
                 json.dumps(
                     {
+                        "real_pty": True,
                         "real_terminal": True,
+                        "visual_font_verification": False,
                         "temporary_user_state": True,
                         "project_cwd": True,
                         "pixel_header": True,
@@ -305,11 +322,14 @@ def main():
                         "chinese_prompt": True,
                         "avatar_off": True,
                         "default_pixel_avatar": True,
+                        "quadrant_glyph_output": True,
                         "half_body_scene_at_135x37": True,
+                        "half_body_scene_at_138x41": True,
                         "large_scene_at_160x48": True,
-                        "small_scene_at_80x24": True,
+                        "small_scene_at_94x26": True,
                         "narrow_and_short_avatar_fallback": True,
                         "interactive_avatar_toggle": True,
+                        "half_block_compatibility_toggle": True,
                         "pixel_palette_after_new_and_reload": True,
                         "system_palette_after_reload": True,
                         "resume_named_filter_and_cancel": True,

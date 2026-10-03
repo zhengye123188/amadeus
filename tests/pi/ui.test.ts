@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { promisify } from "node:util";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -135,12 +136,12 @@ test("avatar can be disabled and monochrome headers remain usable without RGB or
 test("avatar grids preserve the full half-body scene and their source provenance", () => {
   const source = readFileSync(new URL("../../pi/assets/kurisu-pixel.png", import.meta.url));
   const bitmap = JSON.parse(readFileSync(new URL("../../pi/assets/kurisu-pixel.json", import.meta.url), "utf8"));
-  assert.deepEqual(source, readFileSync(new URL("../../docs/assets/kurisu-lab-halfbody-v2.png", import.meta.url)),
+  assert.deepEqual(source, readFileSync(new URL("../../docs/assets/kurisu-concept-reference.png", import.meta.url)),
     "The runtime PNG must be the approved half-body scene");
   assert.equal(bitmap.source.sha256, createHash("sha256").update(source).digest("hex"));
-  assert.equal(bitmap.schemaVersion, 3);
+  assert.equal(bitmap.schemaVersion, 4);
   assert.deepEqual(bitmap.variants.map((grid: PixelBitmap["variants"][number]) => [grid.width, grid.height]),
-    [[32, 20], [48, 32], [64, 40]]);
+    [[48, 32], [56, 36], [72, 46], [88, 58], [112, 72], [144, 94], [284, 184]]);
   assert.deepEqual(bitmap.source.crop, { x: 0, y: 0, width: bitmap.source.width, height: bitmap.source.height },
     "Preparation must retain the full canvas, including the coat, tie and laboratory props");
   for (const grid of bitmap.variants) {
@@ -170,30 +171,83 @@ test("avatar grids preserve the full half-body scene and their source provenance
   }
 });
 
-test("native avatar detail adapts to the terminal without resampling or crowding the editor", () => {
+test("original concept extraction is reproducible and retains every original RGB pixel at full size", async () => {
+  const bytes = readFileSync(new URL("../../pi/assets/kurisu-pixel.png", import.meta.url));
+  const committed = readFileSync(new URL("../../pi/assets/kurisu-pixel.json", import.meta.url));
+  const bitmap = JSON.parse(committed.toString("utf8"));
+  assert.equal(bitmap.source.colors, "exact-source-rgb");
+  assert.deepEqual([bitmap.source.width, bitmap.source.height], [284, 184]);
+  const requirePi = createRequire(import.meta.resolve("@earendil-works/pi-coding-agent"));
+  const { PhotonImage } = requirePi("@silvia-odwyer/photon-node");
+  const source = PhotonImage.new_from_byteslice(bytes);
+  let rgba: Uint8Array;
+  try { rgba = source.get_raw_pixels(); } finally { source.free(); }
+  const originalColors = new Set<string>();
+  for (let i = 0; i < rgba.length; i += 4) {
+    originalColors.add(`#${Buffer.from(rgba.subarray(i, i + 3)).toString("hex")}`);
+  }
+  assert.equal(originalColors.size, 19349, "The actual source colors must not be reduced to a global 63-color palette");
+  const full = bitmap.variants.at(-1) as PixelBitmap["variants"][number];
+  const glyphs = " ▘▝▀▖▌▞▛▗▚▐▜▄▙▟█";
+  for (let y = 0; y < full.height; y++) {
+    for (let x = 0; x < full.width; x++) {
+      const original = `#${Buffer.from(rgba.subarray((y * full.width + x) * 4, (y * full.width + x) * 4 + 3)).toString("hex")}`;
+      assert.equal(full.palette[full.pixels[y][x]], original, "The original grid must preserve each source pixel exactly");
+      const mask = glyphs.indexOf(full.quadrants[Math.floor(y / 2)][x]);
+      for (const bit of y % 2 ? [4, 8] : [1, 2]) {
+        const table = mask & bit ? full.foreground : full.background;
+        assert.equal(full.palette[table[Math.floor(y / 2)][x]], original, "Original-size quadrant subpixels must preserve the same source RGB");
+      }
+    }
+  }
+  for (const grid of bitmap.variants) {
+    for (const color of grid.palette.slice(1)) assert(originalColors.has(color!), "Prepared colors must come from the concept, without invented or averaged RGB");
+  }
+  const temporary = mkdtempSync(join(tmpdir(), "amadeus-pixels-"));
+  try {
+    const output = join(temporary, "pixels.json");
+    await promisify(execFile)(process.execPath, [resolve("scripts/prepare-pixel-avatar.mjs"), resolve("pi/assets/kurisu-pixel.png"), output]);
+    assert.deepEqual(readFileSync(output), committed, "Regenerating pixel data must produce identical committed bytes");
+  } finally { rmSync(temporary, { recursive: true, force: true }); }
+});
+
+test("concept pixel tables render full scenes at both character densities and preserve editing space", () => {
   const ctx = uiContext();
   const bitmap: PixelBitmap = JSON.parse(readFileSync(new URL("../../pi/assets/kurisu-pixel.json", import.meta.url), "utf8"));
   for (const [width, rows, gridWidth, gridHeight] of [
-    [80, 24, 32, 20], [109, 36, 32, 20], [110, 35, 32, 20],
-    [110, 36, 48, 32], [135, 37, 48, 32], [139, 48, 48, 32],
-    [140, 43, 48, 32], [140, 44, 64, 40], [160, 48, 64, 40],
+    [94, 26, 48, 32], [110, 30, 56, 36], [135, 37, 72, 46],
+    [138, 41, 72, 46], [160, 48, 88, 58], [180, 60, 112, 72],
+    [200, 72, 144, 94], [340, 135, 284, 184],
   ]) {
-    const lines = new PixelHeader(ctx, { version: "fixture", avatar: true, bitmap, getRows: () => rows }).render(width);
-    assert(lines.length <= rows / 2, "At least half the viewport must remain for conversation and editing");
-    assert.equal(lines.join("").split("▀").length - 1, gridWidth * gridHeight / 2,
-      `${width}x${rows} must show the complete native rectangular scene`);
-    for (const line of lines) assert(visibleWidth(line) <= width);
     const grid = bitmap.variants.find(item => item.width === gridWidth && item.height === gridHeight)!;
-    // A rare feature in the committed grid must reach the terminal unchanged.
-    const eyeColor = grid.pixels.flat().map(index => grid.palette[index]).find(color => color
-      && Number.parseInt(color.slice(5, 7), 16) > Number.parseInt(color.slice(1, 3), 16) + 20
-      && Number.parseInt(color.slice(5, 7), 16) > Number.parseInt(color.slice(3, 5), 16) + 15)!;
-    const [r, g, b] = eyeColor.slice(1).match(/../g)!.map(channel => Number.parseInt(channel, 16));
-    assert(lines.join("").includes(`;2;${r};${g};${b}m`), "Eye color must survive native terminal rendering");
+    for (const renderer of ["quadrant", "half"] as const) {
+      const header = new PixelHeader(ctx, { version: "fixture", avatar: true, bitmap, renderer, getRows: () => rows });
+      const lines = header.render(width);
+      assert(lines.length <= Math.floor(rows * .7), "The avatar must leave at least 30% of the viewport for editing and dialogue");
+      assert.equal(lines.length, gridHeight / 2 + 2, "The full scene must render without vertical clipping");
+      for (const line of lines) assert(visibleWidth(line) <= width);
+      const plainRows = lines.map(stripTerminalSequences);
+      for (let y = 0; y < gridHeight / 2; y++) {
+        const expected = renderer === "half" ? "▀".repeat(gridWidth) : grid.quadrants[y];
+        assert(plainRows[y + 1].endsWith(expected + " │"), "Terminal glyphs must match the prepared concept data");
+      }
+      if (renderer === "quadrant") {
+        const eyeColors = grid.foreground.flat().concat(grid.background.flat()).map(index => grid.palette[index]).filter(color => color
+          && Number.parseInt(color.slice(5, 7), 16) > Number.parseInt(color.slice(1, 3), 16) + 20
+          && Number.parseInt(color.slice(5, 7), 16) > Number.parseInt(color.slice(3, 5), 16) + 15);
+        assert(eyeColors.length, "The prepared output must retain rare blue iris colors");
+        const [r, g, b] = eyeColors[0]!.slice(1).match(/../g)!.map(channel => Number.parseInt(channel, 16));
+        assert(lines.join("").includes(`;2;${r};${g};${b}m`), "Stored eye color must reach the terminal");
+      }
+      assert.deepEqual(header.render(width), lines, "Cached portraits must remain stable");
+      header.invalidate();
+      assert.deepEqual(header.render(width), lines, "Invalidation must rebuild the same selected pixels");
+      assert(!lines.join("").includes("\x1b]1337;File=") && !lines.join("").includes("\x1b_G"), "Pixel rendering must never transmit a PNG");
+    }
   }
-  for (const [width, rows] of [[79, 36], [135, 23]]) {
+  for (const [width, rows] of [[80, 36], [93, 41], [135, 23], [138, 25]]) {
     const lines = new PixelHeader(ctx, { version: "fixture", avatar: true, bitmap, getRows: () => rows }).render(width);
-    assert(!lines.join("").includes("▀"), "Narrow or short terminals must preserve conversation space");
+    assert(!/[▀▄█▘▝▖▗▚▞▌▐▛▜▙▟]/.test(lines.join("")), "Constrained terminals must preserve conversation space");
     for (const line of lines) assert(visibleWidth(line) <= width);
   }
 });

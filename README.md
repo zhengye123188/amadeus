@@ -2,11 +2,11 @@
 
 基于 [Pi](https://github.com/earendil-works/pi) 的交互式科研 Agent。在项目目录打开终端，直接讨论论文、检查代码、整理证据和验证改进，由 Agent 根据当前问题选择工具。用户可以从任意问题开始、继续已有记录或随时转向。
 
-**v0.6.2 · macOS / Linux · MIT**
+**v0.6.3 · macOS / Linux · MIT**
 
-本版将项目更名为 **Amadeus**，启动命令仍为 `research`。欢迎页使用牧濑红莉栖的完整半身像，保留托腮姿势、白大褂、试管架和书本，按窗口选择三种原生像素网格。墨绿像素终端显示实际工作区、模型、上下文与协作状态。科研工具、按职责分工的多 Agent 和英文/中文本地 OCR 继续使用原有机制。[界面与定制](docs/ui.md) · [协作与 OCR](docs/collaboration.md)
+项目名称为 **Amadeus**，启动命令仍为 `research`。墨绿像素终端显示实际工作区、模型、上下文与协作状态，欢迎页使用牧濑红莉栖半身形象。科研工具、按职责分工的多 Agent 和英文/中文本地 OCR 继续使用原有机制。[界面与定制](docs/ui.md) · [协作与 OCR](docs/collaboration.md)
 
-[npm 包](https://www.npmjs.com/package/@lelouch_021015/amadeus) · [独立安装包](https://github.com/zhengye123188/amadeus/releases/latest) · [版本说明与发布状态](docs/releases/v0.6.2.md) · [架构](docs/architecture.md)
+[npm 包](https://www.npmjs.com/package/@lelouch_021015/amadeus) · [独立安装包](https://github.com/zhengye123188/amadeus/releases/latest) · [版本说明与发布状态](docs/releases/v0.6.3.md) · [架构](docs/architecture.md)
 
 安装后用 `research --version` 核对实际版本。各平台构建及公开下载检查见 [验证记录](docs/validation.md)。
 
@@ -73,7 +73,9 @@ research --workspace "/另一个项目目录"       # 显式指定工作区
 
 显式恢复 `--session` 或 `--resume` 时，Pi 使用历史会话保存的工作区；可用 `/research-status` 核对。`research --fork <会话文件>` 可把历史上下文带入当前项目。
 
-界面显示当前工作区、模型、上下文占用、Git 分支、权限和协作状态；80 列以上且至少 24 行时显示像素头像，窄窗口自动收紧布局。`research --ui-avatar off` 关闭头像；`--ui-theme system` 使用原主题配色。会话中也可以输入 `/ui avatar off` 或 `/ui theme system`。普通终端用字符块显示头像；`NO_COLOR` 或 `TERM=dumb` 切换单色组件。[界面说明](docs/ui.md)
+界面显示当前工作区、模型、上下文占用、Git 分支、权限和协作状态。v0.6.3 直接提取选定的 284×184 概念图像素，默认用 Unicode 四分块字符显示半身场景，不发送 PNG 图片协议，普通 macOS/Linux 终端也可使用。135×37 或 138×41 窗口使用 72 列、23 行的场景；左侧文字保留至少 40 列，对话和输入保留至少 30% 的窗口行数。小窗口采样及每字符两种颜色仍会减少细节，不能保留原图的全部像素。
+
+v0.6.2 及更早版本仍使用旧头像。v0.6.3 可用 `research --ui-avatar half` 切换半块字符，适合四分块字符有字体接缝的终端；`--ui-avatar off` 关闭头像，`--ui-theme system` 使用原主题配色。会话中可输入 `/ui avatar half`、`/ui avatar off` 或 `/ui theme system`。`NO_COLOR` 或 `TERM=dumb` 切换单色组件。[界面说明与实际字符输出预览](docs/ui.md)
 
 可以这样对话：
 
@@ -94,7 +96,7 @@ research --workspace "/另一个项目目录"       # 显式指定工作区
 | `/usage` | 模型用量、已知费用估计与独立付费工具记录 |
 | `/agents`、`/agents roles` | 查看子 Agent 状态与各角色工具；`/agents cancel agent_...` 取消运行任务 |
 | `/compact`、`/tree`、`/new` | 压缩上下文、查看会话树、开启新会话 |
-| `/ui avatar pixel\|off`、`/ui theme pixel\|system` | 切换像素头像和配色 |
+| `/ui avatar pixel\|half\|off`、`/ui theme pixel\|system` | 切换四分块/半块字符头像和配色 |
 
 ## 能力
 

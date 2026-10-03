@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "research-terminal"
-version = "0.6.2"
+version = "0.6.3"
 description = "Amadeus: an interactive, evidence-aware research and coding agent for the terminal"
 readme = "README.md"
 requires-python = ">=3.10"
