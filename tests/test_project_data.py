@@ -2,11 +2,57 @@ import hashlib
 import json
 import sqlite3
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 
 import pytest
 
 from research_cli.maintenance import backup_project, restore_project
 from research_cli.storage import SCHEMA_VERSION, Store
+
+
+def test_concurrent_first_open_migrates_once_and_preserves_both_sessions(tmp_path, monkeypatch):
+    root = tmp_path / ".research"
+    root.mkdir()
+    with sqlite3.connect(root / "state.sqlite3") as database:
+        database.execute("PRAGMA journal_mode=WAL")
+    database.close()
+    ready = Barrier(2)
+    connect = sqlite3.connect
+
+    class ConcurrentConnection(sqlite3.Connection):
+        def executescript(self, script):
+            result = super().executescript(script)
+            # Both independent connections have observed the unmigrated database.
+            ready.wait(timeout=10)
+            return result
+
+    def open_store(title):
+        store = Store(tmp_path)
+        try:
+            return store.create_session(title)
+        finally:
+            store.close()
+
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            sqlite3,
+            "connect",
+            lambda *args, **kwargs: connect(*args, factory=ConcurrentConnection, **kwargs),
+        )
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            first = pool.submit(open_store, "memory")
+            second = pool.submit(open_store, "backend")
+            session_ids = {first.result(timeout=15), second.result(timeout=15)}
+    store = Store(tmp_path)
+    try:
+        assert {item["id"] for item in store.sessions()} == session_ids
+        assert {item["title"] for item in store.sessions()} == {"memory", "backend"}
+        assert [row[0] for row in store.db.execute("SELECT version FROM schema_migrations")] == [1]
+        assert store.database_info()["schema_version"] == SCHEMA_VERSION
+        assert store.database_info()["integrity"] == "ok"
+    finally:
+        store.close()
 
 
 def test_v02_database_migrates_without_changing_ids_or_bodies(tmp_path):

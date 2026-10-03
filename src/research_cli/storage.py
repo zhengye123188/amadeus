@@ -78,13 +78,26 @@ class Store:
         # Version zero is the v0.2 database. Preserve IDs, JSON bodies and history.
         # Future migrations must advance one version at a time in a transaction.
         if version < 1:
-            with self.db:
-                self.db.execute(
-                    "CREATE TABLE IF NOT EXISTS schema_migrations "
-                    "(version INTEGER PRIMARY KEY, applied REAL NOT NULL)"
-                )
-                self.db.execute("INSERT INTO schema_migrations VALUES(1,?)", (time.time(),))
-                self.db.execute("PRAGMA user_version=1")
+            try:
+                with self.db:
+                    # The MCP backend and memory helper can open a new project
+                    # together. Acquire the writer lock before rechecking version.
+                    self.db.execute("BEGIN IMMEDIATE")
+                    version = self.db.execute("PRAGMA user_version").fetchone()[0]
+                    if version > SCHEMA_VERSION:
+                        raise ValueError(
+                            "Project database was created by a newer Research CLI; upgrade first"
+                        )
+                    if version < 1:
+                        self.db.execute(
+                            "CREATE TABLE IF NOT EXISTS schema_migrations "
+                            "(version INTEGER PRIMARY KEY, applied REAL NOT NULL)"
+                        )
+                        self.db.execute("INSERT INTO schema_migrations VALUES(1,?)", (time.time(),))
+                        self.db.execute("PRAGMA user_version=1")
+            except Exception:
+                self.db.close()
+                raise
 
     def database_info(self):
         return {
