@@ -11,12 +11,16 @@ import {
 const PANEL = "#0b1613";
 const BG_KEYS: ThemeBg[] = ["selectedBg", "searchMatchBg", "userMessageBg", "customMessageBg", "toolPendingBg", "toolSuccessBg", "toolErrorBg"];
 
-export interface PixelBitmap {
-  schemaVersion: number;
+export interface PixelGrid {
   width: number;
   height: number;
   palette: (string | null)[];
   pixels: number[][];
+}
+
+export interface PixelBitmap {
+  schemaVersion: number;
+  variants: PixelGrid[];
 }
 
 // Terminal titles, paths and extension statuses are data, never terminal instructions.
@@ -52,26 +56,26 @@ function panel(text: string, theme: Theme, monochrome: boolean, color: ThemeColo
 
 function readAvatar(): PixelBitmap {
   const bitmap = JSON.parse(readFileSync(new URL("./assets/kurisu-pixel.json", import.meta.url), "utf8")) as PixelBitmap;
-  if (bitmap.schemaVersion !== 1 || bitmap.width !== 48 || bitmap.height !== 48 || bitmap.palette[0] !== null
-    || bitmap.palette.length > 64 || bitmap.palette.some((color, i) => i > 0 && !/^#[a-f0-9]{6}$/i.test(color ?? ""))
-    || bitmap.pixels.length !== bitmap.height || bitmap.pixels.some(row => row.length !== bitmap.width
-      || row.some(index => !Number.isInteger(index) || index < 0 || index >= bitmap.palette.length))) {
+  if (bitmap.schemaVersion !== 2 || !Array.isArray(bitmap.variants) || bitmap.variants.length !== 3
+    || bitmap.variants.some((grid, i) => grid.width !== [20, 32, 40][i] || grid.height !== grid.width
+      || grid.palette[0] !== null || grid.palette.length > 64
+      || grid.palette.some((color, j) => j > 0 && !/^#[a-f0-9]{6}$/i.test(color ?? ""))
+      || grid.pixels.length !== grid.height || grid.pixels.some(row => row.length !== grid.width
+        || row.some(index => !Number.isInteger(index) || index < 0 || index >= grid.palette.length)))) {
     throw new Error("Invalid bundled pixel avatar");
   }
   return bitmap;
 }
 
-function pixelPortrait(bitmap: PixelBitmap, size: number, theme: Theme): string[] {
+function pixelPortrait(bitmap: PixelGrid, theme: Theme): string[] {
   const pixel = (x: number, y: number) => {
-    const sourceX = Math.min(bitmap.width - 1, Math.floor((x + .5) * bitmap.width / size));
-    const sourceY = Math.min(bitmap.height - 1, Math.floor((y + .5) * bitmap.height / size));
-    const color = bitmap.palette[bitmap.pixels[sourceY][sourceX]];
+    const color = bitmap.palette[bitmap.pixels[y][x]];
     return color ? parseColor(color) : theme.name === "research-pixel" ? parseColor(PANEL) : theme.colors.customMessageBg;
   };
   const lines: string[] = [];
-  for (let y = 0; y < size; y += 2) {
+  for (let y = 0; y < bitmap.height; y += 2) {
     let line = "";
-    for (let x = 0; x < size; x++) line += styleText("▀", { fg: pixel(x, y), bg: pixel(x, y + 1) }, theme.getColorMode());
+    for (let x = 0; x < bitmap.width; x++) line += styleText("▀", { fg: pixel(x, y), bg: pixel(x, y + 1) }, theme.getColorMode());
     lines.push(line);
   }
   return lines;
@@ -97,11 +101,16 @@ export class PixelHeader implements Component {
     const { ctx, options } = this;
     const theme = ctx.ui.theme;
     const mono = options.monochrome ?? false;
-    const compact = width < 60 || (options.getRows?.() ?? 40) < 24;
+    const rows = options.getRows?.() ?? 40;
+    const compact = width < 60 || rows < 24;
     const avatar = this.bitmap && width >= 80 && !compact;
-    const portrait = avatar ? pixelPortrait(this.bitmap!, 20, theme) : [];
+    // Select a grid sampled directly from the original PNG. Never downsample
+    // another terminal grid: small facial details would disappear a second time.
+    const size = width >= 120 && rows >= 48 ? 40 : width >= 100 && rows >= 36 ? 32 : 20;
+    const grid = avatar ? this.bitmap!.variants.find(item => item.width === size)! : undefined;
+    const portrait = grid ? pixelPortrait(grid, theme) : [];
     const inside = Math.max(0, width - 4);
-    const textWidth = Math.max(0, inside - (avatar ? 22 : 0));
+    const textWidth = Math.max(0, inside - (avatar ? size + 2 : 0));
     const model = ctx.model ? `${uiText(ctx.model.provider)} / ${uiText(ctx.model.id)}` : "未选择 · /model";
     const content = compact ? [
       `[R] Research CLI ${uiText(options.version)} · PIXEL LAB`,
@@ -126,7 +135,7 @@ export class PixelHeader implements Component {
     for (let row = 0; row < count; row++) {
       const color: ThemeColor = row === 0 ? "accent" : row === 1 && !compact ? "warning" : row > 6 ? "muted" : "text";
       const left = panel(`│ ${fit(content[row] ?? "", textWidth)}`, theme, mono, color);
-      const right = avatar ? panel("  ", theme, mono) + (portrait[row] ?? panel(" ".repeat(20), theme, mono)) : "";
+      const right = avatar ? panel("  ", theme, mono) + (portrait[row] ?? panel(" ".repeat(size), theme, mono)) : "";
       lines.push(left + right + panel(" │", theme, mono, "border"));
     }
     lines.push(bottom);
