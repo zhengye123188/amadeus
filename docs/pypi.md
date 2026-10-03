@@ -1,6 +1,6 @@
 # npm CLI 与 PyPI 后端发布
 
-交互式主 CLI 发布到 npm；Python 科研后端可以单独发布到 PyPI。本次准备发布 `0.6.0`，包括像素界面和 SDK 交互宿主；npm 上传与四平台独立安装器构建、发布尚待完成。现有 [npm v0.5.0](https://www.npmjs.com/package/@lelouch_021015/research-cli/v/0.5.0) 与 [GitHub Release v0.5.0](https://github.com/zhengye123188/research-cli/releases/tag/v0.5.0) 的公开验证记录保留在 [验证记录](validation.md)。各渠道需要分别发布；GitHub 推送或独立安装包发布不会更新 npm。PyPI 后端尚未发布，本次也不上传 PyPI。实际进度见 [v0.6.0 版本说明](releases/v0.6.0.md)。
+交互式主 CLI 发布到 npm；Python 科研后端可以单独发布到 PyPI。[npm v0.6.0](https://www.npmjs.com/package/@lelouch_021015/research-cli/v/0.6.0) 与 [GitHub Release v0.6.0](https://github.com/zhengye123188/research-cli/releases/tag/v0.6.0) 均已公开并设为 latest，包括像素界面、SDK 交互宿主及首次启动数据库并发修复。完整 CI、四平台安装器实装和公开下载校验见 [验证记录](validation.md)。各渠道需要分别发布；GitHub 推送或独立安装包发布不会更新 npm。PyPI 后端尚未发布，本次也未上传 PyPI。更新内容见 [v0.6.0 版本说明](releases/v0.6.0.md)。
 
 | 发布渠道 | 包名 | 安装后命令 | 用途 |
 |---|---|---|---|

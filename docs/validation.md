@@ -2,16 +2,27 @@
 
 更新日期：2026-10-03。开发环境为 macOS ARM64、Node 22.23.1、Python 3.12.13、Pi 0.99.1；依赖由 `package-lock.json` 和 `uv.lock` 固定。
 
-## v0.6.0：像素界面与发布准备
+## v0.6.0：像素界面与发布
 
-版本元数据已统一为 `0.6.0`。像素界面合并提交 `f86ceb7ac7cd8ecbd66fad5e358579a6690180e0` 的 [完整 CI](https://github.com/zhengye123188/research-cli/actions/runs/37104831746) 已在 macOS/Linux × Python 3.10/3.12 四组全部通过，包含真实 PTY 和 npm tarball 实装。v0.6.0 的新安装包正在准备，发布状态以本节后续实际记录为准。
+v0.6.0 已发布到 npm 和 GitHub Release。最终发布源码 `ec63e0237b2c523777dee4dd9d8a85336365b5af` 的 [完整 CI](https://github.com/zhengye123188/research-cli/actions/runs/37107470182) 已在 macOS/Linux × Python 3.10/3.12 四组全部通过，包含原生 OCR、真实 PTY、npm tarball 与 Python wheel 实装。[四平台独立安装器构建、实装与发布](https://github.com/zhengye123188/research-cli/actions/runs/37107497113) 全部通过。
 
-- Python **194 项通过**；最终 Node/TypeScript **96 项通过、2 项可选 OCR 测试跳过**。这次本地没有设置 `RESEARCH_OCR_TEST_DATA`；已有 v0.5.0 原生 OCR 验证见下方。类型检查、Ruff/格式、版本同步和 diff 检查通过。
+- Python **195 项通过**；Node/TypeScript **96 项通过、2 项可选 OCR 测试跳过**。这次本地没有设置 `RESEARCH_OCR_TEST_DATA`；最终 CI 显式安装固定语言数据并完成原生 OCR 验证。类型检查、Ruff/格式、版本同步和 diff 检查通过。
+- CI 发现并修复新工作区首次启动时，记忆服务与 MCP 后端并发迁移数据库的冲突。新增回归测试用两个独立 SQLite 连接同步打开未迁移数据库，修复前稳定触发重复迁移记录错误；修复后两个会话都保留，迁移仅执行一次，数据库完整性与异常迁移记录拒绝检查通过。
 - 真实 PTY 验证像素头部、普通终端字符头像及关闭、中文/空格工作区、120→54→120 列缩放、模型选择与 Esc、中文提示和 Ctrl+D。`/new`、`/reload` 后仍使用像素配色；切换原主题后重载保持原主题。恢复选择器的 Ctrl+N 命名过滤及取消通过。
 - 实际 SettingsManager 保存模型/主题设置、重新加载后，Research 静默启动和默认配色仍有效，启动不写品牌覆盖值。没有原 Pi 欢迎页闪现；命令补全、光标和编辑行为继续由公开 Pi 组件处理。
 - RPC 与 JSON 模式实际运行 Pi 和本地模拟 API，输出保持 JSON，不包含 ANSI 或图片协议。界面状态使用真实模型、上下文、Git 分支和扩展状态，未知上下文显示 `ctx ?`。
 - 最终源码 npm tarball 在独立临时目录实装，`setup`、`doctor`、四个内置包、科研扩展、原生 PDF 导入以及以上整套 PTY 验证通过。PNG、调色板 JSON、两份主题和 SDK 交互入口全部在打包清单中；独立构建从同一 npm 包整体提取文件。
 - 本次模型响应来自本机 HTTP fixture，仅用于工程验证；未使用用户密钥或付费模型。验收没有修改用户全局安装；上述验证发生在 v0.6.0 发布之前。
+- [npm v0.6.0](https://www.npmjs.com/package/@lelouch_021015/research-cli/v/0.6.0) 已公开，2026-10-03 核对注册表 `latest` 为 **0.6.0**。公开 tarball 为 **1,251,303 字节**，与修复后实装验证的最终包逐字节相同；注册表和下载包的 SHA-512 均为 `sha512-7ravBBE9ypbJy3AGjKGvOpCjzm7Zs8YR7336AehGadYntLKoGTEItxkTKuWaqNCgFTSSiiAauVRjq+9QwkLs7g==`，SHA-256 为 `fe8e790e117fbce74f5193156ac44408ffc99c76dc4088da3850b28db7e2a64e`。本次没有发布 PyPI。
+- [GitHub Release v0.6.0](https://github.com/zhengye123188/research-cli/releases/tag/v0.6.0) 已公开并设为 latest，标签精确指向上述最终源码，不是草稿或预发布。九个资产均为 uploaded，包含四个安装器、四个校验文件和 `install.sh`；四个公开校验文件的 SHA-256 均与 GitHub 计算的安装器资产 digest 一致。
+- 公开 `latest/download/install.sh` 已下载核对，**2,744 字节**，与发布源码逐字节相同；SHA-256 为 `a45de8c0c881ef433bd803006d91369142d7d26928204c1994d008f3751246d0`，`sh -n` 通过。四个平台 `.run` 的公开下载终点 HEAD 均为 HTTP 200，`Content-Length` 与发布资产大小一致。没有重复下载并实装公开大包；四平台实装证据来自上述 CI，发布工作流在上传前核对全部安装器 SHA-256。
+
+| 安装器平台 | 字节数 | 公开资产 SHA-256 |
+|---|---:|---|
+| darwin-arm64 | 189,119,332 | `cecc1532f3d0f40399e04ad270158e6b181dfa9061682f96799de3045d70155a` |
+| darwin-x64 | 191,919,639 | `6fd4c70518bdfadd9b739c3306d981b63e78c7be52dea32076a9b3186894a671` |
+| linux-arm64 | 202,061,974 | `8d3bf88fe9ba54bdda415ef7db4c380bf2d6ae920af9038bec1d2f9e246e6647` |
+| linux-x64 | 224,614,719 | `7cf963eab4d55a53608be0635b263e0d9a2a170eba71c972160415b85ed5d7db` |
 
 ## v0.5.0：按工具职责协作与本地 OCR
 

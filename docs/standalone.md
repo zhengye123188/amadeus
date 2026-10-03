@@ -4,7 +4,7 @@
 
 安装器包含 `pi-docparser`、`pi-subagents`、`pi-web-access` 和 Context7 四个内置包，以及本地 OCR 使用的英语、简体和繁体中文语言数据；保留内置 npm/npx，供 `research packages install` 使用。用户额外安装 Pi 包时仍可能需要网络及该包自己的依赖。
 
-v0.6.0 将增加与 npm 相同的像素终端、牧濑红莉栖字符头像和两种主题资源，本版四平台构建、实装和公开发布尚待完成。当前可安装版本和进度见 [v0.6.0 版本说明](releases/v0.6.0.md)。[v0.5.0 四平台构建与实装检查](https://github.com/zhengye123188/research-cli/actions/runs/37019987067) 的通过结果属于历史版本，不能代替本版验证；历史公开资产继续保留在 [Release v0.5.0](https://github.com/zhengye123188/research-cli/releases/tag/v0.5.0)。
+当前 [Release v0.6.0](https://github.com/zhengye123188/research-cli/releases/tag/v0.6.0) 已公开并设为 latest，包含与 npm 相同的像素终端、牧濑红莉栖字符头像和两种主题资源。[四平台构建与实装检查](https://github.com/zhengye123188/research-cli/actions/runs/37107497113) 全部通过，验证内置运行环境、OCR、科研工具、子 Agent、界面操作、重装和损坏包拒绝。公开下载入口及校验记录见 [验证记录](validation.md)，更新内容见 [v0.6.0 版本说明](releases/v0.6.0.md)。
 
 ## 用户安装
 
