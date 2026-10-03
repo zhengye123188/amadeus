@@ -1,4 +1,4 @@
-# Research CLI v0.5.0 源码架构
+# Research CLI v0.6.0 源码架构
 
 ## 交互与运行时
 

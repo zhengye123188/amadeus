@@ -2,13 +2,11 @@
 
 基于 [Pi](https://github.com/earendil-works/pi) 的交互式科研 Agent。在项目目录打开终端，直接讨论论文、检查代码、整理证据和验证改进，由 Agent 根据当前问题选择工具。用户可以从任意问题开始、继续已有记录或随时转向。
 
-**v0.5.0 · macOS / Linux · MIT**
+**v0.6.0 · macOS / Linux · MIT**
 
-本版新增按工具职责分工的多 Agent 协作，以及英文/中文本地 OCR。[协作与 OCR 用法](docs/collaboration.md)
+本版新增墨绿像素终端、牧濑红莉栖像素头像和可切换配色，显示实际工作区、模型、上下文与协作状态。科研工具、按职责分工的多 Agent 和英文/中文本地 OCR 继续使用原有机制。[界面与定制](docs/ui.md) · [协作与 OCR](docs/collaboration.md)
 
-当前源码已加入墨绿像素终端界面和牧濑红莉栖头像，可用 `npm start` 体验；已发布的 npm / 独立安装包 v0.5.0 尚不包含这次界面更新。[界面与定制](docs/ui.md)
-
-[npm 包](https://www.npmjs.com/package/@lelouch_021015/research-cli) · [独立安装包](https://github.com/zhengye123188/research-cli/releases/latest) · [版本说明](docs/releases/v0.5.0.md) · [架构](docs/architecture.md)
+[npm 包](https://www.npmjs.com/package/@lelouch_021015/research-cli) · [独立安装包](https://github.com/zhengye123188/research-cli/releases/latest) · [版本说明与发布状态](docs/releases/v0.6.0.md) · [架构](docs/architecture.md)
 
 安装后用 `research --version` 核对实际版本。各平台构建及公开下载检查见 [验证记录](docs/validation.md)。
 
@@ -30,7 +28,7 @@ research
 
 ### npm
 
-npm 与独立安装器提供相同的科研、协作和本地 OCR 能力。
+npm 与独立安装器提供相同的界面、科研、协作和本地 OCR 能力。
 
 需要 Node ≥22.19 和 [uv](https://docs.astral.sh/uv/getting-started/installation/)。Pi 作为依赖安装，无需单独安装：
 
@@ -73,7 +71,7 @@ research --workspace "/另一个项目目录"       # 显式指定工作区
 
 显式恢复 `--session` 或 `--resume` 时，Pi 使用历史会话保存的工作区；可用 `/research-status` 核对。`research --fork <会话文件>` 可把历史上下文带入当前项目。
 
-源码界面显示当前工作区、模型、上下文占用、Git 分支、权限和协作状态；80 列以上显示像素头像，窄窗口自动收紧布局。`research --ui-avatar off` 关闭头像；`--ui-theme system` 使用原主题配色。会话中也可以输入 `/ui avatar off` 或 `/ui theme system`。[界面说明](docs/ui.md)
+界面显示当前工作区、模型、上下文占用、Git 分支、权限和协作状态；80 列以上且至少 24 行时显示像素头像，窄窗口自动收紧布局。`research --ui-avatar off` 关闭头像；`--ui-theme system` 使用原主题配色。会话中也可以输入 `/ui avatar off` 或 `/ui theme system`。普通终端用字符块显示头像；`NO_COLOR` 或 `TERM=dumb` 切换单色组件。[界面说明](docs/ui.md)
 
 可以这样对话：
 
@@ -94,7 +92,7 @@ research --workspace "/另一个项目目录"       # 显式指定工作区
 | `/usage` | 模型用量、已知费用估计与独立付费工具记录 |
 | `/agents`、`/agents roles` | 查看子 Agent 状态与各角色工具；`/agents cancel agent_...` 取消运行任务 |
 | `/compact`、`/tree`、`/new` | 压缩上下文、查看会话树、开启新会话 |
-| `/ui avatar pixel\|off`、`/ui theme pixel\|system` | 源码版：切换像素头像和配色 |
+| `/ui avatar pixel\|off`、`/ui theme pixel\|system` | 切换像素头像和配色 |
 
 ## 能力
 
@@ -114,7 +112,7 @@ research --workspace "/另一个项目目录"       # 显式指定工作区
 | 多 Agent 协作 | 文献、文档、代码、实验分析、记忆、审阅六类工具范围；动态并行委派、追问、状态、取消，共用模型、工作区、科研服务与预算 |
 | 本地 OCR | 复用 `pi-docparser` 的 LiteParse/Tesseract，支持英语、简体/繁体中文；语言模型固定版本和哈希，解析时不隐式下载 |
 
-v0.5.0 默认联网配置提供 **53 个科研 MCP 工具 + 3 个 Pi 文件工具（read/write/edit）+ 6 个 Pi 包工具 + 4 个协作工具**，合计 66 个。配置 embeddings 后增加 2 个工具；离线模式移除联网包工具，外部 MCP 和用户安装的包按工具白名单增加。Jev 工具默认可发现，调用需要依赖、账号和审批。
+默认联网配置提供 **53 个科研 MCP 工具 + 3 个 Pi 文件工具（read/write/edit）+ 6 个 Pi 包工具 + 4 个协作工具**，合计 66 个。本次界面更新没有增加重复工具。配置 embeddings 后增加 2 个工具；离线模式移除联网包工具，外部 MCP 和用户安装的包按工具白名单增加。Jev 工具默认可发现，调用需要依赖、账号和审批。
 
 PDF 解析底层已改用 `pi-docparser`，其原生文档工具不重复暴露；导入与证据保存仍通过科研 MCP。科研记忆的证据、作业、修订和人工确认关系，以及实验数据/协议/指标校验，保留项目自身实现。包审查、替换理由与完整工具列表见 [Pi 包复用指南](docs/pi-packages.md)。
 
@@ -139,7 +137,7 @@ research ocr list
 research
 ```
 
-例如“使用英文和简体中文 OCR 导入 papers/scan.pdf”。解析全程在本地，OCR 每份 PDF 限制 20 页、20 MB；公式、复杂版式和引文仍需人工核对。npm/源码安装需显式下载语言数据；v0.5.0 独立安装器内置三种语言模型，可直接使用。
+例如“使用英文和简体中文 OCR 导入 papers/scan.pdf”。解析全程在本地，OCR 每份 PDF 限制 20 页、20 MB；公式、复杂版式和引文仍需人工核对。npm/源码安装需显式下载语言数据；独立安装器内置三种语言模型，可直接使用。
 
 ## 权限、执行与预算
 

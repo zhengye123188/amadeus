@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import os
 import queue
 import subprocess
+import sys
 import tempfile
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -80,6 +82,20 @@ def main():
             expected_packages
         ), "Standalone installation is missing bundled Pi packages"
         bundle = (prefix / "current").resolve(strict=True)
+        manifest = json.loads((bundle / "bundle.json").read_text())
+        ui_resources = (
+            "app/bin/interactive.mjs",
+            "app/pi/ui.ts",
+            "app/pi/themes/research-pixel.json",
+            "app/pi/themes/research-mono.json",
+            "app/pi/assets/kurisu-pixel.json",
+            "app/pi/assets/kurisu-pixel.png",
+        )
+        for resource in ui_resources:
+            assert (bundle / resource).is_file(), f"Missing bundled UI resource: {resource}"
+            assert manifest["files"].get(resource, {}).get("sha256"), (
+                f"UI resource is missing from the installer manifest: {resource}"
+            )
         ocr = json.loads(run(research, "ocr", "list").stdout)
         assert all(item["status"] == "ready" for item in ocr["models"])
         assert Path(ocr["directory"]).is_relative_to(bundle)
@@ -365,12 +381,16 @@ asyncio.run(main())
             research,
             ["--offline"],
             cwd=str(workspace),
-            env=env,
+            env={**env, "RESEARCH_UI_AVATAR": "off", "NO_COLOR": "1"},
             encoding="utf8",
             timeout=30,
             dimensions=(35, 120),
         )
+        terminal_output = io.StringIO()
+        terminal.logfile_read = terminal_output
         try:
+            terminal.expect_exact(f"Research CLI {doctor['version']}")
+            terminal.expect_exact("PIXEL LAB / KURISU")
             terminal.expect_exact("research ·")
             terminal.send("/research-status\r")
             terminal.expect_exact("sources")
@@ -379,6 +399,38 @@ asyncio.run(main())
         finally:
             terminal.close(force=True)
         assert terminal.exitstatus == 0, "Interactive terminal did not exit cleanly"
+        output = terminal_output.getvalue()
+        assert "▀" not in output, "Avatar-off must not show the portrait or upstream Pi logo"
+        assert "Press ctrl+o to show full startup help" not in output
+        assert "\x1b[38;2;" not in output and "\x1b[48;2;" not in output, (
+            "The installed shell wrapper must honor NO_COLOR"
+        )
+
+        # The dev Python only drives the test. The application and its backend must
+        # execute from the installed bundle, with external runtimes still poisoned.
+        ui_result = run(
+            sys.executable,
+            str(Path(__file__).resolve().with_name("smoke_ui.py")),
+            "--node",
+            bundled_node,
+            "--cli",
+            str(bundle / "app/bin/research.mjs"),
+            "--python",
+            doctor["python"],
+        )
+        ui_checks = json.loads(ui_result.stdout)
+        assert all(
+            ui_checks.get(check) is True
+            for check in (
+                "pixel_header",
+                "default_pixel_avatar",
+                "avatar_off",
+                "interactive_avatar_toggle",
+                "pixel_palette_after_new_and_reload",
+                "system_palette_after_reload",
+                "resume_named_filter_and_cancel",
+            )
+        ), ui_checks
 
         active = os.readlink(prefix / "current")
         run("/bin/sh", str(installer), *install_args)
@@ -425,6 +477,9 @@ asyncio.run(main())
                     "real_pi_mcp_tool_loop": True,
                     "interactive_terminal": True,
                     "terminal_cwd_is_workspace": True,
+                    "bundled_ui_resources": list(ui_resources),
+                    "standalone_pixel_ui": ui_checks,
+                    "shell_wrapper_monochrome_no_pi_banner": True,
                     "reinstall_and_damage_checks": True,
                 }
             )

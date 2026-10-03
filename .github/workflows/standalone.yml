@@ -56,10 +56,24 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+      actions: read
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - name: Require successful CI for the exact release source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          ci_id=$(gh run list --workflow ci.yml --commit "$GITHUB_SHA" --limit 20 \
+            --json databaseId --jq '.[0].databaseId // empty')
+          if [ -z "$ci_id" ]; then
+            echo "No CI run exists for release source $GITHUB_SHA." >&2
+            exit 1
+          fi
+          gh run watch "$ci_id" --exit-status --interval 10
       - uses: actions/download-artifact@v8
         with:
           pattern: research-cli-*
