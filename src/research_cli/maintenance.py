@@ -61,7 +61,7 @@ CORE_TABLES = {
 def validate_database(database):
     database.execute("PRAGMA trusted_schema=OFF")
     if database.execute("PRAGMA user_version").fetchone()[0] > SCHEMA_VERSION:
-        raise ValueError("Database needs a newer Research CLI")
+        raise ValueError("Database needs a newer Amadeus")
     objects = database.execute("SELECT type,name,tbl_name,sql FROM sqlite_master").fetchall()
     names = {row[1] for row in objects if row[0] == "table"}
     if not CORE_TABLES.issubset(names):
@@ -219,7 +219,7 @@ def restore_project(archive_path: Path, workspace: Path):
             if manifest["format"] != "research-project-v1":
                 raise ValueError("Unknown archive format")
             if manifest["schema_version"] > SCHEMA_VERSION:
-                raise ValueError("Archive needs a newer Research CLI")
+                raise ValueError("Archive needs a newer Amadeus")
             if set(names) - {"manifest.json"} != set(manifest["files"]):
                 raise ValueError("Archive file list differs from manifest")
             for name, expected in manifest["files"].items():

@@ -45,7 +45,7 @@ def _command() -> list[str]:
     if not node:
         raise RuntimeError(
             "PDF extraction requires Node.js >=22.19 and pi-docparser 4.0.0. "
-            "Install Research CLI with npm or its standalone installer."
+            "Install Amadeus with npm or its standalone installer."
         )
     configured = os.environ.get("RESEARCH_DOCUMENT_PARSER")
     bridge = (
@@ -184,7 +184,7 @@ async def parse_pdf_pages(
             )
         except OSError as exc:
             raise RuntimeError(
-                "Cannot start pi-docparser. Check RESEARCH_NODE and reinstall Research CLI."
+                "Cannot start pi-docparser. Check RESEARCH_NODE and reinstall Amadeus."
             ) from exc
         try:
             stdout, stderr = await asyncio.wait_for(

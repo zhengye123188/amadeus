@@ -1,10 +1,10 @@
 # npm CLI 与 PyPI 后端发布
 
-交互式主 CLI 发布到 npm；Python 科研后端可以单独发布到 PyPI。[npm v0.6.1](https://www.npmjs.com/package/@lelouch_021015/research-cli/v/0.6.1) 与 [GitHub Release v0.6.1](https://github.com/zhengye123188/research-cli/releases/tag/v0.6.1) 均已公开并设为 latest，包括头像清晰度修正，以及像素界面、SDK 交互宿主和原有科研能力。完整 CI、四平台安装器实装和公开下载校验见 [验证记录](validation.md)。各渠道需要分别发布；GitHub 推送或独立安装包发布不会更新 npm。PyPI 后端尚未发布，本次也未上传 PyPI。更新内容见 [v0.6.1 版本说明](releases/v0.6.1.md)。
+交互式主 CLI 发布到 npm，Python 科研后端可以单独发布到 PyPI。项目自 v0.6.2 更名为 **Amadeus**，新 npm 包名为 `@lelouch_021015/amadeus`，启动命令仍为 `research`。当前 v0.6.2 正在验证与发布，实际结果见[验证记录](validation.md)与[v0.6.2 版本说明](releases/v0.6.2.md)。各渠道需要分别发布；GitHub 推送或独立安装包发布不会更新 npm。PyPI 后端尚未发布，本次也不上传 PyPI。
 
 | 发布渠道 | 包名 | 安装后命令 | 用途 |
 |---|---|---|---|
-| npm | `@lelouch_021015/research-cli` | `research` | Pi 交互终端、科研扩展、后端环境安装器 |
+| npm | `@lelouch_021015/amadeus` | `research` | Pi 交互终端、科研扩展、后端环境安装器 |
 | PyPI | `research-terminal[mcp]` | `research-mcp`、`research-legacy` | 独立 MCP 服务、历史 Python CLI |
 
 npm 包携带 Python 后端源码及 `uv.lock`，`research setup` 用 uv 安装到独立缓存环境，因此 npm 发布不依赖 PyPI 发布。Pi 作为 npm 依赖安装。
@@ -37,13 +37,13 @@ npm publish --access public --registry=https://registry.npmjs.org
 发布后检查注册表：
 
 ```bash
-npm view @lelouch_021015/research-cli@0.6.1 version --registry=https://registry.npmjs.org
+npm view @lelouch_021015/amadeus@0.6.2 version --registry=https://registry.npmjs.org
 ```
 
 用户安装时，需要 Node `>=22.19.0` 和 [uv](https://docs.astral.sh/uv/getting-started/installation/)：
 
 ```bash
-npm install -g @lelouch_021015/research-cli
+npm install -g @lelouch_021015/amadeus
 research setup
 research configure
 cd "/你的项目目录"
@@ -62,7 +62,7 @@ research
 |---|---|
 | Project Name | `research-terminal` |
 | Owner | `zhengye123188` |
-| Repository | `research-cli` |
+| Repository | `amadeus` |
 | Workflow | `publish.yml` |
 | Environment | `pypi` |
 
@@ -80,16 +80,16 @@ gh workflow run publish.yml --ref main -f publish=false
 git fetch origin --tags
 ```
 
-如果对应版本已经发布独立安装器，复用该发布的标签，不要移动或重新创建。否则，为已经通过 CI 的提交创建并推送完全匹配的标签。在 GitHub **Actions → PyPI release → Run workflow** 中选择该标签，再勾选 `publish`。以 0.6.1 为例，只有 `v0.6.1` 标签存在且指向通过验证的源码、并且另行决定发布 PyPI 后端时运行：
+如果对应版本已经发布独立安装器，复用该发布的标签，不要移动或重新创建。否则，为已经通过 CI 的提交创建并推送完全匹配的标签。在 GitHub **Actions → PyPI release → Run workflow** 中选择该标签，再勾选 `publish`。以 0.6.2 为例，只有 `v0.6.2` 标签存在且指向通过验证的源码、并且另行决定发布 PyPI 后端时运行：
 
 ```bash
-gh workflow run publish.yml --ref v0.6.1 -f publish=true
+gh workflow run publish.yml --ref v0.6.2 -f publish=true
 ```
 
 `publish=true` 会真实上传。只有工作流上传成功并能从 PyPI 查询到版本后，才向用户提供安装命令：
 
 ```bash
-uv tool install 'research-terminal[mcp]==0.6.1'
+uv tool install 'research-terminal[mcp]==0.6.2'
 research-mcp --version
 ```
 
@@ -106,7 +106,7 @@ uv run ruff format --check .
 uv run pytest -q
 uv build --no-sources --out-dir dist/python
 uvx --from 'twine>=6,<7' twine check --strict dist/python/*
-uv run python scripts/smoke_install.py dist/python/research_terminal-0.6.1-py3-none-any.whl
+uv run python scripts/smoke_install.py dist/python/research_terminal-0.6.2-py3-none-any.whl
 uvx --from 'twine>=6,<7' twine upload dist/python/*
 ```
 
@@ -114,10 +114,10 @@ uvx --from 'twine>=6,<7' twine upload dist/python/*
 
 ## 后续版本更新
 
-使用统一脚本更新版本，避免前端、后端和安装入口不一致。下面的 0.6.2 只是后续补丁版本示例：
+使用统一脚本更新版本，避免前端、后端和安装入口不一致。下面的 0.6.3 只是后续补丁版本示例：
 
 ```bash
-npm run version:set -- 0.6.2
+npm run version:set -- 0.6.3
 npm run version:check
 ```
 

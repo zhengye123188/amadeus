@@ -1,6 +1,6 @@
 # 按工具职责分工的协作与本地 OCR
 
-这些能力从 v0.5.0 开始提供。该版本已发布到 npm 和 [GitHub Release](https://github.com/zhengye123188/research-cli/releases/tag/v0.5.0)，四平台独立安装器通过原生构建与实装检查（2026-10-02）；实际检查范围见 [验证记录](validation.md)。用 `research --version` 核对安装版本。源码运行使用 `npm ci`、`uv sync --frozen --all-extras` 和 `npm start`。
+这些能力从 v0.5.0 开始提供。该版本已发布到 npm 和 [GitHub Release](https://github.com/zhengye123188/amadeus/releases/tag/v0.5.0)，四平台独立安装器通过原生构建与实装检查（2026-10-02）；实际检查范围见 [验证记录](validation.md)。用 `research --version` 核对安装版本。源码运行使用 `npm ci`、`uv sync --frozen --all-extras` 和 `npm start`。
 
 ## 动态协作
 
@@ -73,6 +73,6 @@ research ocr install --languages chi_tra
 
 ## 复用范围
 
-协作复用 [pi-subagents](https://github.com/nicobailon/pi-subagents) 的固定版本 0.74.0 前台执行器。该执行器的可注入子会话工厂位于包内部，因此适配器校验版本与执行器文件哈希，升级必须重新审查。Research CLI 提供角色白名单、受控 Pi 子会话、主工具转发、共享预算和管理命令；不自动加载上游完整扩展、工作流或环境中的 Agent 定义。
+协作复用 [pi-subagents](https://github.com/nicobailon/pi-subagents) 的固定版本 0.74.0 前台执行器。该执行器的可注入子会话工厂位于包内部，因此适配器校验版本与执行器文件哈希，升级必须重新审查。Amadeus 提供角色白名单、受控 Pi 子会话、主工具转发、共享预算和管理命令；不自动加载上游完整扩展、工作流或环境中的 Agent 定义。
 
 OCR 来源与许可见 [第三方说明](../THIRD_PARTY_NOTICES.md)。Pi 官方包目录提供发现入口，包由各自维护者开发；目录收录不等于 Pi 官方保证其兼容性。

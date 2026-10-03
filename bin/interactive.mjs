@@ -23,7 +23,7 @@ export function shouldUseResearchTui(args, { stdinTTY = process.stdin.isTTY, std
 }
 
 export function researchWindowTitle(title) {
-  return String(title).replace(/^(?:π|pi)(?= - |$)/, "Research CLI").replace(/[\u0000-\u001f\u007f-\u009f]/g, " ");
+  return String(title).replace(/^(?:π|pi)(?= - |$)/, "Amadeus").replace(/[\u0000-\u001f\u007f-\u009f]/g, " ");
 }
 
 /** Branding is host-owned, while all ordinary preferences retain Pi's storage. */
@@ -124,7 +124,7 @@ async function selectSession(cwd, sessionDir, runtime, terminal, sdk, tui) {
       finish, () => finish(undefined), () => finish(undefined), () => ui.requestRender(),
       { showRenameHint: false, keybindings: tui.getKeybindings() },
     );
-    ui.addChild(new tui.Text("Research CLI · 恢复会话", 1, 1));
+    ui.addChild(new tui.Text("Amadeus · 恢复会话", 1, 1));
     ui.addChild(selector);
     ui.setFocus(selector.getSessionList());
     ui.start();
@@ -209,7 +209,7 @@ export async function runResearchInteractive(args) {
       ...settings.drainErrors().map(({ error }) => ({ type: "warning", message: `Research settings: ${error.message}` })),
       ...services.resourceLoader.getExtensions().errors.map(({ path, error }) => ({ type: "error", message: `Failed to load extension "${path}": ${error}` })),
     ];
-    if (parsed.verbose) diagnostics.push({ type: "info", message: "Research CLI shows startup diagnostics while retaining the Research welcome screen." });
+    if (parsed.verbose) diagnostics.push({ type: "info", message: "Amadeus shows startup diagnostics while retaining the Amadeus welcome screen." });
     let model, thinkingLevel = parsed.thinking;
     if (parsed.model) {
       const resolved = sdk.resolveCliModel({ cliProvider: parsed.provider, cliModel: parsed.model, cliThinking: parsed.thinking, modelRuntime: services.modelRuntime });
@@ -283,5 +283,5 @@ export async function runResearchInteractive(args) {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try { await runResearchInteractive(process.argv.slice(2)); }
-  catch (error) { console.error(`Research CLI could not start: ${error.message}`); process.exitCode = 2; }
+  catch (error) { console.error(`Amadeus could not start: ${error.message}`); process.exitCode = 2; }
 }

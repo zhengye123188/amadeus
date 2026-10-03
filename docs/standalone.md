@@ -4,27 +4,27 @@
 
 安装器包含 `pi-docparser`、`pi-subagents`、`pi-web-access` 和 Context7 四个内置包，以及本地 OCR 使用的英语、简体和繁体中文语言数据；保留内置 npm/npx，供 `research packages install` 使用。用户额外安装 Pi 包时仍可能需要网络及该包自己的依赖。
 
-当前 [Release v0.6.1](https://github.com/zhengye123188/research-cli/releases/tag/v0.6.1) 已公开并设为 latest，包含与 npm 相同的像素终端、三种尺寸的牧濑红莉栖头部特写和两种主题资源。[四平台构建与实装检查](https://github.com/zhengye123188/research-cli/actions/runs/37111338288) 全部通过，验证内置运行环境、OCR、科研工具、子 Agent、界面操作、重装和损坏包拒绝。公开下载入口及校验记录见 [验证记录](validation.md)，更新内容见 [v0.6.1 版本说明](releases/v0.6.1.md)。
+当前源码为 Amadeus v0.6.2 发布候选，包含新的完整半身像；四平台安装器正在验证与发布。历史 v0.6.1 的实装证据见[验证记录](validation.md)，不能代替新版安装验证。启动命令仍为 `research`。
 
 ## 用户安装
 
 在 macOS / Linux 终端执行：
 
 ```bash
-curl -fsSL https://github.com/zhengye123188/research-cli/releases/latest/download/install.sh | sh
+curl -fsSL https://github.com/zhengye123188/amadeus/releases/latest/download/install.sh | sh
 ```
 
 下载入口自动识别系统与 CPU，从同一版本的 GitHub Release 获取 `.run` 和 `.run.sha256`，校验通过后安装。它需要 curl 和系统 SHA-256 工具，安装包本身包含运行环境。也可以先下载并查看入口脚本，再执行 `sh install.sh`。
 
-手动下载可打开 [公开下载页面](https://github.com/zhengye123188/research-cli/releases/latest)，在 **Assets** 中选择对应平台的 `.run` 和 `.run.sha256` 文件。无需登录 GitHub，也无需解压 ZIP。
+手动下载可打开 [公开下载页面](https://github.com/zhengye123188/amadeus/releases/latest)，在 **Assets** 中选择对应平台的 `.run` 和 `.run.sha256` 文件。无需登录 GitHub，也无需解压 ZIP。
 
 选择与机器匹配的 `.run` 文件，在终端执行：
 
 ```bash
-sh ~/Downloads/research-cli-0.6.1-darwin-arm64.run
+sh ~/Downloads/amadeus-0.6.2-darwin-arm64.run
 ```
 
-上面以 v0.6.1 文件名为例，请将版本和路径替换为实际下载文件。安装器会自动校验内嵌内容；也可在两个文件所在目录提前运行 `shasum -a 256 -c research-cli-0.6.1-darwin-arm64.run.sha256`（Linux 可使用 `sha256sum -c`）。
+上面以 v0.6.2 文件名为例，请将版本和路径替换为实际下载文件。安装器会自动校验内嵌内容；也可在两个文件所在目录提前运行 `shasum -a 256 -c amadeus-0.6.2-darwin-arm64.run.sha256`（Linux 可使用 `sha256sum -c`）。
 
 | 文件后缀 | 平台 |
 |---|---|
@@ -67,13 +67,13 @@ research
 更新时运行新安装器；它先验证校验和、复制到新目录、检查运行环境，成功后原子切换 `current` 链接。不会覆盖其他来源的同名 `research` 命令；遇到冲突可以使用不同命令目录：
 
 ```bash
-sh research-cli-0.6.1-darwin-arm64.run --prefix "$HOME/Apps/research-cli" --bin-dir "$HOME/Apps/bin"
+sh amadeus-0.6.2-darwin-arm64.run --prefix "$HOME/Apps/research-cli" --bin-dir "$HOME/Apps/bin"
 ```
 
 下载入口同样支持这些参数：
 
 ```bash
-curl -fsSL https://github.com/zhengye123188/research-cli/releases/latest/download/install.sh | sh -s -- --prefix "$HOME/Apps/research-cli" --bin-dir "$HOME/Apps/bin"
+curl -fsSL https://github.com/zhengye123188/amadeus/releases/latest/download/install.sh | sh -s -- --prefix "$HOME/Apps/research-cli" --bin-dir "$HOME/Apps/bin"
 ```
 
 旧版本保留在安装目录，重新运行旧版本安装器可回退程序。数据库升级后的兼容性需单独检查：回退前保留备份，并在新工作区恢复兼容数据，不能假定旧程序可读取新版本数据库。项目中的 `.research` 数据和 API 配置独立于程序目录，更新不删除它们。卸载时删除安装器打印的命令链接及程序安装目录即可；API 配置与科研数据应按用户需要单独保留或清理。
@@ -86,13 +86,13 @@ Intel Mac 构建机还需要 Xcode 命令行工具、Rust、make 和 Perl。由�
 
 ```bash
 uv run --python 3.12 python scripts/build_standalone.py
-uv run --python 3.12 python scripts/smoke_standalone.py dist/standalone/research-cli-0.6.1-darwin-arm64.run
+uv run --python 3.12 python scripts/smoke_standalone.py dist/standalone/amadeus-0.6.2-darwin-arm64.run
 # 将文件名替换为本机平台对应的产物
 ```
 
 产物在 `dist/standalone/`：自解压 `.run`、可手动解压的 `.tar.gz`、各自 `.sha256`。运行环境 URL/哈希锁定在 `packaging/runtimes.json`；JS/Python 依赖锁定在 package-lock.json / uv.lock；OCR 语言数据的固定 commit、大小和 SHA-256 在 `bin/ocr.mjs`。包内 bundle.json 记录所有文件与符号链接，保留第三方许可证。校验和用于检测损坏，不等于代码签名或发布者认证。
 
-GitHub 的 [Standalone installers](https://github.com/zhengye123188/research-cli/actions/workflows/standalone.yml) 手动工作流在四种平台构建、进行独立安装测试，并上传 Actions artifacts。默认 `publish=false` 只构建；选择 `publish=true` 时，四个平台全部通过后才会校验产物并创建同版本的 GitHub Release。工作流先上传完整草稿，再公开发布，包含四组 `.run` / `.sha256` 和 `install.sh` 下载入口。已有版本不会被覆盖。
+GitHub 的 [Standalone installers](https://github.com/zhengye123188/amadeus/actions/workflows/standalone.yml) 手动工作流在四种平台构建、进行独立安装测试，并上传 Actions artifacts。默认 `publish=false` 只构建；选择 `publish=true` 时，四个平台全部通过后才会校验产物并创建同版本的 GitHub Release。工作流先上传完整草稿，再公开发布，包含四组 `.run` / `.sha256` 和 `install.sh` 下载入口。已有版本不会被覆盖。
 
 发布前运行 `npm run version:set -- VERSION` 同步前后端、两个锁文件及下载入口的版本，再运行 `npm run version:check`，并准备对应的 `docs/releases/vVERSION.md`。GitHub 安装包发布不会上传 npm 或 PyPI；这些包需要按 [发布指南](pypi.md) 显式发布。Actions artifacts 仍可用于内部构建检查，下载要求 GitHub 登录，保留 30 天。
 

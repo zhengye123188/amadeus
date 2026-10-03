@@ -20,6 +20,11 @@ function run(cmd, args, cwd = temp) {
 try {
   run("npm", ["install", "--prefix", temp, "--ignore-scripts", "--no-audit", "--no-fund", tarball]);
   const executable = join(temp, "node_modules", ".bin", "research");
+  const installedRoot = dirname(dirname(realpathSync(executable)));
+  const installedPackage = JSON.parse(readFileSync(join(installedRoot, "package.json"), "utf8"));
+  if (installedPackage.name !== "@lelouch_021015/amadeus") throw new Error("Installed npm package name must be @lelouch_021015/amadeus");
+  if (JSON.stringify(installedPackage.bin) !== JSON.stringify({ research: "bin/research.mjs" })) throw new Error("Amadeus must retain research as its only npm command");
+  if (!run(executable, ["--help"]).startsWith("Amadeus ")) throw new Error("Installed research command must show the Amadeus brand");
   const version = run(executable, ["--version"]);
   if (!version.startsWith(expectedVersion + " ")) throw new Error("Installed CLI version mismatch");
   const packages = JSON.parse(run(executable, ["packages", "list"]));
@@ -28,7 +33,6 @@ try {
   const doctor = JSON.parse(run(executable, ["doctor"]));
   if (doctor.backend !== expectedVersion || !doctor.python.startsWith(temp)) throw new Error("Backend did not install in the isolated cache");
   const workspace = join(temp, "work"); mkdirSync(workspace);
-  const installedRoot = dirname(dirname(realpathSync(executable)));
   env.RESEARCH_NODE = process.execPath;
   env.RESEARCH_DOCUMENT_PARSER = join(installedRoot, "bin", "document-parser.mjs");
   const parsed = JSON.parse(run(doctor.python, ["-c", `
@@ -88,5 +92,5 @@ asyncio.run(main())
     "--cli", executable, "--python", doctor.python, "--node", process.execPath,
   ]));
   if (!terminal.real_terminal || !terminal.pixel_header) throw new Error("Installed terminal UI did not pass the PTY check");
-  console.log(JSON.stringify({ npm_cli: "installed tarball", version: version.trim(), backend: doctor.backend, isolated_cache: true, real_pi_extension_loaded: true, bundled_packages: packages.bundled.map(item => item.source), native_pdf_import: true, interactive_terminal: terminal }));
+  console.log(JSON.stringify({ npm_cli: "installed tarball", package: installedPackage.name, command: "research", version: version.trim(), backend: doctor.backend, isolated_cache: true, real_pi_extension_loaded: true, bundled_packages: packages.bundled.map(item => item.source), native_pdf_import: true, interactive_terminal: terminal }));
 } finally { rmSync(temp, { recursive: true, force: true }); }

@@ -139,11 +139,11 @@ def main():
             terminal.logfile_read = transcript
             checkpoints = [("startup", 0)]
             try:
-                terminal.expect(re.compile("Research CLI", re.IGNORECASE))
+                terminal.expect(re.compile("Amadeus", re.IGNORECASE))
                 terminal.expect_exact("PIXEL LAB")
-                terminal.expect_exact("research ·")
+                terminal.expect_exact("amadeus ·")
                 assert "▀" not in transcript.getvalue(), (
-                    "The upstream Pi logo must not flash before the Research header when avatar is off"
+                    "The upstream Pi logo must not flash before the Amadeus header when avatar is off"
                 )
                 checkpoints.append(("project status", transcript.tell()))
                 terminal.send("/research-status\r")
@@ -166,7 +166,7 @@ def main():
                     checkpoints.append((command, start))
                     terminal.send(command + "\r")
                     terminal.expect_exact("PIXEL LAB / KURISU")
-                    terminal.expect_exact("research ·")
+                    terminal.expect_exact("amadeus ·")
                     terminal.send("/ui\r")
                     terminal.expect_exact("UI: pixel")
                     terminal.expect_exact("avatar: off")
@@ -180,7 +180,7 @@ def main():
                 checkpoints.append(("system theme reload", transcript.tell()))
                 terminal.send("/reload\r")
                 terminal.expect_exact("PIXEL LAB / KURISU")
-                terminal.expect_exact("research ·")
+                terminal.expect_exact("amadeus ·")
                 start = transcript.tell()
                 terminal.send("/ui\r")
                 terminal.expect_exact("UI: system")
@@ -217,7 +217,7 @@ def main():
                     f"Avatar-off emitted pixel blocks during {stage}. First occurrence:\n{sample}"
                 )
 
-            # The default portrait uses ordinary colored text rather than image protocols.
+            # The full half-body scene uses ordinary colored text rather than image protocols.
             avatar_log = io.StringIO()
             avatar_terminal = pexpect.spawn(
                 executable,
@@ -226,24 +226,35 @@ def main():
                 env={**env, "RESEARCH_UI_AVATAR": "pixel"},
                 encoding="utf8",
                 timeout=35,
-                dimensions=(35, 120),
+                # Match the user's reported viewport: medium detail must fit here.
+                dimensions=(37, 135),
             )
             avatar_terminal.logfile_read = avatar_log
             try:
                 avatar_terminal.expect_exact("PIXEL LAB / KURISU")
                 avatar_terminal.expect_exact("▀")
-                avatar_terminal.expect_exact("research ·")
-                # Exercise both native detail levels and compact fallback in a
-                # running terminal, including restoration after a narrow resize.
-                for rows, columns in ((40, 120), (48, 120), (24, 80), (32, 120)):
+                avatar_terminal.expect_exact("amadeus ·")
+                # Exercise every rectangular scene size in a running terminal.
+                # Waiting for the footer consumes the complete header redraw.
+                for rows, columns in ((48, 160), (24, 80), (36, 110), (37, 135)):
                     avatar_terminal.setwinsize(rows, columns)
                     avatar_terminal.expect_exact("PIXEL LAB / KURISU")
                     avatar_terminal.expect_exact("▀")
-                avatar_terminal.setwinsize(32, 54)
-                avatar_terminal.expect_exact("PIXEL LAB")
-                avatar_terminal.setwinsize(40, 120)
+                    avatar_terminal.expect_exact("amadeus ·")
+                # Neither a narrow nor a short viewport should emit new avatar
+                # blocks. Verify fresh output, then restore the user's size.
+                for rows, columns in ((36, 79), (23, 135), (32, 54)):
+                    start = avatar_log.tell()
+                    avatar_terminal.setwinsize(rows, columns)
+                    avatar_terminal.expect_exact("PIXEL LAB")
+                    avatar_terminal.expect_exact("amadeus ·")
+                    assert "▀" not in avatar_log.getvalue()[start:], (
+                        f"The {columns}x{rows} fallback must preserve conversation space"
+                    )
+                avatar_terminal.setwinsize(37, 135)
                 avatar_terminal.expect_exact("PIXEL LAB / KURISU")
                 avatar_terminal.expect_exact("▀")
+                avatar_terminal.expect_exact("amadeus ·")
                 avatar_terminal.send("/ui avatar off\r")
                 avatar_terminal.send("/ui\r")
                 avatar_terminal.expect_exact("avatar: off")
@@ -294,6 +305,10 @@ def main():
                         "chinese_prompt": True,
                         "avatar_off": True,
                         "default_pixel_avatar": True,
+                        "half_body_scene_at_135x37": True,
+                        "large_scene_at_160x48": True,
+                        "small_scene_at_80x24": True,
+                        "narrow_and_short_avatar_fallback": True,
                         "interactive_avatar_toggle": True,
                         "pixel_palette_after_new_and_reload": True,
                         "system_palette_after_reload": True,

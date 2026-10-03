@@ -17,7 +17,7 @@ const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 const args = process.argv.slice(2);
 const [major, minor] = process.versions.node.split(".").map(Number);
 if (major < 22 || (major === 22 && minor < 19)) {
-  console.error("Research CLI needs Node >=22.19.0. Activate a supported Node version first.");
+  console.error("Amadeus needs Node >=22.19.0. Activate a supported Node version first.");
   process.exit(2);
 }
 // Package management is independent of model credentials and the Python backend.
@@ -32,7 +32,7 @@ if (args.includes("--version") || args[0] === "version") {
   process.exit(0);
 }
 if (args.includes("--help") || args.includes("-h")) {
-  console.log(`Research CLI ${pkg.version} — interactive research on Pi
+  console.log(`Amadeus ${pkg.version} — interactive research on Pi
 
 research setup [--jev]                 Install the Python backend using uv
 research configure                    Save API settings locally (hidden key input)
@@ -89,7 +89,7 @@ for (let index = 0; index < args.length; index++) {
   if (args[index] === "--") break;
   const flag = args[index].split("=", 1)[0];
   if (forbiddenFlags.has(flag)) {
-    console.error(`Research CLI manages extension loading and tool permissions. Use research packages install SOURCE --policy FILE instead of ${flag}.`);
+    console.error(`Amadeus manages extension loading and tool permissions. Use research packages install SOURCE --policy FILE instead of ${flag}.`);
     process.exit(2);
   }
   if (valueFlags.has(args[index])) index++;

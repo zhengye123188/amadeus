@@ -40,7 +40,7 @@ jobs:
       - run: uv run --python 3.12 python scripts/smoke_standalone.py dist/standalone/*.run
       - uses: actions/upload-artifact@v7
         with:
-          name: research-cli-${{ matrix.platform }}
+          name: amadeus-${{ matrix.platform }}
           path: |
             dist/standalone/*.run
             dist/standalone/*.run.sha256
@@ -76,7 +76,7 @@ jobs:
           gh run watch "$ci_id" --exit-status --interval 10
       - uses: actions/download-artifact@v8
         with:
-          pattern: research-cli-*
+          pattern: amadeus-*
           merge-multiple: true
           path: dist/standalone
       - name: Verify all four assets and prepare release metadata
@@ -91,7 +91,10 @@ jobs:
           import tomllib
           from pathlib import Path
 
-          version = json.loads(Path("package.json").read_text())["version"]
+          package = json.loads(Path("package.json").read_text())
+          version = package["version"]
+          if package["name"] != "@lelouch_021015/amadeus":
+              raise SystemExit("Standalone releases require the public Amadeus npm package")
           if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version):
               raise SystemExit("Standalone releases require a stable semantic version")
           if tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"] != version:
@@ -99,12 +102,14 @@ jobs:
           if not re.search(r'__version__\s*=\s*[\'"]' + re.escape(version) + r'[\'"]', Path("src/research_cli/__init__.py").read_text()):
               raise SystemExit("Python CLI and package versions disagree")
           downloader = Path("packaging/download.sh").read_text()
+          if not re.search(r"^repository=zhengye123188/amadeus$", downloader, re.M):
+              raise SystemExit("Download script and Amadeus release repository disagree")
           if not re.search(r"^VERSION=['\"]?" + re.escape(version) + r"['\"]?$", downloader, re.M):
               raise SystemExit("Download script and package versions disagree")
           directory = Path("dist/standalone")
           expected = set()
           for platform in ("darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64"):
-              name = f"research-cli-{version}-{platform}.run"
+              name = f"amadeus-{version}-{platform}.run"
               expected.update((name, name + ".sha256"))
               path = directory / name
               checksum = path.with_name(name + ".sha256").read_text()
@@ -137,6 +142,6 @@ jobs:
             exit 1
           fi
           gh release create "$RELEASE_TAG" dist/standalone/* \
-            --draft --target "$GITHUB_SHA" --title "Research CLI $RELEASE_TAG" \
+            --draft --target "$GITHUB_SHA" --title "Amadeus $RELEASE_TAG" \
             --notes-file "docs/releases/$RELEASE_TAG.md"
           gh release edit "$RELEASE_TAG" --draft=false --latest

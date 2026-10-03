@@ -39,7 +39,7 @@ class Store:
         version = self.db.execute("PRAGMA user_version").fetchone()[0]
         if version > SCHEMA_VERSION:
             self.db.close()
-            raise ValueError("Project database was created by a newer Research CLI; upgrade first")
+            raise ValueError("Project database was created by a newer Amadeus; upgrade first")
         self.db.executescript("""
             PRAGMA journal_mode=WAL;
             PRAGMA foreign_keys=ON;
@@ -86,7 +86,7 @@ class Store:
                     version = self.db.execute("PRAGMA user_version").fetchone()[0]
                     if version > SCHEMA_VERSION:
                         raise ValueError(
-                            "Project database was created by a newer Research CLI; upgrade first"
+                            "Project database was created by a newer Amadeus; upgrade first"
                         )
                     if version < 1:
                         self.db.execute(

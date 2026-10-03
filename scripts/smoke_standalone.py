@@ -22,7 +22,7 @@ def main():
     parser.add_argument("installer", type=Path)
     args = parser.parse_args()
     installer = args.installer.resolve(strict=True)
-    with tempfile.TemporaryDirectory(prefix="research-standalone-smoke-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="amadeus-standalone-smoke-") as temporary:
         root = Path(temporary).resolve()
         prefix, commands, workspace = root / "Installed App 空格", root / "commands", root / "work"
         workspace.mkdir()
@@ -67,6 +67,7 @@ def main():
         run("/bin/sh", str(installer), *install_args)
         research = str(commands / "research")
         doctor = json.loads(run(research, "doctor").stdout)
+        assert not (commands / "amadeus").exists(), "The installed command remains research"
         assert doctor["standalone"] and doctor["node"] == "22.23.1"
         assert doctor["backend"] == doctor["version"]
         assert Path(doctor["python"]).is_relative_to(prefix)
@@ -389,9 +390,9 @@ asyncio.run(main())
         terminal_output = io.StringIO()
         terminal.logfile_read = terminal_output
         try:
-            terminal.expect_exact(f"Research CLI {doctor['version']}")
+            terminal.expect_exact(f"Amadeus {doctor['version']}")
             terminal.expect_exact("PIXEL LAB / KURISU")
-            terminal.expect_exact("research ·")
+            terminal.expect_exact("amadeus ·")
             terminal.send("/research-status\r")
             terminal.expect_exact("sources")
             terminal.sendcontrol("d")

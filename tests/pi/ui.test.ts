@@ -50,7 +50,7 @@ test("pixel header and footer fit narrow terminals, Chinese paths and avatar fal
   const data = {
     getGitBranch: () => "codex/像素界面-" + "branch".repeat(12),
     getExtensionStatuses: () => new Map([
-      ["research", "research · workspace-write · experiments:disabled · memory:on"],
+      ["research", "amadeus · workspace-write · experiments:disabled · memory:on"],
       ["research-agents", "agents 2/3 · literature, documents"],
     ]),
     getAvailableProviderCount: () => 1,
@@ -61,7 +61,7 @@ test("pixel header and footer fit narrow terminals, Chinese paths and avatar fal
   try {
     for (const avatar of [false, true]) {
       const header = new PixelHeader(ctx, { version: "0.5.0", avatar });
-      for (const width of [1, 16, 40, 54, 80, 120]) {
+      for (const width of [1, 16, 40, 54, 79, 80, 110, 135, 140, 160]) {
         for (const [name, component] of [["header", header], ["footer", footer]] as const) {
           for (const line of component.render(width)) {
             assert(visibleWidth(line) <= width, `${name} exceeds ${width} columns: ${JSON.stringify(line)}`);
@@ -86,7 +86,7 @@ test("pixel footer preserves extension statuses and updates model, usage and bra
   ctx.cwd = "/tmp/research";
   let branch = "main", disposed = 0, renders = 0;
   let branchChanged: (() => void) | undefined;
-  const statuses = new Map([["research", "research · read-only · memory:on"]]);
+  const statuses = new Map([["research", "amadeus · read-only · memory:on"]]);
   const data = {
     getGitBranch: () => branch,
     getExtensionStatuses: () => statuses,
@@ -126,44 +126,75 @@ test("avatar can be disabled and monochrome headers remain usable without RGB or
   assert(shortTerminal.length < disabled.length);
   const ctx = uiContext(true);
   const plain = new PixelHeader(ctx, { version: "0.5.0", avatar: true, monochrome: true }).render(120);
-  assert(terminalText(plain).match(/Research CLI/i));
+  assert(terminalText(plain).includes("[A] Amadeus"));
   assert(!plain.join("").match(/\x1b\[(?:38|48);2;/), "NO_COLOR fallback must not emit RGB color escapes");
   assert(!plain.join("").includes("\x1b]1337;File=") && !plain.join("").includes("\x1b_G"));
   for (const line of plain) assert(visibleWidth(line) <= 120);
 });
 
-test("avatar grids preserve both eye colors and their source provenance", () => {
+test("avatar grids preserve the full half-body scene and their source provenance", () => {
   const source = readFileSync(new URL("../../pi/assets/kurisu-pixel.png", import.meta.url));
   const bitmap = JSON.parse(readFileSync(new URL("../../pi/assets/kurisu-pixel.json", import.meta.url), "utf8"));
+  assert.deepEqual(source, readFileSync(new URL("../../docs/assets/kurisu-lab-halfbody-v2.png", import.meta.url)),
+    "The runtime PNG must be the approved half-body scene");
   assert.equal(bitmap.source.sha256, createHash("sha256").update(source).digest("hex"));
+  assert.equal(bitmap.schemaVersion, 3);
+  assert.deepEqual(bitmap.variants.map((grid: PixelBitmap["variants"][number]) => [grid.width, grid.height]),
+    [[32, 20], [48, 32], [64, 40]]);
+  assert.deepEqual(bitmap.source.crop, { x: 0, y: 0, width: bitmap.source.width, height: bitmap.source.height },
+    "Preparation must retain the full canvas, including the coat, tie and laboratory props");
   for (const grid of bitmap.variants) {
-    const eyes = [false, false];
-    for (let y = Math.floor(grid.height * .3); y < grid.height * .75; y++) {
-      for (let x = 0; x < grid.width; x++) {
-        const color = grid.palette[grid.pixels[y][x]];
-        if (!color) continue;
-        const [r, g, b] = color.slice(1).match(/../g)!.map((channel: string) => Number.parseInt(channel, 16));
-        if (b > r + 20 && b > g + 15) eyes[x < grid.width / 2 ? 0 : 1] = true;
+    // Both eyes are on the character's left-center face; the scene's right
+    // half contains lab props. Looking for one eye per image half hid cropping.
+    const feature = (region: [number, number, number, number], matches: (rgb: number[]) => boolean) => {
+      const [left, top, right, bottom] = region;
+      for (let y = Math.floor(grid.height * top); y < Math.ceil(grid.height * bottom); y++) {
+        for (let x = Math.floor(grid.width * left); x < Math.ceil(grid.width * right); x++) {
+          const color = grid.palette[grid.pixels[y][x]];
+          if (color && matches(color.slice(1).match(/../g)!.map((channel: string) => Number.parseInt(channel, 16)))) return true;
+        }
       }
-    }
-    assert.deepEqual(eyes, [true, true], `${grid.width}px portrait must retain both indigo eyes`);
+      return false;
+    };
+    const indigo = ([r, g, b]: number[]) => b > r + 20 && b > g + 15;
+    assert(feature([.35, .30, .43, .43], indigo), `${grid.width}px scene must retain the left indigo iris`);
+    assert(feature([.46, .28, .54, .39], indigo), `${grid.width}px scene must retain the right indigo iris`);
+    assert(feature([.38, .62, .52, .96], ([r, g, b]) => r > 80 && r > g * 1.8 && r > b * 1.3),
+      `${grid.width}px scene must retain the red tie below the face`);
+    assert(feature([.73, .56, .94, .67], ([r, g, b]) => g > r + 20 && g > b + 10),
+      `${grid.width}px scene must retain the green test-tube caps`);
+    assert(feature([.71, .85, .96, .97], ([r, g, b]) => g > r + 20 && g > b + 10),
+      `${grid.width}px scene must retain the green books beneath the test tubes`);
+    assert(feature([.21, .74, .68, .96], ([r, g, b]) => Math.min(r, g, b) > 150 && Math.max(r, g, b) - Math.min(r, g, b) < 70),
+      `${grid.width}px scene must retain the lower white lab coat`);
   }
 });
 
 test("native avatar detail adapts to the terminal without resampling or crowding the editor", () => {
   const ctx = uiContext();
   const bitmap: PixelBitmap = JSON.parse(readFileSync(new URL("../../pi/assets/kurisu-pixel.json", import.meta.url), "utf8"));
-  for (const [width, rows, size] of [[80, 24, 20], [120, 32, 20], [120, 40, 32], [120, 48, 40]]) {
+  for (const [width, rows, gridWidth, gridHeight] of [
+    [80, 24, 32, 20], [109, 36, 32, 20], [110, 35, 32, 20],
+    [110, 36, 48, 32], [135, 37, 48, 32], [139, 48, 48, 32],
+    [140, 43, 48, 32], [140, 44, 64, 40], [160, 48, 64, 40],
+  ]) {
     const lines = new PixelHeader(ctx, { version: "fixture", avatar: true, bitmap, getRows: () => rows }).render(width);
     assert(lines.length <= rows / 2, "At least half the viewport must remain for conversation and editing");
-    assert.equal(lines.join("").split("▀").length - 1, size * size / 2);
+    assert.equal(lines.join("").split("▀").length - 1, gridWidth * gridHeight / 2,
+      `${width}x${rows} must show the complete native rectangular scene`);
     for (const line of lines) assert(visibleWidth(line) <= width);
-    const grid = bitmap.variants.find(item => item.width === size)!;
+    const grid = bitmap.variants.find(item => item.width === gridWidth && item.height === gridHeight)!;
     // A rare feature in the committed grid must reach the terminal unchanged.
-    const eyeColor = grid.palette.find(color => color && /^#[0-9a-f]{6}$/i.test(color)
-      && Number.parseInt(color.slice(5, 7), 16) > Number.parseInt(color.slice(1, 3), 16) + 20)!;
+    const eyeColor = grid.pixels.flat().map(index => grid.palette[index]).find(color => color
+      && Number.parseInt(color.slice(5, 7), 16) > Number.parseInt(color.slice(1, 3), 16) + 20
+      && Number.parseInt(color.slice(5, 7), 16) > Number.parseInt(color.slice(3, 5), 16) + 15)!;
     const [r, g, b] = eyeColor.slice(1).match(/../g)!.map(channel => Number.parseInt(channel, 16));
     assert(lines.join("").includes(`;2;${r};${g};${b}m`), "Eye color must survive native terminal rendering");
+  }
+  for (const [width, rows] of [[79, 36], [135, 23]]) {
+    const lines = new PixelHeader(ctx, { version: "fixture", avatar: true, bitmap, getRows: () => rows }).render(width);
+    assert(!lines.join("").includes("▀"), "Narrow or short terminals must preserve conversation space");
+    for (const line of lines) assert(visibleWidth(line) <= width);
   }
 });
 

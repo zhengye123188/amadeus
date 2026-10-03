@@ -116,7 +116,7 @@ class Backend:
             if tool.effect != "read":
                 schema["properties"]["_approval"] = {
                     "type": "string",
-                    "description": "Host-only authorization. Leave unset; the Research CLI supplies it after permission checks.",
+                    "description": "Host-only authorization. Leave unset; the Amadeus supplies it after permission checks.",
                 }
             result.append(
                 Tool(

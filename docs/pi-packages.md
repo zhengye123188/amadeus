@@ -1,23 +1,23 @@
 # Reusing Pi packages
 
-Research CLI uses Pi packages for document parsing, OCR, delegated agent execution, web access and current library documentation. It keeps the research records that connect papers, source passages, hypotheses, repositories and experiments. A generic memory or background-process extension does not implement those relationships.
+Amadeus uses Pi packages for document parsing, OCR, delegated agent execution, web access and current library documentation. It keeps the research records that connect papers, source passages, hypotheses, repositories and experiments. A generic memory or background-process extension does not implement those relationships.
 
-Document parsing, web access and Context7 were introduced in v0.4.0. Delegation and local OCR are available in npm v0.5.0 and the [GitHub Release v0.5.0](https://github.com/zhengye123188/research-cli/releases/tag/v0.5.0), both published on 2026-10-02. All four standalone builds passed native installation checks; see the [validation record](validation.md) for the verification scope. Updating the source does not update an installed distribution; install the corresponding npm version or standalone release and check `research --version`.
+Document parsing, web access and Context7 were introduced in v0.4.0. Delegation and local OCR are available in npm v0.5.0 and the [GitHub Release v0.5.0](https://github.com/zhengye123188/amadeus/releases/tag/v0.5.0), both published on 2026-10-02. All four standalone builds passed native installation checks; see the [validation record](validation.md) for the verification scope. Updating the source does not update an installed distribution; install the corresponding npm version or standalone release and check `research --version`.
 
 The [Pi package catalog](https://pi.dev/packages) is a discovery directory for independently published packages. Catalog inclusion does not mean that the Pi maintainers wrote, reviewed or guaranteed a package. The decisions below are based on maintainer source, published manifests and the actual npm package contents, checked on 2026-10-01 against the project's Pi **0.99.1**.
 
 ## Packages used by the project
 
-These dependencies are pinned in the npm lockfile and installed with Research CLI. Users do not need a separate global Pi installation or a separate MCP server for these native extensions.
+These dependencies are pinned in the npm lockfile and installed with Amadeus. Users do not need a separate global Pi installation or a separate MCP server for these native extensions.
 
 | Package | Version / license | Reused capability | Relationship to the research service |
 | --- | --- | --- | --- |
 | [pi-subagents](https://github.com/nicobailon/pi-subagents) | 0.74.0 / MIT | Foreground in-process child executor, lifecycle/results, cancellation and timeout | A dedicated adapter supplies controlled Pi child sessions. Six role allowlists, shared parent tools/model/budget and management commands replace ambient discovery. The internal runner API is version/file-hash pinned and requires re-audit on upgrades. |
-| [pi-docparser](https://github.com/maxedapps/pi-docparser) | 4.0.0 / MIT | Local document parsing through LiteParse 2.10.1 | Replaces the PDF extraction engine. Research CLI still saves durable source records, page/chunk locations, document hashes and evidence links. Parsing a document does not register a paper or confirm a research claim. |
+| [pi-docparser](https://github.com/maxedapps/pi-docparser) | 4.0.0 / MIT | Local document parsing through LiteParse 2.10.1 | Replaces the PDF extraction engine. Amadeus still saves durable source records, page/chunk locations, document hashes and evidence links. Parsing a document does not register a paper or confirm a research claim. |
 | [pi-web-access](https://github.com/nicobailon/pi-web-access) | 0.35.0 / MIT | Web search, readable page retrieval and bounded retrieval from its content cache | Supplies general web tools directly in Pi. Its temporary cache and passage results do not replace the local paper library, Crossref/arXiv identities, pinned repository inspection or saved research evidence. |
 | [@upstash/context7-pi](https://github.com/upstash/context7/tree/master/packages/pi) | 0.1.2 / MIT | Current library documentation and examples | Adds `resolve-library-id` and `query-docs` directly. Useful when reproducing code with version-sensitive APIs; separate from paper discovery and scientific literature comparison. |
 
-The upstream `pi-docparser` package offers `document_parse`, `document_search` and `document_screenshot`; **Research CLI does not expose those three tools**. It reuses the package's native PDF executor through `import_document` and `download_arxiv`. OCR is optional for explicitly imported PDFs, with local verified English/Chinese language data; it remains off by default. Extraction preserves page positions and temporary parser outputs are removed after import. Source hashes, chunks, OCR provenance and evidence references remain research records. Ordinary PDF import limits are 20 MB, 200 pages and two million extracted characters; OCR is limited to 20 pages. Partial page extraction is rejected.
+The upstream `pi-docparser` package offers `document_parse`, `document_search` and `document_screenshot`; **Amadeus does not expose those three tools**. It reuses the package's native PDF executor through `import_document` and `download_arxiv`. OCR is optional for explicitly imported PDFs, with local verified English/Chinese language data; it remains off by default. Extraction preserves page positions and temporary parser outputs are removed after import. Source hashes, chunks, OCR provenance and evidence references remain research records. Ordinary PDF import limits are 20 MB, 200 pages and two million extracted characters; OCR is limited to 20 pages. Partial page extraction is rejected.
 
 The adapter exposes exactly six native package tools, without an MCP prefix:
 
@@ -71,7 +71,7 @@ Replacing an extraction engine or adding web search does not invalidate existing
 
 ## Installation and explicit activation
 
-Research CLI manages user-selected packages separately from ambient Pi configuration. Its package commands use Pi's package manager with `--ignore-scripts`: npm lifecycle scripts are skipped. Packages that require an install-time build or binary download may therefore need additional preparation. The built-in packages are managed with the Research CLI version and cannot be replaced or removed through the user-package command.
+Amadeus manages user-selected packages separately from ambient Pi configuration. Its package commands use Pi's package manager with `--ignore-scripts`: npm lifecycle scripts are skipped. Packages that require an install-time build or binary download may therefore need additional preparation. The built-in packages are managed with the Amadeus version and cannot be replaced or removed through the user-package command.
 
 Install an exact version first. **A new package installed without a policy is disabled.** Reinstalling the same already configured source without `--policy` preserves its existing policy; use the manifest's `enabled: false` to disable that entry.
 
@@ -100,7 +100,7 @@ research
 research packages remove npm:@juicesharp/rpiv-ask-user-question@2.12.0
 ```
 
-Restart Research CLI after changing package selection. Removal drops the selected manifest entry and managed installation; explicitly selected local source directories are preserved.
+Restart Amadeus after changing package selection. Removal drops the selected manifest entry and managed installation; explicitly selected local source directories are preserved.
 
 Accepted sources are `npm:package@1.2.3`, `git:https://host/owner/repository@FULL_40_CHARACTER_COMMIT` and explicit local directories such as `./my-extension`. npm tags/ranges and mutable Git branch names are rejected. Selecting a local directory does not freeze its contents.
 
@@ -136,7 +136,7 @@ research --package-config /absolute/path/to/packages.json
 
 `RESEARCH_PACKAGE_CONFIG` is the equivalent environment variable. This flag selects launch-time configuration; `research packages install/list/remove` manage the default user manifest. Startup resolves already installed packages and never downloads a missing package automatically.
 
-Effects use the research categories `read`, `write`, `execute` and `external`. Each tool requires an exact entry; execution also requires the Research CLI execution mode. Native tools do not need an additional MCP server definition. Package calls receive a 60-second cancellation scope and selected remote/service calls append usage events; unknown third-party cost remains unknown.
+Effects use the research categories `read`, `write`, `execute` and `external`. Each tool requires an exact entry; execution also requires the Amadeus execution mode. Native tools do not need an additional MCP server definition. Package calls receive a 60-second cancellation scope and selected remote/service calls append usage events; unknown third-party cost remains unknown.
 
 ### Tool-only compatibility
 
@@ -144,13 +144,13 @@ The generic adapter captures selected tools. It suppresses package slash command
 
 Pi packages still run code in the CLI process. The API adapter and effect declarations do not sandbox arbitrary JavaScript imports or direct filesystem/network access. Review source and configuration before activation; a false `read` declaration cannot make a mutating implementation read-only. Keep credentials in environment variables or private user configuration, and preserve dependency lockfiles and upstream license files in distributions.
 
-Running `pi install` changes a separate Pi installation's configuration. Research CLI only loads its built-in adapters and explicitly selected package manifest; an ambient Pi installation alone does not activate an extension in `research`.
+Running `pi install` changes a separate Pi installation's configuration. Amadeus only loads its built-in adapters and explicitly selected package manifest; an ambient Pi installation alone does not activate an extension in `research`.
 
 ## Managed state and existing sessions
 
-The default Pi state and managed package directory is `~/.local/share/research-cli/pi-packages`, respecting `XDG_DATA_HOME`. This separates Research CLI's sessions, authentication and package runtime from an ordinary Pi installation. Research data remains in the selected workspace's `.research` directory.
+The default Pi state and managed package directory is `~/.local/share/research-cli/pi-packages`, respecting `XDG_DATA_HOME`. This separates Amadeus's sessions, authentication and package runtime from an ordinary Pi installation. Research data remains in the selected workspace's `.research` directory.
 
-Older Research CLI sessions under `~/.pi/agent` are retained but are not copied or automatically listed in the new state directory. Open a known old session file explicitly:
+Older Amadeus sessions under `~/.pi/agent` are retained but are not copied or automatically listed in the new state directory. Open a known old session file explicitly:
 
 ```sh
 research --session /absolute/path/to/old-session.jsonl
@@ -162,7 +162,7 @@ Alternatively, use the old Pi state for a launch:
 PI_CODING_AGENT_DIR="$HOME/.pi/agent" research
 ```
 
-The explicit environment override changes Pi state discovery; user-package installation still uses the Research CLI managed package directory. Ambient extension loading remains disabled.
+The explicit environment override changes Pi state discovery; user-package installation still uses the Amadeus managed package directory. Ambient extension loading remains disabled.
 
 ## Source and license records
 

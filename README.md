@@ -1,12 +1,12 @@
-# Research CLI
+# Amadeus
 
 基于 [Pi](https://github.com/earendil-works/pi) 的交互式科研 Agent。在项目目录打开终端，直接讨论论文、检查代码、整理证据和验证改进，由 Agent 根据当前问题选择工具。用户可以从任意问题开始、继续已有记录或随时转向。
 
-**v0.6.1 · macOS / Linux · MIT**
+**v0.6.2 · macOS / Linux · MIT**
 
-本版改善牧濑红莉栖像素头像的清晰度：直接从原图生成三种尺寸的头部特写，按终端窗口选择，保留眼部细节。墨绿像素终端显示实际工作区、模型、上下文与协作状态。科研工具、按职责分工的多 Agent 和英文/中文本地 OCR 继续使用原有机制。[界面与定制](docs/ui.md) · [协作与 OCR](docs/collaboration.md)
+本版将项目更名为 **Amadeus**，启动命令仍为 `research`。欢迎页使用牧濑红莉栖的完整半身像，保留托腮姿势、白大褂、试管架和书本，按窗口选择三种原生像素网格。墨绿像素终端显示实际工作区、模型、上下文与协作状态。科研工具、按职责分工的多 Agent 和英文/中文本地 OCR 继续使用原有机制。[界面与定制](docs/ui.md) · [协作与 OCR](docs/collaboration.md)
 
-[npm 包](https://www.npmjs.com/package/@lelouch_021015/research-cli) · [独立安装包](https://github.com/zhengye123188/research-cli/releases/latest) · [版本说明与发布状态](docs/releases/v0.6.1.md) · [架构](docs/architecture.md)
+[npm 包](https://www.npmjs.com/package/@lelouch_021015/amadeus) · [独立安装包](https://github.com/zhengye123188/amadeus/releases/latest) · [版本说明与发布状态](docs/releases/v0.6.2.md) · [架构](docs/architecture.md)
 
 安装后用 `research --version` 核对实际版本。各平台构建及公开下载检查见 [验证记录](docs/validation.md)。
 
@@ -17,14 +17,14 @@
 无需预装 Node、Python、uv 或 Pi，自动识别 macOS / Linux 的 x64 / ARM64：
 
 ```bash
-curl -fsSL https://github.com/zhengye123188/research-cli/releases/latest/download/install.sh | sh
+curl -fsSL https://github.com/zhengye123188/amadeus/releases/latest/download/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
 research configure
 cd "/你的项目目录"
 research
 ```
 
-默认安装在用户目录，无需 sudo。将 PATH 设置加入自己的 shell 配置后，新终端也能直接运行 `research`。也可从 [Releases](https://github.com/zhengye123188/research-cli/releases/latest) 下载 `.run` 文件，执行 `sh <安装包路径>`；下载完成后可以离线安装。平台要求、校验和更新见 [独立安装指南](docs/standalone.md)。
+默认安装在用户目录，无需 sudo。将 PATH 设置加入自己的 shell 配置后，新终端也能直接运行 `research`。也可从 [Releases](https://github.com/zhengye123188/amadeus/releases/latest) 下载 `.run` 文件，执行 `sh <安装包路径>`；下载完成后可以离线安装。平台要求、校验和更新见 [独立安装指南](docs/standalone.md)。
 
 ### npm
 
@@ -33,14 +33,16 @@ npm 与独立安装器提供相同的界面、科研、协作和本地 OCR 能�
 需要 Node ≥22.19 和 [uv](https://docs.astral.sh/uv/getting-started/installation/)。Pi 作为依赖安装，无需单独安装：
 
 ```bash
-npm install -g @lelouch_021015/research-cli
+npm install -g @lelouch_021015/amadeus
 research setup
 research configure
 cd "/你的项目目录"
 research
 ```
 
-`research setup` 将包内 Python 后端安装到独立缓存环境，不依赖后端发布到 PyPI。更新时重新运行 `npm install -g @lelouch_021015/research-cli@latest` 和 `research setup`，再用 `research --version` 核对。
+从旧 npm 包迁移时，先执行 `npm uninstall -g @lelouch_021015/research-cli`，再安装上面的新包，避免两个包同时占用 `research` 命令。已有 API 配置、会话与 `.research/` 项目数据继续沿用。
+
+`research setup` 将包内 Python 后端安装到独立缓存环境，不依赖后端发布到 PyPI。更新时重新运行 `npm install -g @lelouch_021015/amadeus@latest` 和 `research setup`，再用 `research --version` 核对。
 
 ## 配置 API
 
@@ -172,8 +174,8 @@ research project restore /备份路径/project.zip --workspace /新的工作区
 ## 开发与验证
 
 ```bash
-git clone https://github.com/zhengye123188/research-cli.git
-cd research-cli
+git clone https://github.com/zhengye123188/amadeus.git
+cd amadeus
 npm ci
 uv sync --frozen --all-extras
 node bin/research.mjs configure

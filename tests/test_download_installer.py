@@ -17,7 +17,7 @@ from pathlib import Path
 PROJECT = Path(__file__).resolve().parents[1]
 SCRIPT = PROJECT / "packaging" / "download.sh"
 VERSION = json.loads((PROJECT / "package.json").read_text())["version"]
-BASE_URL = f"https://github.com/zhengye123188/research-cli/releases/download/v{VERSION}"
+BASE_URL = f"https://github.com/zhengye123188/amadeus/releases/download/v{VERSION}"
 
 
 class DownloadInstallerTests(unittest.TestCase):
@@ -100,7 +100,7 @@ class DownloadInstallerTests(unittest.TestCase):
 
     @staticmethod
     def asset(platform):
-        return f"research-cli-{VERSION}-{platform}.run"
+        return f"amadeus-{VERSION}-{platform}.run"
 
     def run_download(self, *args, piped=False):
         command = ["/bin/sh", "-s", "--", *args] if piped else ["/bin/sh", str(SCRIPT), *args]

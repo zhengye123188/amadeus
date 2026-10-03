@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Internal bridge: extraction is owned by pi-docparser, evidence storage by Research CLI.
+// Internal bridge: extraction is owned by pi-docparser, evidence storage by Amadeus.
 import { createRequire } from "node:module";
 import { constants } from "node:fs";
 import { readFile, writeFile, lstat, mkdtemp, mkdir, open, rm } from "node:fs/promises";
@@ -88,11 +88,11 @@ async function loadExecutor() {
   try {
     metadataPath = require.resolve("pi-docparser/package.json");
   } catch {
-    throw new Error("pi-docparser 4.0.0 is not installed. Reinstall Research CLI's npm package.");
+    throw new Error("pi-docparser 4.0.0 is not installed. Reinstall Amadeus's npm package.");
   }
   const metadata = JSON.parse(await readFile(metadataPath, "utf8"));
   if (metadata.version !== PARSER_VERSION) {
-    throw new Error(`Expected pi-docparser ${PARSER_VERSION}; installed ${metadata.version}. Reinstall Research CLI.`);
+    throw new Error(`Expected pi-docparser ${PARSER_VERSION}; installed ${metadata.version}. Reinstall Amadeus.`);
   }
   // Node refuses native TS stripping inside node_modules; use Pi's own loader.
   const jiti = createJiti(import.meta.url, { interopDefault: false });

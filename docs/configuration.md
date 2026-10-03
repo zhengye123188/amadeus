@@ -84,7 +84,7 @@ The name `research` is reserved. Wildcard effects, command-based `!cmd` value in
 
 ## Explicit Pi package selection
 
-Research CLI bundles `pi-web-access`, `@upstash/context7-pi`, the `pi-docparser` PDF/OCR engine and (v0.5.0 source) `pi-subagents` at exact versions. Use `research packages list` to inspect them. Native tools do not add another research MCP server. The v0.5.0 source online set is 53 research MCP tools, three file tools, six package tools and four collaboration tools.
+Amadeus bundles `pi-web-access`, `@upstash/context7-pi`, the `pi-docparser` PDF/OCR engine and (v0.5.0 source) `pi-subagents` at exact versions. Use `research packages list` to inspect them. Native tools do not add another research MCP server. The v0.5.0 source online set is 53 research MCP tools, three file tools, six package tools and four collaboration tools.
 
 ```sh
 research packages install npm:package-name@1.2.3 --policy ./package-policy.json

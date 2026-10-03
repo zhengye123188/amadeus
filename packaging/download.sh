@@ -2,12 +2,12 @@
 # Public download entry point; the downloaded installer includes its runtimes.
 set -eu
 
-VERSION=0.6.1
-repository=zhengye123188/research-cli
+VERSION=0.6.2
+repository=zhengye123188/amadeus
 
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
   printf '%s\n' \
-    'Download and install Research CLI for macOS or Linux with glibc (arm64 / x64).' \
+    'Download and install Amadeus for macOS or Linux with glibc (arm64 / x64).' \
     'Usage: sh download.sh [--prefix DIRECTORY] [--bin-dir DIRECTORY]' \
     'All arguments are passed to the verified standalone installer.'
   exit 0
@@ -16,12 +16,12 @@ fi
 case $(uname -s) in
   Darwin) system=darwin ;;
   Linux) system=linux ;;
-  *) echo 'Unsupported operating system: Research CLI supports macOS and Linux.' >&2; exit 1 ;;
+  *) echo 'Unsupported operating system: Amadeus supports macOS and Linux.' >&2; exit 1 ;;
 esac
 case $(uname -m) in
   arm64|aarch64) architecture=arm64 ;;
   x86_64|amd64) architecture=x64 ;;
-  *) echo 'Unsupported architecture: Research CLI supports arm64 and x64.' >&2; exit 1 ;;
+  *) echo 'Unsupported architecture: Amadeus supports arm64 and x64.' >&2; exit 1 ;;
 esac
 
 if ! command -v curl >/dev/null 2>&1; then
@@ -37,9 +37,9 @@ else
   exit 1
 fi
 
-asset=research-cli-${VERSION}-${system}-${architecture}.run
+asset=amadeus-${VERSION}-${system}-${architecture}.run
 base_url=https://github.com/${repository}/releases/download/v${VERSION}
-temporary=$(mktemp -d "${TMPDIR:-/tmp}/research-cli-download.XXXXXX")
+temporary=$(mktemp -d "${TMPDIR:-/tmp}/amadeus-download.XXXXXX")
 trap 'rm -rf "$temporary"' 0
 trap 'exit 129' HUP
 trap 'exit 130' INT
@@ -50,7 +50,7 @@ download() {
     --proto '=https' --proto-redir '=https' --output "$2" "$1"
 }
 
-printf 'Downloading Research CLI %s for %s/%s...\n' "$VERSION" "$system" "$architecture"
+printf 'Downloading Amadeus %s for %s/%s...\n' "$VERSION" "$system" "$architecture"
 download "$base_url/$asset" "$temporary/$asset"
 download "$base_url/$asset.sha256" "$temporary/$asset.sha256"
 

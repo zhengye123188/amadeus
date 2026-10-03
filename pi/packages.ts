@@ -25,10 +25,10 @@ function scopeFetch(): void {
 
 export function packageToolArguments(source: string, name: string, args: Record<string, unknown>): Record<string, unknown> {
   if (source !== "npm:pi-web-access@0.35.0") return args;
-  if (args.proxy !== undefined) throw new Error("Per-call web proxies are unavailable in Research CLI");
+  if (args.proxy !== undefined) throw new Error("Per-call web proxies are unavailable in Amadeus");
   if (name === "web_search") {
     if (Array.isArray(args.queries) && args.queries.length > 4) throw new Error("Use at most four web search queries per call");
-    if (args.workflow && args.workflow !== "none" || args.includeContent === true) throw new Error("Research CLI uses foreground search without summaries or background fetching");
+    if (args.workflow && args.workflow !== "none" || args.includeContent === true) throw new Error("Amadeus uses foreground search without summaries or background fetching");
     return { ...args, workflow: "none", includeContent: false };
   }
   if (name === "source_check") {
@@ -38,7 +38,7 @@ export function packageToolArguments(source: string, name: string, args: Record<
   }
   if (name === "fetch_content") {
     if (args.auth !== undefined || args.timestamp !== undefined || args.frames !== undefined || args.model !== undefined || args.answerModel !== undefined || args.forceClone !== undefined || args.proxy !== undefined || args.prompt !== undefined) {
-      throw new Error("Research CLI web fetching supports public URLs; browser auth, cloning, video and model-answer options are unavailable");
+      throw new Error("Amadeus web fetching supports public URLs; browser auth, cloning, video and model-answer options are unavailable");
     }
     if (args.mode !== undefined && !["readable", "raw"].includes(String(args.mode))) throw new Error("Use readable or raw web fetching");
     const urls = args.urls ?? (args.url === undefined ? [] : [args.url]);
@@ -109,7 +109,7 @@ export async function preparePackageTools(pi: ExtensionAPI, selection: PackageSe
         };
         if (["registerCommand", "registerShortcut", "registerFlag", "registerProvider", "registerMcpServer", "unregisterMcpServer", "registerVirtualModel", "setActiveTools"].includes(String(key))) return () => {};
         if (key === "getFlag") return () => undefined;
-        if (key === "exec" || key === "sendUserMessage") return () => { throw new Error("Use Research CLI's managed tools for execution and follow-up turns"); };
+        if (key === "exec" || key === "sendUserMessage") return () => { throw new Error("Use Amadeus's managed tools for execution and follow-up turns"); };
         if (key === "sendMessage") return (message: Parameters<ExtensionAPI["sendMessage"]>[0]) => target.sendMessage(message, { triggerTurn: false });
         const value = Reflect.get(target, key);
         return typeof value === "function" ? value.bind(target) : value;

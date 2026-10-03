@@ -1,8 +1,10 @@
-# 像素终端界面
+# Amadeus 像素终端界面
 
-v0.6.0 实现了选定的墨绿像素概念：薄荷绿标题、琥珀色提示、牧濑红莉栖像素头像、项目与模型信息、工具输出、输入框和状态栏。科研对话、工具、权限、记忆和多 Agent 仍由原运行时处理。
+项目在 v0.6.2 更名为 Amadeus，[GitHub 仓库](https://github.com/zhengye123188/amadeus)和 npm 包 `@lelouch_021015/amadeus` 使用新名称，启动命令仍为 `research`。现有 API 配置、`RESEARCH_*` 环境变量和项目数据目录保持兼容。
 
-npm 和四平台独立安装器提供相同的像素界面；v0.6.1 改善头像清晰度，发布状态见 [v0.6.1 版本说明](releases/v0.6.1.md)，更新方式见 [分发说明](pypi.md)。安装后用 `research --version` 核对，v0.6.0 的头像没有这项修正。运行已安装版本：
+像素界面沿用选定的墨绿概念：薄荷绿标题、琥珀色提示、牧濑红莉栖像素形象、项目与模型信息、工具输出、输入框和状态栏。科研对话、工具、权限、记忆和多 Agent 仍由原运行时处理。
+
+npm 和四平台独立安装器使用同一份界面资源。v0.6.2 将原来的头部特写替换为重新绘制的半身实验室场景，保留托腮、白大褂、红领带、试管架、书本与金色像素十字。发布状态见 [v0.6.2 版本说明](releases/v0.6.2.md)，更新方式见 [分发说明](pypi.md)；发布前已安装的 v0.6.1 仍使用旧特写。安装后用 `research --version` 核对。运行已安装版本：
 
 ```bash
 research
@@ -19,13 +21,22 @@ npm start -- --workspace "/你的项目目录"
 
 源码运行需要现有 API 配置或 `npm start -- configure`，以及 `npm start -- setup` / `uv sync --frozen --all-extras` 安装后端。
 
-## 头像清晰度修正（v0.6.1）
+## 半身场景与终端尺寸（v0.6.2）
 
-v0.6.1 修正头像五官丢失的问题。原版将整张胸像先变成 48×48 网格，再缩成 20×20，导致双眼的蓝紫色像素被跳过。现在保留原 PNG，直接从原图生成头部特写的 20×20、32×32、40×40 三份终端网格，运行时按窗口尺寸选择，不再二次缩小网格。
+新版按用户选定的半身概念重新绘制素材，使用完整场景生成 32×20、48×32、64×40 三份终端网格，不再裁剪为头部特写。眼睛、托腮的手、衣领与领带共同构成形象；试管架、书本与像素十字保留在人物旁。三份网格直接从源 PNG 独立生成，运行时按窗口大小选择，不将小网格继续缩放。
 
-![旧头像、紧凑特写与精细特写的终端像素对比](assets/kurisu-clarity-preview.png)
+![重新绘制的牧濑红莉栖半身实验室场景](assets/kurisu-lab-halfbody-v2.png)
 
-上图来自实际使用的网格数据；[头部布局预览](assets/kurisu-header-preview.png) 来自 `PixelHeader` 的 ANSI 字符输出，使用预览字体绘制，不是终端软件截图。字体和窗口大小仍会影响实际显示效果。更新至 v0.6.1 后运行 `research` 即可使用修正后的头像。
+[查看三种实际终端网格](assets/kurisu-halfbody-grids.png)。上图是透明 PNG 原始素材，不是终端截图；[生成记录](assets/kurisu-lab-halfbody-v2.prompt.md) 保留了参考构图和提示词。终端使用 ANSI 半块字符，每个字符显示两个纵向像素。实际字符图只包含对应尺寸的有限像素，不会达到大 PNG 预览的分辨率；窗口大小、等宽字体的字宽与行高以及真彩色支持都会影响效果。v0.6.1 特写的历史变化见其[版本说明](releases/v0.6.1.md)。
+
+| 终端窗口 | 使用的完整半身场景 | 场景所占字符行数 |
+| --- | --- | --- |
+| 至少 80 列、24 行 | 32×20 | 10 行 |
+| 至少 110 列、36 行 | 48×32 | 16 行 |
+| 至少 140 列、44 行 | 64×40 | 20 行 |
+| 少于 80 列，或少于 24 行 | 隐藏场景，收紧布局 | — |
+
+例如 135 列、37 行窗口使用 48×32 场景。含边框的头部最多占一半窗口行数，保留对话和输入空间；宽而矮的终端使用能满足行数预算的尺寸。
 
 ## 外观开关
 
@@ -38,7 +49,7 @@ NO_COLOR=1 research
 
 | 设置 | 行为 |
 | --- | --- |
-| `--ui-avatar pixel` / `RESEARCH_UI_AVATAR=pixel` | 默认；显示彩色半块字符头像 |
+| `--ui-avatar pixel` / `RESEARCH_UI_AVATAR=pixel` | 默认；显示彩色半块字符半身场景 |
 | `--ui-avatar off` / `RESEARCH_UI_AVATAR=off` | 隐藏头像，保留项目界面 |
 | `--ui-theme pixel` / `RESEARCH_UI_THEME=pixel` | 默认；墨绿、薄荷绿和琥珀色 |
 | `--ui-theme system` / `RESEARCH_UI_THEME=system` | 使用启动时 Pi 配置的原主题配色 |
@@ -46,7 +57,7 @@ NO_COLOR=1 research
 
 命令行设置优先于环境变量，`NO_COLOR` 或 `TERM=dumb` 优先使用单色主题。源码运行可将 `research` 替换为 `npm start --`。进入会话后可用 `/ui avatar pixel`、`/ui avatar off`、`/ui theme pixel`、`/ui theme system` 切换，`/ui` 查看当前设置。头像开关保留在当前进程，包括 `/new` 或 `/reload`，不写入用户配置；主题切换使用 Pi 的主题偏好机制，保存在本项目独立的 Pi 配置目录。启动默认使用像素主题，`--ui-theme system` 可使用原主题配色。在 `/settings` 的 Theme 选项中也可选择上游主题。
 
-80 列以上且至少 24 行时，头像显示在头部右侧。v0.6.1 使用 20×20 紧凑特写；至少 100 列/36 行时使用 32×32，至少 120 列/48 行时使用 40×40，头部最多占一半窗口行数。小于 80 列时隐藏头像；小于 60 列或 24 行时收紧头部。头像使用字符块，因此在普通 macOS/Linux 终端也可显示，不需要 Kitty 或 iTerm 图片协议；字体和色彩能力会影响效果。程序只绘制自身组件背景；终端空白区域的底色由终端设置决定。推荐支持 Unicode 的等宽字体和深色终端主题。概念图中的精细大头像与实际终端的字符头像存在分辨率差异。
+满足窗口要求时，半身场景显示在头部右侧；小于 60 列或 24 行时收紧头部。形象使用字符块，因此在普通 macOS/Linux 终端也可显示，不需要 Kitty 或 iTerm 图片协议。程序只绘制自身组件背景；终端空白区域的底色由终端设置决定。推荐支持 Unicode 的等宽字体和深色终端主题。
 
 上下文占用未知时显示 `ctx ?`，尚未选择模型时显示 `/model`。权限、执行、记忆和子 Agent 状态来自核心扩展，Git 分支来自实际工作区。费用请看 `/usage`；状态栏不将未知费用显示为零。
 
@@ -61,14 +72,14 @@ NO_COLOR=1 research
 | 文件 | 修改内容 |
 | --- | --- |
 | `pi/ui.ts` | 组件背景、布局、标题、状态栏、输入框边框、`/ui` 命令 |
-| `pi/assets/kurisu-pixel.png` | 原始透明头像，用于预览或替换 |
-| `pi/assets/kurisu-pixel.json` | 终端调色板网格；运行时直接读取 |
+| `pi/assets/kurisu-pixel.png` | 随包透明半身场景，与选定的重绘素材一致 |
+| `pi/assets/kurisu-pixel.json` | schema 3 的三份终端调色板网格及来源记录；运行时直接读取 |
 | `pi/themes/research-pixel.json`、`pi/themes/research-mono.json` | 显式加载的主题资源，保证新建或重载会话后配色一致 |
-| `scripts/prepare-pixel-avatar.mjs` | 将 PNG 转为同源终端网格，不改原图 |
+| `scripts/prepare-pixel-avatar.mjs` | 将完整 PNG 场景直接转为三份终端网格，不改原图 |
 | `bin/interactive.mjs` | 公开 SDK 启动、静默欢迎页、窗口标题和会话选择 |
 | `scripts/smoke_ui.py` | 真实伪终端启动、缩放、中文输入、选择器和退出验证 |
 
-替换头像后重新运行 `node scripts/prepare-pixel-avatar.mjs`。脚本的 `crop` 对应当前插画的头部位置，替换成不同构图时需先调整裁剪范围。PNG 和 JSON 都属于 npm 的 `pi` 目录，独立安装器从同一个 npm 打包内容构建。
+替换素材后重新运行 `node scripts/prepare-pixel-avatar.mjs`，并核对三种尺寸下的完整构图与透明边缘。脚本以完整场景生成网格，不再使用旧版头部裁剪范围；JSON 记录源图哈希与采样信息。PNG 和 JSON 都属于 npm 的 `pi` 目录，独立安装器从同一个 npm 打包内容构建。[选定的源素材](assets/kurisu-lab-halfbody-v2.png)与[生成记录](assets/kurisu-lab-halfbody-v2.prompt.md)留在文档中供审查。
 
 随包头像为本项目基于选定概念生成的插画，角色来自《命运石之门》。角色相关权利属于各自权利人，本项目无官方关联；代码的 MIT 许可不授予底层角色权利。来源说明见 [第三方许可](../THIRD_PARTY_NOTICES.md)。
 

@@ -56,11 +56,12 @@ function panel(text: string, theme: Theme, monochrome: boolean, color: ThemeColo
 
 function readAvatar(): PixelBitmap {
   const bitmap = JSON.parse(readFileSync(new URL("./assets/kurisu-pixel.json", import.meta.url), "utf8")) as PixelBitmap;
-  if (bitmap.schemaVersion !== 2 || !Array.isArray(bitmap.variants) || bitmap.variants.length !== 3
-    || bitmap.variants.some((grid, i) => grid.width !== [20, 32, 40][i] || grid.height !== grid.width
-      || grid.palette[0] !== null || grid.palette.length > 64
+  const dimensions = [[32, 20], [48, 32], [64, 40]];
+  if (bitmap.schemaVersion !== 3 || !Array.isArray(bitmap.variants) || bitmap.variants.length !== dimensions.length
+    || bitmap.variants.some((grid, i) => grid.width !== dimensions[i][0] || grid.height !== dimensions[i][1]
+      || !Array.isArray(grid.palette) || grid.palette[0] !== null || grid.palette.length > 64
       || grid.palette.some((color, j) => j > 0 && !/^#[a-f0-9]{6}$/i.test(color ?? ""))
-      || grid.pixels.length !== grid.height || grid.pixels.some(row => row.length !== grid.width
+      || !Array.isArray(grid.pixels) || grid.pixels.length !== grid.height || grid.pixels.some(row => !Array.isArray(row) || row.length !== grid.width
         || row.some(index => !Number.isInteger(index) || index < 0 || index >= grid.palette.length)))) {
     throw new Error("Invalid bundled pixel avatar");
   }
@@ -103,21 +104,23 @@ export class PixelHeader implements Component {
     const mono = options.monochrome ?? false;
     const rows = options.getRows?.() ?? 40;
     const compact = width < 60 || rows < 24;
-    const avatar = this.bitmap && width >= 80 && !compact;
-    // Select a grid sampled directly from the original PNG. Never downsample
-    // another terminal grid: small facial details would disappear a second time.
-    const size = width >= 120 && rows >= 48 ? 40 : width >= 100 && rows >= 36 ? 32 : 20;
-    const grid = avatar ? this.bitmap!.variants.find(item => item.width === size)! : undefined;
+    const avatar = Boolean(this.bitmap) && width >= 80 && !compact;
+    // Preserve the entire half-body laboratory scene. Each rectangular grid is
+    // prepared from the original PNG, and its height keeps the header <= half
+    // the viewport. A 135x37 window uses the 48x32 scene, not a face crop.
+    const variant = width >= 140 && rows >= 44 ? 2 : width >= 110 && rows >= 36 ? 1 : 0;
+    const grid = avatar ? this.bitmap!.variants[variant] : undefined;
     const portrait = grid ? pixelPortrait(grid, theme) : [];
+    const avatarWidth = grid?.width ?? 0;
     const inside = Math.max(0, width - 4);
-    const textWidth = Math.max(0, inside - (avatar ? size + 2 : 0));
+    const textWidth = Math.max(0, inside - (avatar ? avatarWidth + 2 : 0));
     const model = ctx.model ? `${uiText(ctx.model.provider)} / ${uiText(ctx.model.id)}` : "未选择 · /model";
     const content = compact ? [
-      `[R] Research CLI ${uiText(options.version)} · PIXEL LAB`,
+      `[A] Amadeus ${uiText(options.version)} · PIXEL LAB`,
       `工作区 ${uiText(ctx.cwd)}`,
       `模型 ${model}`,
     ] : [
-      `[R] Research CLI ${uiText(options.version)}`,
+      `[A] Amadeus ${uiText(options.version)}`,
       "PIXEL LAB / KURISU",
       "",
       `工作区  ${uiText(ctx.cwd)}`,
@@ -127,7 +130,7 @@ export class PixelHeader implements Component {
       "/research-status  /agents  /memory",
       "/model  /usage  /ui avatar off",
     ];
-    if (width < 4) return [fit("Research CLI", width)];
+    if (width < 4) return [fit("Amadeus", width)];
     const count = Math.max(content.length, portrait.length);
     const top = panel(`┌${"─".repeat(width - 2)}┐`, theme, mono, "border");
     const bottom = panel(`└${"─".repeat(width - 2)}┘`, theme, mono, "border");
@@ -135,7 +138,7 @@ export class PixelHeader implements Component {
     for (let row = 0; row < count; row++) {
       const color: ThemeColor = row === 0 ? "accent" : row === 1 && !compact ? "warning" : row > 6 ? "muted" : "text";
       const left = panel(`│ ${fit(content[row] ?? "", textWidth)}`, theme, mono, color);
-      const right = avatar ? panel("  ", theme, mono) + (portrait[row] ?? panel(" ".repeat(size), theme, mono)) : "";
+      const right = avatar ? panel("  ", theme, mono) + (portrait[row] ?? panel(" ".repeat(avatarWidth), theme, mono)) : "";
       lines.push(left + right + panel(" │", theme, mono, "border"));
     }
     lines.push(bottom);
@@ -204,7 +207,7 @@ export function registerResearchUI(pi: ExtensionAPI): void {
     ctx.ui.setEditorComponent((tui, theme, keys) => new PixelEditor(tui, theme, keys, ctx, monochrome));
     ctx.ui.setWorkingMessage("Researching…");
     ctx.ui.setWorkingIndicator({ frames: ["▖", "▘", "▝", "▗"], intervalMs: 180 });
-    ctx.ui.setTitle("Research CLI");
+    ctx.ui.setTitle("Amadeus");
   });
   pi.registerCommand("ui", {
     description: "切换像素头像和配色：/ui avatar pixel|off 或 /ui theme pixel|system",

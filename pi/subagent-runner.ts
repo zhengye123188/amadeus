@@ -92,7 +92,7 @@ export function resolveSubagentEngineDirectory(): string {
   const root = realpathSync(dirname(entry));
   const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
   if (manifest.name !== "pi-subagents" || manifest.version !== SUBAGENT_ENGINE_VERSION) {
-    throw new Error(`Research CLI requires audited pi-subagents@${SUBAGENT_ENGINE_VERSION}`);
+    throw new Error(`Amadeus requires audited pi-subagents@${SUBAGENT_ENGINE_VERSION}`);
   }
   const file = join(root, "src", "runs", "foreground", "execution.js");
   if (createHash("sha256").update(readFileSync(file)).digest("hex") !== executionSha256) {

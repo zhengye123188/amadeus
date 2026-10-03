@@ -18,7 +18,7 @@ python3 run.py --variant baseline --seed 7
 The linear baseline produces `metrics.json` and `predictions.json`. The `quadratic`
 variant fits a quadratic model; `negative` predicts zero and provides a deliberate
 negative result. For manual repeats, remove these generated files before the next run.
-Research CLI experiments write outputs inside their own snapshots, leaving this directory
+Amadeus experiments write outputs inside their own snapshots, leaving this directory
 unchanged.
 
 For the CLI, ask the agent to use `run_experiment` with this directory as `cwd` and

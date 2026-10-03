@@ -81,7 +81,7 @@ def test_newer_database_rejected_before_existing_content_changes(tmp_path):
     store.db.execute("PRAGMA user_version=999")
     store.db.commit()
     store.close()
-    with pytest.raises(ValueError, match="newer Research CLI"):
+    with pytest.raises(ValueError, match="newer Amadeus"):
         Store(tmp_path)
     database = sqlite3.connect(tmp_path / ".research/state.sqlite3")
     assert database.execute("PRAGMA user_version").fetchone()[0] == 999

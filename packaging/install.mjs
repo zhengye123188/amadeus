@@ -84,7 +84,7 @@ try {
   const pending = join(prefix, `.current-${randomUUID()}`);
   symlinkSync(relative(prefix, destination), pending); renameSync(pending, current);
   if (!existsSync(command)) symlinkSync(join(current, "bin", "research"), command);
-  console.log(`Research CLI ${manifest.version} installed.\nCommand: ${command}\nConfigure API: ${shellQuote(command)} configure\nStart: ${shellQuote(command)}`);
+  console.log(`Amadeus ${manifest.version} installed.\nCommand: ${command}\nConfigure API: ${shellQuote(command)} configure\nStart: ${shellQuote(command)}`);
   if (!(process.env.PATH || "").split(":").includes(binDir)) console.log(`Add the command directory to PATH: export PATH=${shellQuote(binDir)}:"$PATH"`);
   console.log("Old versions and your API settings/research data are preserved. No shell profile was changed.");
 } catch (error) { console.error(`Installation failed: ${error.message}`); process.exitCode = 1; }

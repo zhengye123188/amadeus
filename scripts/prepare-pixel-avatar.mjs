@@ -8,7 +8,11 @@ import { fileURLToPath } from "node:url";
 
 const inputPath = resolve(process.argv[2] ?? fileURLToPath(new URL("../pi/assets/kurisu-pixel.png", import.meta.url)));
 const outputPath = resolve(process.argv[3] ?? fileURLToPath(new URL("../pi/assets/kurisu-pixel.json", import.meta.url)));
-const gridSizes = [20, 32, 40];
+const gridSizes = [
+  { width: 32, height: 20 },
+  { width: 48, height: 32 },
+  { width: 64, height: 40 },
+];
 const maxColors = 63; // Palette entry 0 is transparent.
 const alphaThreshold = 128;
 const bytes = readFileSync(inputPath);
@@ -60,29 +64,24 @@ if (visiblePixels === 0 || transparentPixels < width * height * 0.05) {
 }
 
 const visibleBounds = { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
-// A head-and-collar close-up of the bundled portrait. The original PNG and its
-// transparent background stay intact. Relative coordinates keep preparation
-// reproducible if the same artwork is exported at another resolution.
-const crop = {
-  x: Math.floor(width * 215 / 1254),
-  y: Math.floor(height * 20 / 1254),
-  width: Math.max(1, Math.floor(width * 815 / 1254)),
-  height: Math.max(1, Math.floor(height * 815 / 1254)),
-};
+// Fit the entire approved half-body scene: the pose, coat, books, test tubes,
+// and stars all belong to the asset. Padding stays transparent; no head crop
+// or stretching is applied when the terminal grid has a different ratio.
+const crop = { x: 0, y: 0, width, height };
 
 // Each terminal size samples the original RGBA bytes independently. In
-// particular, the small portrait never downsamples a larger terminal grid;
+// particular, the small scene never downsamples a larger terminal grid;
 // that second sampling pass used to skip isolated iris pixels.
-function createVariant(gridSize) {
-  const scale = gridSize / Math.max(crop.width, crop.height);
+function createVariant({ width: gridWidth, height: gridHeight }) {
+  const scale = Math.min(gridWidth / crop.width, gridHeight / crop.height);
   const drawWidth = crop.width * scale;
   const drawHeight = crop.height * scale;
-  const left = (gridSize - drawWidth) / 2;
-  const top = (gridSize - drawHeight) / 2;
-  const samples = Array.from({ length: gridSize }, () => Array(gridSize).fill(null));
+  const left = (gridWidth - drawWidth) / 2;
+  const top = (gridHeight - drawHeight) / 2;
+  const samples = Array.from({ length: gridHeight }, () => Array(gridWidth).fill(null));
   const colors = [];
-  for (let y = 0; y < gridSize; y++) {
-    for (let x = 0; x < gridSize; x++) {
+  for (let y = 0; y < gridHeight; y++) {
+    for (let x = 0; x < gridWidth; x++) {
       if (x + 0.5 < left || x + 0.5 >= left + drawWidth || y + 0.5 < top || y + 0.5 >= top + drawHeight) continue;
       const sx = Math.min(width - 1, crop.x + Math.floor((x + 0.5 - left) / scale));
       const sy = Math.min(height - 1, crop.y + Math.floor((y + 0.5 - top) / scale));
@@ -93,7 +92,7 @@ function createVariant(gridSize) {
       colors.push(color);
     }
   }
-  if (colors.length === 0) throw new Error("The portrait crop contains no visible pixels.");
+  if (colors.length === 0) throw new Error("The half-body scene contains no visible pixels.");
 
   const paletteRgb = createPalette(colors);
   const palette = [null, ...paletteRgb.map((color) => `#${color.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`)];
@@ -110,10 +109,10 @@ function createVariant(gridSize) {
     return nearest;
   };
   const pixels = samples.map((row) => row.map((color) => color === null ? 0 : nearestIndex(color)));
-  if (pixels.length !== gridSize || pixels.some((row) => row.length !== gridSize || row.some((index) => !Number.isInteger(index) || index < 0 || index >= palette.length))) {
+  if (pixels.length !== gridHeight || pixels.some((row) => row.length !== gridWidth || row.some((index) => !Number.isInteger(index) || index < 0 || index >= palette.length))) {
     throw new Error("Invalid palette grid.");
   }
-  return { width: gridSize, height: gridSize, palette, pixels };
+  return { width: gridWidth, height: gridHeight, palette, pixels };
 }
 
 // Deterministic median-cut palettes keep the committed JSON small while
@@ -150,7 +149,7 @@ function createPalette(colors) {
 
 const variants = gridSizes.map(createVariant);
 const result = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   variants,
   source: {
     filename: basename(inputPath),
@@ -159,7 +158,7 @@ const result = {
     height,
     crop,
     visibleBounds,
-    sourceFocus: "portrait",
+    sourceFocus: "half-body-lab",
     sampling: "nearest-from-source",
     alphaThreshold,
     transparentPixels,

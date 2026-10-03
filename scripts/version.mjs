@@ -71,6 +71,6 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     const args = process.argv.slice(2);
     if (args.length !== 1) throw new Error("Usage: node scripts/version.mjs --check | VERSION");
     const version = args[0] === "--check" ? checkVersions(root) : syncVersion(root, args[0]);
-    console.log(`Research CLI versions synchronized: ${version}`);
+    console.log(`Amadeus versions synchronized: ${version}`);
   } catch (error) { console.error(error.message); process.exitCode = 2; }
 }

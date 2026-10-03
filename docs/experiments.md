@@ -1,6 +1,6 @@
 # Measured experiments
 
-Research CLI exposes these capabilities as interactive tools. You can inspect a paper,
+Amadeus exposes these capabilities as interactive tools. You can inspect a paper,
 modify code, start a run, compare earlier runs, or investigate a failure in any order.
 There is no mandatory research pipeline.
 
@@ -208,7 +208,7 @@ snapshot, and records the checkpoint manifest hash and parent linkage.
 }
 ```
 
-The training program must implement loading its checkpoint. Research CLI does not infer
+The training program must implement loading its checkpoint. Amadeus does not infer
 checkpoint formats or restore model/optimizer state itself. For measured resumed runs,
 declare fresh metric/artifact output names in the new spec; copied outputs are not new
 evidence. Parent files remain separate from the resumed run.

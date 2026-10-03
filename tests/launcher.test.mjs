@@ -166,9 +166,9 @@ test("Research's interactive host preserves Pi's headless routes and treats valu
   }
   assert.equal(shouldUseResearchTui([], { stdinTTY: false, stdoutTTY: true }), false);
   assert.equal(shouldUseResearchTui([], { stdinTTY: true, stdoutTTY: false }), false);
-  assert.equal(researchWindowTitle("π - fixture - workspace"), "Research CLI - fixture - workspace");
-  assert.equal(researchWindowTitle("Research CLI - workspace"), "Research CLI - workspace");
-  assert.equal(researchWindowTitle("π - bad\x1b]0;title\x07"), "Research CLI - bad ]0;title ");
+  assert.equal(researchWindowTitle("π - fixture - workspace"), "Amadeus - fixture - workspace");
+  assert.equal(researchWindowTitle("Amadeus - workspace"), "Amadeus - workspace");
+  assert.equal(researchWindowTitle("π - bad\x1b]0;title\x07"), "Amadeus - bad ]0;title ");
 });
 
 test("Research branding survives real Pi settings saves and reloads without persisting host overrides", async () => {

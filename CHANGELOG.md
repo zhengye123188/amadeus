@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.2 — 2026-10-03
+
+- Rename the product and GitHub repository to Amadeus and publish the npm package as `@lelouch_021015/amadeus`; retain the `research` command and existing configuration, session and project-data paths.
+- Replace the head crop with the approved transparent half-body laboratory scene; independently sample complete native 32×20, 48×32 and 64×40 pixel grids.
+- Select portraits by terminal width and height, cap the header at half the viewport, and verify real PTY resizing, input, session recovery and noninteractive protocols.
+
 ## 0.4.0 — 2026-10-02
 
 - Reuse `pi-docparser` 4.0.0 for local PDF text extraction, preserving blank pages, source hashes, chunk positions and evidence records; remove the separate PDF text-extraction implementation.

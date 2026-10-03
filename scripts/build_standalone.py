@@ -172,7 +172,7 @@ def self_extractor(archive, output, folder):
     checksum = sha256(archive)
     header = f'''#!/bin/sh
 set -eu
-temporary=$(mktemp -d "${{TMPDIR:-/tmp}}/research-install.XXXXXXXX")
+temporary=$(mktemp -d "${{TMPDIR:-/tmp}}/amadeus-install.XXXXXXXX")
 trap 'rm -rf "$temporary"' 0
 trap 'exit 130' INT
 trap 'exit 143' TERM HUP
@@ -233,8 +233,8 @@ def main():
     runtime_archives = {
         name: download(item["url"], item["sha256"], cache) for name, item in sources.items()
     }
-    folder = f"research-cli-{version}-{target}"
-    with tempfile.TemporaryDirectory(prefix="research-build-") as temporary:
+    folder = f"amadeus-{version}-{target}"
+    with tempfile.TemporaryDirectory(prefix="amadeus-build-") as temporary:
         staging = Path(temporary)
         bundle = staging / folder
         runtime = bundle / "runtime"

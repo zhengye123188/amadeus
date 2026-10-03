@@ -1,10 +1,12 @@
-# Research CLI v0.6.1 源码架构
+# Amadeus v0.6.2 源码架构
+
+项目更名为 Amadeus，[GitHub 仓库](https://github.com/zhengye123188/amadeus)和 npm 包 `@lelouch_021015/amadeus` 使用新名称；启动命令仍为 `research`。内部 `research_cli` Python 模块、配置路径、`RESEARCH_*` 环境变量与 `.research` 数据目录保留，避免更名使已有配置和项目记录失效。
 
 ## 交互与运行时
 
 ```mermaid
 flowchart TD
-    U[终端用户：自由对话与明确审批] <--> P[Research 像素终端：Pi SDK 模型、工具循环、会话树]
+    U[终端用户：自由对话与明确审批] <--> P[Amadeus 像素终端：Pi SDK 模型、工具循环、会话树]
     L[research 启动器与显式配置] --> P
     P <--> X[TypeScript 科研扩展]
     X <--> N[Pi 原生包：网页与 Context7 文档工具]
@@ -24,7 +26,7 @@ flowchart TD
 
 Pi 根据当前问题选择工具，用户可以转向、停止或接着任意记录讨论。工具不强制执行文献、假设、实验的固定顺序。交互模式使用公开 Pi SDK 的 session services/runtime 和 `InteractiveMode`，由科研扩展安装头部、状态栏、编辑器与主题；print/JSON/RPC 继续使用 Pi CLI。两条启动路径都关闭环境资源和内置工具，并要求核心初始化回执。扩展通过公开 `createMcpExtension` 接口连接 MCP，没有复制上游内核。
 
-像素头像来自随包提供的透明 PNG。v0.6.1 直接生成头部特写的 20×20、32×32、40×40 调色板网格，终端按可用宽高选择并使用 ANSI 半块字符显示，避免二次采样丢失五官。运行时不解码图片，不依赖 Kitty/iTerm 图片协议；按终端宽高收紧布局，`NO_COLOR` / `TERM=dumb` 时使用单色组件。工作区、模型、上下文和协作状态读取实际会话数据。详细说明见 [UI 结构与定制](ui.md)，分发状态见 [版本说明](releases/v0.6.1.md)。
+像素形象来自随包提供的透明 PNG。v0.6.2 将人物头部特写替换为重新绘制的完整半身实验室场景，保留托腮、白大褂、红领带、试管架、书本和像素十字。构建时直接从源图独立生成 32×20、48×32、64×40 三份调色板网格，以 schema 3 记录像素、调色板与来源信息，不再裁剪到头部。终端按可用宽高选择原生网格，使用 ANSI 半块字符显示；至少 80 列/24 行、110 列/36 行、140 列/44 行分别启用三种尺寸，含边框的头部不超过一半窗口行数。运行时不解码图片，不依赖 Kitty/iTerm 图片协议；大 PNG 预览与有限字符网格的分辨率不同，字体与色彩能力仍影响效果。`NO_COLOR` / `TERM=dumb` 时使用单色组件并隐藏形象。工作区、模型、上下文和协作状态读取实际会话数据。详细说明及[源素材](assets/kurisu-lab-halfbody-v2.png)、[生成记录](assets/kurisu-lab-halfbody-v2.prompt.md)见 [UI 结构与定制](ui.md)，分发状态见 [版本说明](releases/v0.6.2.md)。
 
 当前源码默认联网配置是 53 个科研 MCP 工具、3 个 Pi 文件工具、6 个 Pi 原生包工具和 4 个协作工具，共 66 个；配置 embeddings 后新增 2 个工具，外部工具按显式白名单暴露。PDF/OCR 提取复用 `pi-docparser` 原生 executor，保留科研导入、来源哈希、页码、chunks 和证据接口。[包复用与替换](pi-packages.md)
 

@@ -2,6 +2,17 @@
 
 更新日期：2026-10-03。开发环境为 macOS ARM64、Node 22.23.1、Python 3.12.13、Pi 0.99.1；依赖由 `package-lock.json` 和 `uv.lock` 固定。
 
+## v0.6.2：Amadeus 更名与完整半身像（发布候选）
+
+项目展示品牌改为 **Amadeus**，npm 包名为 `@lelouch_021015/amadeus`，GitHub 仓库为 `zhengye123188/amadeus`。启动命令仍为 `research`；用户配置、会话和 `.research/` 数据保留原有路径。旧 npm 包需先卸载再安装新包，以免占用同一个命令。
+
+- 新 PNG 与获批[半身像](assets/kurisu-lab-halfbody-v2.png)逐字节一致，SHA-256 为 `9194a0397cd5cce468e02496726e038da1d191114ff439ae9fc4d297c0bb712f`。
+- [网格预览](assets/kurisu-halfbody-grids.png)由实际终端 JSON 数据绘制，不是终端软件截图，也不是高分辨率 PNG 的直接显示。
+- schema 3 包含完整场景的原生 `32×20 / 48×32 / 64×40` 网格。独立采样、不裁头，保留人物、托腮手势、白大褂、领带、试管、书本与星星；UI 按实际终端尺寸选择。
+- 本机 Python **195 项通过**；Node/TypeScript **98 项通过、2 项可选 OCR 测试跳过**。TypeScript、Ruff/格式、版本同步、离线锁文件和 diff 检查通过。模型请求来自本机 fixture，不使用用户密钥。
+- 实际 npm tarball 临时安装通过，包名为 `@lelouch_021015/amadeus`，唯一命令为 `research`，前后端均为 **0.6.2**。四个 Pi 包、原生 PDF 导入、真实科研扩展加载与整套 PTY 交互验证通过；135×37、160×48、80×24、窄屏和短屏隐藏/恢复均覆盖。
+- 发布与四平台独立安装验证尚在进行；以下历史发布记录不代表 v0.6.2 已公开或本机安装已更新。完成后补充公开包校验、工作流和标签记录。
+
 ## v0.6.1：头像清晰度与发布验证
 
 v0.6.1 已发布到 npm 和四平台 GitHub 独立安装器。原 PNG 保持不变，终端数据改为从原图直接生成 20×20、32×32、40×40 头部特写；每种尺寸分别采样，避免第二次缩小时丢失眼部细节。
@@ -11,11 +22,11 @@ v0.6.1 已发布到 npm 和四平台 GitHub 独立安装器。原 PNG 保持不�
 - 真实 PTY 验证 80×24、120×32、120×40、120×48 和 54 列窄窗口的缩放与恢复，包含中文输入、模型/恢复选择器、主题切换、会话重载和退出。模型请求由本机模拟服务提供。
 - 人工检查[像素对比预览](assets/kurisu-clarity-preview.png)及[头部布局预览](assets/kurisu-header-preview.png)中双眼可辨。预览由终端网格及 ANSI 输出绘制，不是终端软件截图；字体与实际终端可能不同。
 
-- v0.6.1 已于 2026-10-03 发布。[npm v0.6.1](https://www.npmjs.com/package/@lelouch_021015/research-cli/v/0.6.1) 与 [GitHub Release v0.6.1](https://github.com/zhengye123188/research-cli/releases/tag/v0.6.1) 均为 latest；发布标签精确对应源码 `54dd5a84b01c6e806c8fffc41fd7705828efa15c`。本次未发布 PyPI。
-- 最终发布源码的 [完整 CI](https://github.com/zhengye123188/research-cli/actions/runs/37111314486) 在 macOS/Linux × Python 3.10/3.12 四组全部通过。每组 Python **192 项通过、3 项 ripgrep 可选测试跳过**；macOS Node **100 项通过、无跳过**，Linux Node **99 项通过、1 项 macOS 专属测试跳过**。四组均实际验证固定 OCR 语言数据、真实 PTY、npm tarball 和 Python wheel 实装。
+- v0.6.1 已于 2026-10-03 发布。[npm v0.6.1](https://www.npmjs.com/package/@lelouch_021015/research-cli/v/0.6.1) 与 [GitHub Release v0.6.1](https://github.com/zhengye123188/amadeus/releases/tag/v0.6.1) 发布时均为 latest；发布标签精确对应源码 `54dd5a84b01c6e806c8fffc41fd7705828efa15c`。本次未发布 PyPI。
+- 最终发布源码的 [完整 CI](https://github.com/zhengye123188/amadeus/actions/runs/37111314486) 在 macOS/Linux × Python 3.10/3.12 四组全部通过。每组 Python **192 项通过、3 项 ripgrep 可选测试跳过**；macOS Node **100 项通过、无跳过**，Linux Node **99 项通过、1 项 macOS 专属测试跳过**。四组均实际验证固定 OCR 语言数据、真实 PTY、npm tarball 和 Python wheel 实装。
 - 本机 Node **98 项通过、2 项可选 OCR 测试跳过**，类型检查、版本同步和离线锁文件检查通过。最终 npm tarball 在临时目录实装，前后端均为 **0.6.1**；四个内置包、科研扩展加载、原生 PDF 导入及整套终端交互检查通过。
 - 公开 npm tarball 为 **1,254,351 字节**，与上述测试产物逐字节相同。注册表与下载包的 SHA-512 均为 `sha512-wVU3lDyHoRKe9MsfSoWnIgi0EwjLK5tPHZWeEEOlXk1J3UAjilSq9lZAjg3GbWqaRz1pllxPhmkOtqiCpTsr3w==`，SHA-256 为 `afda340707d3ccd6479ec06bf7d01beb68fb75fa34b820a1ded32bd3b39f4566`。随包头像数据使用 schema 2，包含 20×20、32×32、40×40 三种网格。
-- [四平台原生安装器构建、实装与发布](https://github.com/zhengye123188/research-cli/actions/runs/37111338288) 全部通过，源码同为上述提交。每个平台实际检查内置运行环境、原生 PDF/OCR、真实 Pi 子 Agent 调用、像素界面与会话重载、单色模式、重装及损坏包拒绝；模拟模型服务仅用于工程验证。
+- [四平台原生安装器构建、实装与发布](https://github.com/zhengye123188/amadeus/actions/runs/37111338288) 全部通过，源码同为上述提交。每个平台实际检查内置运行环境、原生 PDF/OCR、真实 Pi 子 Agent 调用、像素界面与会话重载、单色模式、重装及损坏包拒绝；模拟模型服务仅用于工程验证。
 - Release 为公开稳定版本，九个资产均为 uploaded。四个公开校验文件与 GitHub 计算的安装器 SHA-256 一致；四个公开安装器下载终点 HEAD 均为 HTTP 200，Content-Length 与资产大小一致。没有再次完整下载并实装公开大包，实装证据来自对应平台 CI。
 - 公开 `latest/download/install.sh` 为 **2,744 字节**，逐字节等于版本资产和发布源码；SHA-256 为 `bafa885bf5a66bab499d5683b524a2b3c4c4a843613ec645996a5e5398a34db2`，`sh -n` 通过。
 
@@ -28,7 +39,7 @@ v0.6.1 已发布到 npm 和四平台 GitHub 独立安装器。原 PNG 保持不�
 
 ## v0.6.0：像素界面与发布
 
-v0.6.0 已发布到 npm 和 GitHub Release。最终发布源码 `ec63e0237b2c523777dee4dd9d8a85336365b5af` 的 [完整 CI](https://github.com/zhengye123188/research-cli/actions/runs/37107470182) 已在 macOS/Linux × Python 3.10/3.12 四组全部通过，包含原生 OCR、真实 PTY、npm tarball 与 Python wheel 实装。[四平台独立安装器构建、实装与发布](https://github.com/zhengye123188/research-cli/actions/runs/37107497113) 全部通过。
+v0.6.0 已发布到 npm 和 GitHub Release。最终发布源码 `ec63e0237b2c523777dee4dd9d8a85336365b5af` 的 [完整 CI](https://github.com/zhengye123188/amadeus/actions/runs/37107470182) 已在 macOS/Linux × Python 3.10/3.12 四组全部通过，包含原生 OCR、真实 PTY、npm tarball 与 Python wheel 实装。[四平台独立安装器构建、实装与发布](https://github.com/zhengye123188/amadeus/actions/runs/37107497113) 全部通过。
 
 - Python **195 项通过**；Node/TypeScript **96 项通过、2 项可选 OCR 测试跳过**。这次本地没有设置 `RESEARCH_OCR_TEST_DATA`；最终 CI 显式安装固定语言数据并完成原生 OCR 验证。类型检查、Ruff/格式、版本同步和 diff 检查通过。
 - CI 发现并修复新工作区首次启动时，记忆服务与 MCP 后端并发迁移数据库的冲突。新增回归测试用两个独立 SQLite 连接同步打开未迁移数据库，修复前稳定触发重复迁移记录错误；修复后两个会话都保留，迁移仅执行一次，数据库完整性与异常迁移记录拒绝检查通过。
@@ -38,7 +49,7 @@ v0.6.0 已发布到 npm 和 GitHub Release。最终发布源码 `ec63e0237b2c523
 - 最终源码 npm tarball 在独立临时目录实装，`setup`、`doctor`、四个内置包、科研扩展、原生 PDF 导入以及以上整套 PTY 验证通过。PNG、调色板 JSON、两份主题和 SDK 交互入口全部在打包清单中；独立构建从同一 npm 包整体提取文件。
 - 本次模型响应来自本机 HTTP fixture，仅用于工程验证；未使用用户密钥或付费模型。验收没有修改用户全局安装；上述验证发生在 v0.6.0 发布之前。
 - [npm v0.6.0](https://www.npmjs.com/package/@lelouch_021015/research-cli/v/0.6.0) 已公开，2026-10-03 该版发布时核对注册表 `latest` 为 **0.6.0**。公开 tarball 为 **1,251,303 字节**，与修复后实装验证的最终包逐字节相同；注册表和下载包的 SHA-512 均为 `sha512-7ravBBE9ypbJy3AGjKGvOpCjzm7Zs8YR7336AehGadYntLKoGTEItxkTKuWaqNCgFTSSiiAauVRjq+9QwkLs7g==`，SHA-256 为 `fe8e790e117fbce74f5193156ac44408ffc99c76dc4088da3850b28db7e2a64e`。本次没有发布 PyPI。
-- [GitHub Release v0.6.0](https://github.com/zhengye123188/research-cli/releases/tag/v0.6.0) 已公开，发布时设为 latest，标签精确指向上述最终源码，不是草稿或预发布。九个资产均为 uploaded，包含四个安装器、四个校验文件和 `install.sh`；四个公开校验文件的 SHA-256 均与 GitHub 计算的安装器资产 digest 一致。
+- [GitHub Release v0.6.0](https://github.com/zhengye123188/amadeus/releases/tag/v0.6.0) 已公开，发布时设为 latest，标签精确指向上述最终源码，不是草稿或预发布。九个资产均为 uploaded，包含四个安装器、四个校验文件和 `install.sh`；四个公开校验文件的 SHA-256 均与 GitHub 计算的安装器资产 digest 一致。
 - 公开 `latest/download/install.sh` 已下载核对，**2,744 字节**，与发布源码逐字节相同；SHA-256 为 `a45de8c0c881ef433bd803006d91369142d7d26928204c1994d008f3751246d0`，`sh -n` 通过。四个平台 `.run` 的公开下载终点 HEAD 均为 HTTP 200，`Content-Length` 与发布资产大小一致。没有重复下载并实装公开大包；四平台实装证据来自上述 CI，发布工作流在上传前核对全部安装器 SHA-256。
 
 | 安装器平台 | 字节数 | 公开资产 SHA-256 |
@@ -53,7 +64,7 @@ v0.6.0 已发布到 npm 和 GitHub Release。最终发布源码 `ec63e0237b2c523
 v0.5.0 已发布到 npm 和 GitHub Release；源码、完整 CI 和四个平台独立安装器已通过工程验证。下面是软件机制验证，不是科研结果或真实模型能力评测。
 
 - 本机 Python **194 项通过**；Node/TypeScript **89 项通过、无跳过**。类型检查、Ruff/格式、版本同步、`uv lock --check --offline` 和 diff 检查通过。
-- [完整 CI](https://github.com/zhengye123188/research-cli/actions/runs/37019947263) 在 macOS/Linux × Python 3.10/3.12 四组环境全部通过，源码提交为 `f07592d10c01f8827d4e97aa8316359654e8b262`。每组 Python **191 项通过、3 项 ripgrep 可选测试跳过**；macOS 每组 Node **89 项通过、无跳过**，Linux 每组 Node **88 项通过、1 项 macOS 专属测试跳过**。四组均显式安装固定 OCR 语言数据并实际执行原生 OCR 测试，还完成 npm tarball、Python wheel 实装及模拟任务检查。构建文件哈希的分块读取兼容 Python 3.10。
+- [完整 CI](https://github.com/zhengye123188/amadeus/actions/runs/37019947263) 在 macOS/Linux × Python 3.10/3.12 四组环境全部通过，源码提交为 `f07592d10c01f8827d4e97aa8316359654e8b262`。每组 Python **191 项通过、3 项 ripgrep 可选测试跳过**；macOS 每组 Node **89 项通过、无跳过**，Linux 每组 Node **88 项通过、1 项 macOS 专属测试跳过**。四组均显式安装固定 OCR 语言数据并实际执行原生 OCR 测试，还完成 npm tarball、Python wheel 实装及模拟任务检查。构建文件哈希的分块读取兼容 Python 3.10。
 - 真实 Pi CLI 的默认联网集合为 **66 个工具**：53 科研 MCP、3 文件、6 原生包和 4 协作工具。六类角色按允许工具分工，主 Agent 可动态并行委派，追问保留同一子 Agent 历史。自定义端点认证、保护文件、共享后端无 owner 锁冲突、数值用量只计一次均通过模拟 HTTP 测试。
 - 人工 `/agents cancel` 可在主 Agent 等待时结束子 Agent，迟到响应不进入历史；取消后的历史可追问。主/子 Agent 共用模型步数、时间、token 预算；新会话隔离、优雅关闭及超时通过测试。子 Agent 不修改代码/记忆、不执行实验、不嵌套委派，历史仅保留在本进程。
 - 复用 `pi-subagents 0.74.0` 的固定内部前台执行器，版本及执行器 SHA-256 检查通过；受控工厂测试确认无环境扩展、skills、项目指令、会话或产物写入。使用同步 Jiti 转换确保虚拟策略模块不会被原生 ESM 导入绕过。完整上游扩展、工作流和后台 fleet 未启用。
@@ -61,8 +72,8 @@ v0.5.0 已发布到 npm 和 GitHub Release；源码、完整 CI 和四个平台�
 - 三种官方 `tessdata_fast` 语言模型和 Apache-2.0 许可实际下载后大小/SHA-256 匹配。下载测试包含损坏、重定向、软链接/硬链接、目录变化、挂起请求/流、取消和压缩传输长度；解析阶段不会隐式下载语言模型。
 - 最终 npm v0.5.0 tarball 在独立临时目录实装，`setup`、`doctor`、四个内置包、真实 Pi 扩展加载和原生 PDF 导入通过，CLI 与后端版本一致。没有修改用户全局安装。
 - [npm v0.5.0](https://www.npmjs.com/package/@lelouch_021015/research-cli/v/0.5.0) 已公开，2026-10-02 核对注册表 `latest` 为 **0.5.0**。公开 tarball 为 **205,293 字节**，与已实装验证的最终包逐字节相同；注册表 SHA-512 为 `sha512-toWn6Ey8cBUSp3IMbct9/NnukpsspBU/jLHBBRU1bYbVA205L/fUcqBn7NYrkW2Ic2t9pz3FqXqVNFfHo80FnQ==`，下载文件也匹配；SHA-256 为 `ef0062818155a331b9413d977e833ff1bc6dd009ca606da13b41313c6d526a18`。本次没有发布 PyPI。
-- [四平台构建与安装检查](https://github.com/zhengye123188/research-cli/actions/runs/37019987067) 在 macOS ARM64/x64、Linux ARM64/x64 全部通过，源码同为 `f07592d10c01f8827d4e97aa8316359654e8b262`。每个平台验证内置三种 OCR 模型和许可、原生扫描 PDF OCR、真实 Pi 子 Agent 调用、隔离外部运行环境、中文/空格路径、隐藏持久配置、终端工作区、重装和损坏拒绝。构建采用 `publish=false`，检查通过后另行上传发布。
-- [GitHub Release v0.5.0](https://github.com/zhengye123188/research-cli/releases/tag/v0.5.0) 已公开并设为 latest，`v0.5.0` 标签精确指向 `f07592d10c01f8827d4e97aa8316359654e8b262`，不是草稿或预发布。九个公开资产的上传状态、大小和 GitHub SHA-256 均与已校验的本地文件一致，包含四个安装器、四个校验文件和 `install.sh`。
+- [四平台构建与安装检查](https://github.com/zhengye123188/amadeus/actions/runs/37019987067) 在 macOS ARM64/x64、Linux ARM64/x64 全部通过，源码同为 `f07592d10c01f8827d4e97aa8316359654e8b262`。每个平台验证内置三种 OCR 模型和许可、原生扫描 PDF OCR、真实 Pi 子 Agent 调用、隔离外部运行环境、中文/空格路径、隐藏持久配置、终端工作区、重装和损坏拒绝。构建采用 `publish=false`，检查通过后另行上传发布。
+- [GitHub Release v0.5.0](https://github.com/zhengye123188/amadeus/releases/tag/v0.5.0) 已公开并设为 latest，`v0.5.0` 标签精确指向 `f07592d10c01f8827d4e97aa8316359654e8b262`，不是草稿或预发布。九个公开资产的上传状态、大小和 GitHub SHA-256 均与已校验的本地文件一致，包含四个安装器、四个校验文件和 `install.sh`。
 - 公开 `latest/download/install.sh` 返回 HTTP 200，**2,744 字节**，与审查源码和发布资产逐字节相同；SHA-256 为 `1469107f41eae5efebb11e9ae6fedd3ce0936fc522b584907fd84d49cbe20b78`，`sh -n` 通过。四个平台 `.run` 的公开下载终点 HEAD 均为 HTTP 200，`Content-Length` 与已验证文件一致：darwin-arm64 **188,076,967**、darwin-x64 **190,856,182**、linux-arm64 **201,016,035**、linux-x64 **223,534,847** 字节。该轮没有从公开入口重复下载并实装大包；实装证据来自上述四平台 CI，公开资产 SHA-256 确认其内容相同。
 
 ## v0.4.0：Pi 包复用与独立分发
@@ -72,9 +83,9 @@ v0.5.0 已发布到 npm 和 GitHub Release；源码、完整 CI 和四个平台�
 - 真实 Context7 factory 在 CLI 中完成库标识解析和文档查询；HTTP 返回由测试 fixture 提供。包适配器还验证预先取消、并发取消信号隔离和服务调用独立审计。网页供应商的在线配额、真实检索质量及界面全部呈现仍未验证。
 - `pi-docparser` 原生引擎解析真实双页 PDF，保留空白第一页及第二页文本。导入链检查来源哈希、解析器版本、chunks 页码；错误、页数不全、超限、取消及超时测试通过。
 - npm tarball 在独立临时目录实装，`setup` 建立版本匹配的 Python 缓存环境，`doctor`、三个内置包、真实 Pi 扩展及安装后 PDF 导入通过。已修复 scoped npm 依赖提升时的包路径解析问题。没有改动用户的全局安装和 API 配置。
-- [完整 CI](https://github.com/zhengye123188/research-cli/actions/runs/36966473942) 在 macOS/Linux × Python 3.10/3.12 四组环境通过。每组 Python **182 项通过、3 项 ripgrep 可选测试跳过**，Node **56 项通过**，并完成模拟工具调用、npm tarball 与 Python wheel 实装检查；本机有 ripgrep，这三项也通过。
-- [四平台构建与安装检查](https://github.com/zhengye123188/research-cli/actions/runs/36966520191) 全部通过，包含 macOS ARM64/x64、Linux ARM64/x64。隔离外部 Node/Python/uv，验证内置 npm/npx、三个 Pi 包、原生 PDF 导入、Pi/MCP 循环、终端工作区、重装、命令冲突及损坏包拒绝。
-- [GitHub Release v0.4.0](https://github.com/zhengye123188/research-cli/releases/tag/v0.4.0) 已公开，标签对应 `34ebdf77973e5dddc65e7303914bff638fedc262`。九个资产的 GitHub SHA-256 与已验证本地文件全部一致，包含四个安装器、四个校验文件和 `install.sh`。安装包内置 Node 22.23.1、Python 3.12.14、Pi 0.99.1、npm/npx 与科研后端。
+- [完整 CI](https://github.com/zhengye123188/amadeus/actions/runs/36966473942) 在 macOS/Linux × Python 3.10/3.12 四组环境通过。每组 Python **182 项通过、3 项 ripgrep 可选测试跳过**，Node **56 项通过**，并完成模拟工具调用、npm tarball 与 Python wheel 实装检查；本机有 ripgrep，这三项也通过。
+- [四平台构建与安装检查](https://github.com/zhengye123188/amadeus/actions/runs/36966520191) 全部通过，包含 macOS ARM64/x64、Linux ARM64/x64。隔离外部 Node/Python/uv，验证内置 npm/npx、三个 Pi 包、原生 PDF 导入、Pi/MCP 循环、终端工作区、重装、命令冲突及损坏包拒绝。
+- [GitHub Release v0.4.0](https://github.com/zhengye123188/amadeus/releases/tag/v0.4.0) 已公开，标签对应 `34ebdf77973e5dddc65e7303914bff638fedc262`。九个资产的 GitHub SHA-256 与已验证本地文件全部一致，包含四个安装器、四个校验文件和 `install.sh`。安装包内置 Node 22.23.1、Python 3.12.14、Pi 0.99.1、npm/npx 与科研后端。
 - v0.4.0 发布时的公开 `latest/download/install.sh` 已逐字节比对审查源码，再实际下载 macOS ARM64 安装器，在临时中文/空格路径安装。`research --version` 为 **0.4.0 (Pi 0.99.1)**，`doctor` 确认后端 0.4.0 与内置 Node 22.23.1，三个 Pi 包可用；没有外部开发运行环境、付费模型调用或现有安装修改。
 - [npm v0.4.0](https://www.npmjs.com/package/@lelouch_021015/research-cli/v/0.4.0) 已公开，2026-10-02 该版本发布后核对的注册表 `latest` 当时为 **0.4.0**。注册表 SHA-512 与已验证的 tarball 一致，公开下载文件的 SHA-512 也一致。从注册表下载后，在临时环境再次通过 `setup`、`doctor`、三个 Pi 包、原生 PDF 导入和真实 Pi 扩展加载检查，CLI 与后端均为 0.4.0；没有改动现有全局安装。该次没有发布 PyPI；独立安装包发布不会自动更新 npm 或 PyPI。
 
@@ -95,7 +106,7 @@ v0.5.0 已发布到 npm 和 GitHub Release；源码、完整 CI 和四个平台�
 - npm tarball 在临时目录实际安装，`research setup`、`doctor`、版本核对与真实 Pi 科研扩展加载通过。
 - Python wheel / sdist 构建成功；wheel 在隔离工具目录安装，`research-mcp`、`research-legacy` 版本及动态文件读取通过。
 
-[GitHub 完整 CI](https://github.com/zhengye123188/research-cli/actions/runs/36873204826) 在 macOS/Linux × Python 3.10/3.12 四组环境通过。每组 Python 170 项通过、3 项依赖 ripgrep 的可选测试因 runner 未安装该工具而跳过；本机有 ripgrep，这三项也通过。每组 Node 25 项通过，并完成模拟任务与 npm/wheel 安装验证。
+[GitHub 完整 CI](https://github.com/zhengye123188/amadeus/actions/runs/36873204826) 在 macOS/Linux × Python 3.10/3.12 四组环境通过。每组 Python 170 项通过、3 项依赖 ripgrep 的可选测试因 runner 未安装该工具而跳过；本机有 ripgrep，这三项也通过。每组 Node 25 项通过，并完成模拟任务与 npm/wheel 安装验证。
 
 远端检查发现并修复了 Linux/Python 3.12 的后台 worker 生命周期问题：启动方式改为不属于原事件循环的独立进程；回归测试在原 CLI 真正退出后认证 worker，再允许实验完成。该修复包含在发布提交 `1313232` 中。
 
@@ -105,9 +116,9 @@ v0.5.0 已发布到 npm 和 GitHub Release；源码、完整 CI 和四个平台�
 
 ### v0.3.0 独立安装包与发布状态
 
-[构建与发布工作流](https://github.com/zhengye123188/research-cli/actions/runs/36873884406) 已完成。macOS ARM64、macOS x64、Linux ARM64、Linux x64 四个平台均通过原生构建、临时安装和真实 Pi/MCP 检查；测试隐藏密钥输入、中文/空格路径、内置运行环境、重装和损坏包拒绝。
+[构建与发布工作流](https://github.com/zhengye123188/amadeus/actions/runs/36873884406) 已完成。macOS ARM64、macOS x64、Linux ARM64、Linux x64 四个平台均通过原生构建、临时安装和真实 Pi/MCP 检查；测试隐藏密钥输入、中文/空格路径、内置运行环境、重装和损坏包拒绝。
 
-[GitHub Release v0.3.0](https://github.com/zhengye123188/research-cli/releases/tag/v0.3.0) 已公开，标签对应提交 `1313232b31feea811c27d504a3d61e059bc3a7ee`，资产包含四个安装器、四个 SHA256 文件和 `install.sh`。程序包含 Node 22.23.1、Python 3.12.14、Pi 0.99.1 与后端依赖。macOS 签名、公证和其他 Mac 的 Gatekeeper 下载行为仍未验证。
+[GitHub Release v0.3.0](https://github.com/zhengye123188/amadeus/releases/tag/v0.3.0) 已公开，标签对应提交 `1313232b31feea811c27d504a3d61e059bc3a7ee`，资产包含四个安装器、四个 SHA256 文件和 `install.sh`。程序包含 Node 22.23.1、Python 3.12.14、Pi 0.99.1 与后端依赖。macOS 签名、公证和其他 Mac 的 Gatekeeper 下载行为仍未验证。
 
 公开 `latest/download/install.sh` 入口已实际验证：下载脚本逐字节匹配已审查源码，再下载 macOS ARM64 安装包，在临时中文/空格路径安装；CLI 与后端均为 0.3.0，`doctor` 确认使用包内运行环境。没有调用模型，临时安装已清理，用户现有安装和配置未改变。
 
@@ -125,7 +136,7 @@ v0.5.0 已发布到 npm 和 GitHub Release；源码、完整 CI 和四个平台�
 
 ## v0.2.0：历史独立安装包
 
-[v0.2.0 构建与发布](https://github.com/zhengye123188/research-cli/actions/runs/36818786041) 四个平台均通过：
+[v0.2.0 构建与发布](https://github.com/zhengye123188/amadeus/actions/runs/36818786041) 四个平台均通过：
 
 | 平台 | 原生验证环境 | 验证范围 |
 |---|---|---|
@@ -143,10 +154,10 @@ v0.5.0 已发布到 npm 和 GitHub Release；源码、完整 CI 和四个平台�
 ## v0.2.0：历史发布状态
 
 - [npm `@lelouch_021015/research-cli`](https://www.npmjs.com/package/@lelouch_021015/research-cli) 已公开发布 0.2.0，2026-10-01 从官方注册表核对。
-- [GitHub Release v0.2.0](https://github.com/zhengye123188/research-cli/releases/tag/v0.2.0) 已公开，包含四组安装器/校验文件和自动选择平台的 `install.sh`。
+- [GitHub Release v0.2.0](https://github.com/zhengye123188/amadeus/releases/tag/v0.2.0) 已公开，包含四组安装器/校验文件和自动选择平台的 `install.sh`。
 - PyPI `research-terminal` 暂未发布，当日只读查询返回 404。发布 GitHub 安装包不会触发 npm / PyPI 上传。
 
-后续代码验证以对应提交的 [CI 结果](https://github.com/zhengye123188/research-cli/actions/workflows/ci.yml) 为准。
+后续代码验证以对应提交的 [CI 结果](https://github.com/zhengye123188/amadeus/actions/workflows/ci.yml) 为准。
 
 ## v0.2.0：历史评测边界
 

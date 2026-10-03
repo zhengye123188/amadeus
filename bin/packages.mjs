@@ -208,9 +208,9 @@ export async function loadPackageSelection({ file, cwd = process.cwd(), root, en
     for (const entry of builtinPackages) {
       let directory;
       try { directory = bundledDirectory(root, entry.name); }
-      catch { throw new Error(`Bundled package ${entry.source} is missing. Reinstall Research CLI.`); }
+      catch { throw new Error(`Bundled package ${entry.source} is missing. Reinstall Amadeus.`); }
       const metadata = readJson(join(directory, "package.json"), "bundled package metadata");
-      if (metadata.name !== entry.name || metadata.version !== entry.version) throw new Error(`Bundled package ${entry.source} is missing or has the wrong version. Reinstall Research CLI.`);
+      if (metadata.name !== entry.name || metadata.version !== entry.version) throw new Error(`Bundled package ${entry.source} is missing or has the wrong version. Reinstall Amadeus.`);
       if (entry.extensions.length) selected.push({ ...entry, skills: [], directory: realpathSync(directory) });
     }
   }
@@ -242,7 +242,7 @@ export async function loadPackageSelection({ file, cwd = process.cwd(), root, en
 export async function handlePackageCommand(args, { cwd = process.cwd(), root, env = process.env, output = console.log } = {}) {
   if (args[0] !== "packages") return undefined;
   if (args.includes("--help") || args.includes("-h")) {
-    output("research packages list\nresearch packages install SOURCE [--policy FILE]\nresearch packages remove SOURCE\n\nUse npm:package@exact-version, git:https://host/owner/repo@full-commit, or ./local-directory.\nPolicy JSON: {\"extensions\":[\"extension.ts\"],\"effects\":{\"tool_name\":\"read\"}}.\nPackages without a policy are installed but disabled. Installation skips lifecycle scripts.\nBundled packages are managed with the Research CLI version.");
+    output("research packages list\nresearch packages install SOURCE [--policy FILE]\nresearch packages remove SOURCE\n\nUse npm:package@exact-version, git:https://host/owner/repo@full-commit, or ./local-directory.\nPolicy JSON: {\"extensions\":[\"extension.ts\"],\"effects\":{\"tool_name\":\"read\"}}.\nPackages without a policy are installed but disabled. Installation skips lifecycle scripts.\nBundled packages are managed with the Amadeus version.");
     return 0;
   }
   const action = args[1], paths = packagePaths(env);
@@ -262,10 +262,10 @@ export async function handlePackageCommand(args, { cwd = process.cwd(), root, en
   }
   if (!args[2] || args[2].startsWith("--")) throw new Error(`Usage: research packages ${action} SOURCE${action === "install" ? " [--policy FILE]" : ""}`);
   const source = normalizePackageSource(args[2], cwd, action === "install");
-  if (builtinPackages.some(entry => identity(entry.source) === identity(source))) throw new Error("Bundled packages are managed with the Research CLI version; update or reinstall Research CLI");
+  if (builtinPackages.some(entry => identity(entry.source) === identity(source))) throw new Error("Bundled packages are managed with the Amadeus version; update or reinstall Amadeus");
   if (action === "remove") {
     if (args.length !== 3) throw new Error("Usage: research packages remove SOURCE");
-    if (!document.packages.some(entry => identity(entry.source) === identity(source))) throw new Error("Package is not in the Research CLI manifest");
+    if (!document.packages.some(entry => identity(entry.source) === identity(source))) throw new Error("Package is not in the Amadeus manifest");
     await manager.removeAndPersist(source);
     saveManifest(paths.configFile, { version: 1, packages: document.packages.filter(entry => identity(entry.source) !== identity(source)) });
     output(`Removed ${source}. Local source directories are preserved.`);
@@ -280,6 +280,6 @@ export async function handlePackageCommand(args, { cwd = process.cwd(), root, en
   const packages = document.packages.filter(item => identity(item.source) !== identity(source));
   packages.push(entry);
   saveManifest(paths.configFile, { version: 1, packages });
-  output(`Installed ${source}; ${entry.enabled ? "enabled with the selected policy" : "disabled until installed with --policy FILE"}. Restart Research CLI to apply changes.`);
+  output(`Installed ${source}; ${entry.enabled ? "enabled with the selected policy" : "disabled until installed with --policy FILE"}. Restart Amadeus to apply changes.`);
   return 0;
 }

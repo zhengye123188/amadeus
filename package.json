@@ -1,12 +1,12 @@
 {
-  "name": "@lelouch_021015/research-cli",
-  "version": "0.6.1",
-  "description": "An evidence-aware research CLI built on Pi with Python MCP tools",
+  "name": "@lelouch_021015/amadeus",
+  "version": "0.6.2",
+  "description": "Amadeus: an evidence-aware research CLI built on Pi with Python MCP tools",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/zhengye123188/research-cli.git"
+    "url": "git+https://github.com/zhengye123188/amadeus.git"
   },
   "engines": {
     "node": ">=22.19.0"

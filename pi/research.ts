@@ -162,7 +162,7 @@ export default async function research(pi: ExtensionAPI) {
     if (event.toolName.startsWith("mcp__research__") && effect !== "read") args._approval = approvalToken(secret, name, args);
   });
 
-  pi.on("user_bash", async () => ({ result: { output: "Shell shortcuts are disabled in Research CLI. Use run_experiment with explicit execution settings.", exitCode: 1, cancelled: false, truncated: false } }));
+  pi.on("user_bash", async () => ({ result: { output: "Shell shortcuts are disabled in Amadeus. Use run_experiment with explicit execution settings.", exitCode: 1, cancelled: false, truncated: false } }));
 
   pi.on("before_agent_start", (event) => {
     query = event.prompt;
@@ -231,7 +231,7 @@ export default async function research(pi: ExtensionAPI) {
 
   pi.on("session_start", (_event, ctx) => {
     query = "continue research";
-    ctx.ui.setStatus("research", `research · ${permission} · experiments:${execution} · memory:${memoryEnabled ? "on" : "off"}`);
+    ctx.ui.setStatus("research", `amadeus · ${permission} · experiments:${execution} · memory:${memoryEnabled ? "on" : "off"}`);
   });
   pi.on("session_tree", () => { query = "continue research"; });
 
