@@ -4,12 +4,27 @@
 
 ## v0.6.1：头像清晰度与发布验证
 
-v0.6.1 正在进行 npm 和四平台独立安装器发布检查；成功后在本节补充公开包与工作流证据。原 PNG 保持不变，终端数据改为从原图直接生成 20×20、32×32、40×40 头部特写；每种尺寸分别采样，避免第二次缩小时丢失眼部细节。
+v0.6.1 已发布到 npm 和四平台 GitHub 独立安装器。原 PNG 保持不变，终端数据改为从原图直接生成 20×20、32×32、40×40 头部特写；每种尺寸分别采样，避免第二次缩小时丢失眼部细节。
 
 - 类型检查、脚本语法、Ruff/格式及 diff 检查通过。生成脚本再次执行后 JSON 字节一致，来源 SHA-256 匹配原 PNG。
 - **7 项 UI 测试通过**，包括三种尺寸双眼的蓝紫色像素保留、原生网格颜色到 ANSI 输出、宽高预算、关闭头像、单色模式、RPC/JSON 协议兼容。
 - 真实 PTY 验证 80×24、120×32、120×40、120×48 和 54 列窄窗口的缩放与恢复，包含中文输入、模型/恢复选择器、主题切换、会话重载和退出。模型请求由本机模拟服务提供。
 - 人工检查[像素对比预览](assets/kurisu-clarity-preview.png)及[头部布局预览](assets/kurisu-header-preview.png)中双眼可辨。预览由终端网格及 ANSI 输出绘制，不是终端软件截图；字体与实际终端可能不同。
+
+- v0.6.1 已于 2026-10-03 发布。[npm v0.6.1](https://www.npmjs.com/package/@lelouch_021015/research-cli/v/0.6.1) 与 [GitHub Release v0.6.1](https://github.com/zhengye123188/research-cli/releases/tag/v0.6.1) 均为 latest；发布标签精确对应源码 `54dd5a84b01c6e806c8fffc41fd7705828efa15c`。本次未发布 PyPI。
+- 最终发布源码的 [完整 CI](https://github.com/zhengye123188/research-cli/actions/runs/37111314486) 在 macOS/Linux × Python 3.10/3.12 四组全部通过。每组 Python **192 项通过、3 项 ripgrep 可选测试跳过**；macOS Node **100 项通过、无跳过**，Linux Node **99 项通过、1 项 macOS 专属测试跳过**。四组均实际验证固定 OCR 语言数据、真实 PTY、npm tarball 和 Python wheel 实装。
+- 本机 Node **98 项通过、2 项可选 OCR 测试跳过**，类型检查、版本同步和离线锁文件检查通过。最终 npm tarball 在临时目录实装，前后端均为 **0.6.1**；四个内置包、科研扩展加载、原生 PDF 导入及整套终端交互检查通过。
+- 公开 npm tarball 为 **1,254,351 字节**，与上述测试产物逐字节相同。注册表与下载包的 SHA-512 均为 `sha512-wVU3lDyHoRKe9MsfSoWnIgi0EwjLK5tPHZWeEEOlXk1J3UAjilSq9lZAjg3GbWqaRz1pllxPhmkOtqiCpTsr3w==`，SHA-256 为 `afda340707d3ccd6479ec06bf7d01beb68fb75fa34b820a1ded32bd3b39f4566`。随包头像数据使用 schema 2，包含 20×20、32×32、40×40 三种网格。
+- [四平台原生安装器构建、实装与发布](https://github.com/zhengye123188/research-cli/actions/runs/37111338288) 全部通过，源码同为上述提交。每个平台实际检查内置运行环境、原生 PDF/OCR、真实 Pi 子 Agent 调用、像素界面与会话重载、单色模式、重装及损坏包拒绝；模拟模型服务仅用于工程验证。
+- Release 为公开稳定版本，九个资产均为 uploaded。四个公开校验文件与 GitHub 计算的安装器 SHA-256 一致；四个公开安装器下载终点 HEAD 均为 HTTP 200，Content-Length 与资产大小一致。没有再次完整下载并实装公开大包，实装证据来自对应平台 CI。
+- 公开 `latest/download/install.sh` 为 **2,744 字节**，逐字节等于版本资产和发布源码；SHA-256 为 `bafa885bf5a66bab499d5683b524a2b3c4c4a843613ec645996a5e5398a34db2`，`sh -n` 通过。
+
+| 安装器平台 | 字节数 | 公开资产 SHA-256 |
+|---|---:|---|
+| darwin-arm64 | 189,126,960 | `2fe59776bcf4e7b3abf8e13f29e4c2a5edb99008d49044da2d0910b04a1c9066` |
+| darwin-x64 | 191,924,632 | `d9527f9106de8c05b9bd322e09682f79e4cfac3c342f7ba5e18ae88bb5f161c7` |
+| linux-arm64 | 201,999,299 | `cab8c520c5601c9eeb633fab2736e841776fd524e5801700831996b3d06ff9f1` |
+| linux-x64 | 224,563,286 | `db67bdb3cd43ce49d53cce0f932a5ed1e7310fe034f1a7a96a330cadd7dec79a` |
 
 ## v0.6.0：像素界面与发布
 
@@ -22,8 +37,8 @@ v0.6.0 已发布到 npm 和 GitHub Release。最终发布源码 `ec63e0237b2c523
 - RPC 与 JSON 模式实际运行 Pi 和本地模拟 API，输出保持 JSON，不包含 ANSI 或图片协议。界面状态使用真实模型、上下文、Git 分支和扩展状态，未知上下文显示 `ctx ?`。
 - 最终源码 npm tarball 在独立临时目录实装，`setup`、`doctor`、四个内置包、科研扩展、原生 PDF 导入以及以上整套 PTY 验证通过。PNG、调色板 JSON、两份主题和 SDK 交互入口全部在打包清单中；独立构建从同一 npm 包整体提取文件。
 - 本次模型响应来自本机 HTTP fixture，仅用于工程验证；未使用用户密钥或付费模型。验收没有修改用户全局安装；上述验证发生在 v0.6.0 发布之前。
-- [npm v0.6.0](https://www.npmjs.com/package/@lelouch_021015/research-cli/v/0.6.0) 已公开，2026-10-03 核对注册表 `latest` 为 **0.6.0**。公开 tarball 为 **1,251,303 字节**，与修复后实装验证的最终包逐字节相同；注册表和下载包的 SHA-512 均为 `sha512-7ravBBE9ypbJy3AGjKGvOpCjzm7Zs8YR7336AehGadYntLKoGTEItxkTKuWaqNCgFTSSiiAauVRjq+9QwkLs7g==`，SHA-256 为 `fe8e790e117fbce74f5193156ac44408ffc99c76dc4088da3850b28db7e2a64e`。本次没有发布 PyPI。
-- [GitHub Release v0.6.0](https://github.com/zhengye123188/research-cli/releases/tag/v0.6.0) 已公开并设为 latest，标签精确指向上述最终源码，不是草稿或预发布。九个资产均为 uploaded，包含四个安装器、四个校验文件和 `install.sh`；四个公开校验文件的 SHA-256 均与 GitHub 计算的安装器资产 digest 一致。
+- [npm v0.6.0](https://www.npmjs.com/package/@lelouch_021015/research-cli/v/0.6.0) 已公开，2026-10-03 该版发布时核对注册表 `latest` 为 **0.6.0**。公开 tarball 为 **1,251,303 字节**，与修复后实装验证的最终包逐字节相同；注册表和下载包的 SHA-512 均为 `sha512-7ravBBE9ypbJy3AGjKGvOpCjzm7Zs8YR7336AehGadYntLKoGTEItxkTKuWaqNCgFTSSiiAauVRjq+9QwkLs7g==`，SHA-256 为 `fe8e790e117fbce74f5193156ac44408ffc99c76dc4088da3850b28db7e2a64e`。本次没有发布 PyPI。
+- [GitHub Release v0.6.0](https://github.com/zhengye123188/research-cli/releases/tag/v0.6.0) 已公开，发布时设为 latest，标签精确指向上述最终源码，不是草稿或预发布。九个资产均为 uploaded，包含四个安装器、四个校验文件和 `install.sh`；四个公开校验文件的 SHA-256 均与 GitHub 计算的安装器资产 digest 一致。
 - 公开 `latest/download/install.sh` 已下载核对，**2,744 字节**，与发布源码逐字节相同；SHA-256 为 `a45de8c0c881ef433bd803006d91369142d7d26928204c1994d008f3751246d0`，`sh -n` 通过。四个平台 `.run` 的公开下载终点 HEAD 均为 HTTP 200，`Content-Length` 与发布资产大小一致。没有重复下载并实装公开大包；四平台实装证据来自上述 CI，发布工作流在上传前核对全部安装器 SHA-256。
 
 | 安装器平台 | 字节数 | 公开资产 SHA-256 |

@@ -4,7 +4,7 @@
 
 安装器包含 `pi-docparser`、`pi-subagents`、`pi-web-access` 和 Context7 四个内置包，以及本地 OCR 使用的英语、简体和繁体中文语言数据；保留内置 npm/npx，供 `research packages install` 使用。用户额外安装 Pi 包时仍可能需要网络及该包自己的依赖。
 
-当前 [Release v0.6.0](https://github.com/zhengye123188/research-cli/releases/tag/v0.6.0) 已公开并设为 latest，包含与 npm 相同的像素终端、牧濑红莉栖字符头像和两种主题资源。[四平台构建与实装检查](https://github.com/zhengye123188/research-cli/actions/runs/37107497113) 全部通过，验证内置运行环境、OCR、科研工具、子 Agent、界面操作、重装和损坏包拒绝。公开下载入口及校验记录见 [验证记录](validation.md)，更新内容见 [v0.6.0 版本说明](releases/v0.6.0.md)。
+当前 [Release v0.6.1](https://github.com/zhengye123188/research-cli/releases/tag/v0.6.1) 已公开并设为 latest，包含与 npm 相同的像素终端、三种尺寸的牧濑红莉栖头部特写和两种主题资源。[四平台构建与实装检查](https://github.com/zhengye123188/research-cli/actions/runs/37111338288) 全部通过，验证内置运行环境、OCR、科研工具、子 Agent、界面操作、重装和损坏包拒绝。公开下载入口及校验记录见 [验证记录](validation.md)，更新内容见 [v0.6.1 版本说明](releases/v0.6.1.md)。
 
 ## 用户安装
 
@@ -21,10 +21,10 @@ curl -fsSL https://github.com/zhengye123188/research-cli/releases/latest/downloa
 选择与机器匹配的 `.run` 文件，在终端执行：
 
 ```bash
-sh ~/Downloads/research-cli-0.6.0-darwin-arm64.run
+sh ~/Downloads/research-cli-0.6.1-darwin-arm64.run
 ```
 
-上面以 v0.6.0 文件名为例，请将版本和路径替换为实际下载文件。安装器会自动校验内嵌内容；也可在两个文件所在目录提前运行 `shasum -a 256 -c research-cli-0.6.0-darwin-arm64.run.sha256`（Linux 可使用 `sha256sum -c`）。
+上面以 v0.6.1 文件名为例，请将版本和路径替换为实际下载文件。安装器会自动校验内嵌内容；也可在两个文件所在目录提前运行 `shasum -a 256 -c research-cli-0.6.1-darwin-arm64.run.sha256`（Linux 可使用 `sha256sum -c`）。
 
 | 文件后缀 | 平台 |
 |---|---|
@@ -67,7 +67,7 @@ research
 更新时运行新安装器；它先验证校验和、复制到新目录、检查运行环境，成功后原子切换 `current` 链接。不会覆盖其他来源的同名 `research` 命令；遇到冲突可以使用不同命令目录：
 
 ```bash
-sh research-cli-0.6.0-darwin-arm64.run --prefix "$HOME/Apps/research-cli" --bin-dir "$HOME/Apps/bin"
+sh research-cli-0.6.1-darwin-arm64.run --prefix "$HOME/Apps/research-cli" --bin-dir "$HOME/Apps/bin"
 ```
 
 下载入口同样支持这些参数：
@@ -86,7 +86,7 @@ Intel Mac 构建机还需要 Xcode 命令行工具、Rust、make 和 Perl。由�
 
 ```bash
 uv run --python 3.12 python scripts/build_standalone.py
-uv run --python 3.12 python scripts/smoke_standalone.py dist/standalone/research-cli-0.6.0-darwin-arm64.run
+uv run --python 3.12 python scripts/smoke_standalone.py dist/standalone/research-cli-0.6.1-darwin-arm64.run
 # 将文件名替换为本机平台对应的产物
 ```
 
