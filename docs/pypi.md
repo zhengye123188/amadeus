@@ -1,6 +1,6 @@
 # npm CLI 与 PyPI 后端发布
 
-交互式主 CLI 发布到 npm，Python 科研后端可以单独发布到 PyPI。项目自 v0.6.2 更名为 **Amadeus**，新 npm 包名为 `@lelouch_021015/amadeus`，启动命令仍为 `research`。当前 v0.6.2 正在验证与发布，实际结果见[验证记录](validation.md)与[v0.6.2 版本说明](releases/v0.6.2.md)。各渠道需要分别发布；GitHub 推送或独立安装包发布不会更新 npm。PyPI 后端尚未发布，本次也不上传 PyPI。
+交互式主 CLI 发布到 npm，Python 科研后端可以单独发布到 PyPI。项目自 v0.6.2 更名为 **Amadeus**，新 npm 包名为 `@lelouch_021015/amadeus`，启动命令仍为 `research`。[npm v0.6.2](https://www.npmjs.com/package/@lelouch_021015/amadeus/v/0.6.2) 与[四平台 GitHub Release v0.6.2](https://github.com/zhengye123188/amadeus/releases/tag/v0.6.2) 均已公开并设为 latest，实装测试及公开下载校验通过；范围见[验证记录](validation.md)与[v0.6.2 版本说明](releases/v0.6.2.md)。各渠道需要分别发布；GitHub 推送或独立安装包发布不会更新 npm。PyPI 后端尚未发布，本次也不上传 PyPI。
 
 | 发布渠道 | 包名 | 安装后命令 | 用途 |
 |---|---|---|---|

@@ -4,7 +4,7 @@
 
 安装器包含 `pi-docparser`、`pi-subagents`、`pi-web-access` 和 Context7 四个内置包，以及本地 OCR 使用的英语、简体和繁体中文语言数据；保留内置 npm/npx，供 `research packages install` 使用。用户额外安装 Pi 包时仍可能需要网络及该包自己的依赖。
 
-当前源码为 Amadeus v0.6.2 发布候选，包含新的完整半身像；四平台安装器正在验证与发布。历史 v0.6.1 的实装证据见[验证记录](validation.md)，不能代替新版安装验证。启动命令仍为 `research`。
+[Amadeus v0.6.2](https://github.com/zhengye123188/amadeus/releases/tag/v0.6.2) 已公开，四平台均通过原生构建和实装检查，包含新的完整半身像。公开资产大小、校验文件与下载入口已核对；详细范围见[验证记录](validation.md)。启动命令仍为 `research`。
 
 ## 用户安装
 

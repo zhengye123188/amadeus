@@ -2,16 +2,30 @@
 
 更新日期：2026-10-03。开发环境为 macOS ARM64、Node 22.23.1、Python 3.12.13、Pi 0.99.1；依赖由 `package-lock.json` 和 `uv.lock` 固定。
 
-## v0.6.2：Amadeus 更名与完整半身像（发布候选）
+## v0.6.2：Amadeus 更名与完整半身像
 
 项目展示品牌改为 **Amadeus**，npm 包名为 `@lelouch_021015/amadeus`，GitHub 仓库为 `zhengye123188/amadeus`。启动命令仍为 `research`；用户配置、会话和 `.research/` 数据保留原有路径。旧 npm 包需先卸载再安装新包，以免占用同一个命令。
 
 - 新 PNG 与获批[半身像](assets/kurisu-lab-halfbody-v2.png)逐字节一致，SHA-256 为 `9194a0397cd5cce468e02496726e038da1d191114ff439ae9fc4d297c0bb712f`。
-- [网格预览](assets/kurisu-halfbody-grids.png)由实际终端 JSON 数据绘制，不是终端软件截图，也不是高分辨率 PNG 的直接显示。
+- [网格预览](assets/kurisu-halfbody-grids.png)由实际终端 JSON 数据绘制，[135×37 布局示例](assets/amadeus-header-preview.png)根据页眉与状态栏 ANSI 绘制。两者均不是终端软件截图，也不是高分辨率 PNG 的直接显示；输入区为示意、字体可能不同。
 - schema 3 包含完整场景的原生 `32×20 / 48×32 / 64×40` 网格。独立采样、不裁头，保留人物、托腮手势、白大褂、领带、试管、书本与星星；UI 按实际终端尺寸选择。
 - 本机 Python **195 项通过**；Node/TypeScript **98 项通过、2 项可选 OCR 测试跳过**。TypeScript、Ruff/格式、版本同步、离线锁文件和 diff 检查通过。模型请求来自本机 fixture，不使用用户密钥。
 - 实际 npm tarball 临时安装通过，包名为 `@lelouch_021015/amadeus`，唯一命令为 `research`，前后端均为 **0.6.2**。四个 Pi 包、原生 PDF 导入、真实科研扩展加载与整套 PTY 交互验证通过；135×37、160×48、80×24、窄屏和短屏隐藏/恢复均覆盖。
-- 发布与四平台独立安装验证尚在进行；以下历史发布记录不代表 v0.6.2 已公开或本机安装已更新。完成后补充公开包校验、工作流和标签记录。
+- [npm v0.6.2](https://www.npmjs.com/package/@lelouch_021015/amadeus/v/0.6.2) 已公开且 `latest=0.6.2`。公开 tarball 为 **1,733,752 字节**，逐字节等于实装测试产物；SHA-256 为 `10be1686170aa14796eb4046764c56f9984bcf52d43f8892673a34ed428b8421`，SHA-512 为 `sha512-O/fG6ogYMJ2HGoIqPnmjQJbyDQGbYobliJH6b81AWAuVflwULldcdvLBLZ/nwomIlUIWYYCHyHsi3Xos+XNUEQ==`。包内 56 个文件、唯一 `research` 命令、PNG、schema 3 和 UI 均与发布源码 `fd0859ac25c6818b2451c1d599ff5bc50fa80cb4` 对应。
+- 最终发布源码的[完整 CI](https://github.com/zhengye123188/amadeus/actions/runs/37122059575)在 macOS/Linux × Python 3.10/3.12 四组全部通过。每组 Python **192 项通过、3 项 ripgrep 可选测试跳过**；macOS Node **100 项通过、无跳过**，Linux Node **99 项通过、1 项 macOS 专属测试跳过**。四组均实际完成原生 PDF/OCR、真实 PTY、npm tarball 和 Python wheel 实装。
+- [四平台原生构建、实装与发布](https://github.com/zhengye123188/amadeus/actions/runs/37122082317)全部成功，源码同为上述提交；真实检查覆盖内置 Node 22.23.1 / Python 3.12.14、四个 Pi 包、PDF/OCR、子 Agent、MCP 工具循环、半身界面、单色模式、会话操作、重装与损坏包拒绝。
+- [GitHub Release v0.6.2](https://github.com/zhengye123188/amadeus/releases/tag/v0.6.2)已公开且为 latest，标签精确对应发布源码，非草稿、非预发布，九个资产均已上传。四个公开校验文件匹配 GitHub 安装器资产 digest；公开下载终点 HEAD 均 HTTP 200，Content-Length 匹配资产大小。没有再次完整下载实装公开大安装包，四平台实装证据来自原生 CI。
+- 公开 `latest/download/install.sh` 为 **2,709 字节**，逐字节等于发布源码；SHA-256 为 `668a97633c24fde7117c5511c740d6ae8be60b5f7f9e795295513575637d0a44`，`sh -n` 通过。本次未发布 PyPI。
+
+| 安装器平台 | 字节数 | 公开资产 SHA-256 |
+|---|---:|---|
+| darwin-arm64 | 189,578,932 | `b34b765c9285f0391a882a8cc2b8f29d16a2398f1f40d1aa825380e7db79cd90` |
+| darwin-x64 | 192,386,348 | `791327fba4ed53fcfca9b7c5431c946bdb881a7012770b75a2f6d72eb7ca6a17` |
+| linux-arm64 | 202,522,973 | `23eac5babdd12e67fab3d7d4950fbda07a624e6ab112d58f994a8aa93304fcdd` |
+| linux-x64 | 225,073,839 | `5779716d5415506ef7fac86726475d12ab0f63dbd56a1675f7bbdd4ee4e80679` |
+
+
+本机随后从官方 npm 注册表将 Node 22 全局旧包替换为 `@lelouch_021015/amadeus@0.6.2`，前后端均为 0.6.2，API 配置字节保持一致。实际安装的 `research` 命令通过隔离临时状态的全套 PTY 检查；新图片与 UI 文件匹配公开包。这项验证不会修改用户会话或调用付费模型。
 
 ## v0.6.1：头像清晰度与发布验证
 
