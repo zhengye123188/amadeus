@@ -5,6 +5,7 @@ export function watchTerminalResize(
   tui: Pick<TUI, "invalidate" | "requestRender">,
   source: { on(event: "resize", listener: () => void): unknown; off(event: "resize", listener: () => void): unknown } = process.stdout,
   delay = 120,
+  signals: { on(event: "SIGWINCH", listener: () => void): unknown; off(event: "SIGWINCH", listener: () => void): unknown } | undefined = source === process.stdout ? process : undefined,
 ): () => void {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let disposed = false;
@@ -22,9 +23,14 @@ export function watchTerminalResize(
     timer.unref();
   };
   source.on("resize", resize);
+  // Node emits stdout's resize only if ioctl reports changed dimensions. The
+  // kernel can coalesce a rapid A -> B -> A into one SIGWINCH reporting A, so
+  // listen to the raw signal as well. Both events share the same debounce.
+  signals?.on("SIGWINCH", resize);
   return () => {
     disposed = true;
     clearTimeout(timer);
     source.off("resize", resize);
+    signals?.off("SIGWINCH", resize);
   };
 }

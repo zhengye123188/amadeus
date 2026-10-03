@@ -51,18 +51,24 @@ const terminalText = (lines: string[]) => lines.map(stripTerminalSequences).join
 
 test("resize bursts are debounced, force a final redraw, and dispose cleanly", async () => {
   const source = new EventEmitter();
+  const signals = new EventEmitter();
   let invalidations = 0;
   const forced: boolean[] = [];
-  const stop = watchTerminalResize({ invalidate: () => { invalidations++; }, requestRender: force => { forced.push(Boolean(force)); } }, source, 20);
+  const stop = watchTerminalResize({ invalidate: () => { invalidations++; }, requestRender: force => { forced.push(Boolean(force)); } }, source, 20, signals);
   for (let i = 0; i < 20; i++) source.emit("resize");
   await new Promise(resolve => setTimeout(resolve, 45));
   assert.deepEqual(forced, [true], "A -> B -> A must force a repaint even if dimensions end unchanged");
   assert.equal(invalidations, 1);
+  signals.emit("SIGWINCH");
+  await new Promise(resolve => setTimeout(resolve, 45));
+  assert.deepEqual(forced, [true, true], "Coalesced SIGWINCH must repaint even without a stdout resize event");
   source.emit("resize");
   stop(); stop();
   await new Promise(resolve => setTimeout(resolve, 45));
   assert.equal(source.listenerCount("resize"), 0, "Reload/toggle must not accumulate resize listeners");
-  assert.deepEqual(forced, [true], "A disposed header must not repaint a stopped or replacement TUI");
+  assert.equal(signals.listenerCount("SIGWINCH"), 0);
+  signals.emit("SIGWINCH");
+  assert.deepEqual(forced, [true, true], "A disposed header must not repaint a stopped or replacement TUI");
 });
 
 test("terminal emulator verifies final glyphs and RGB after narrow, short and rapid round-trip resizes", async () => {
