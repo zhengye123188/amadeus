@@ -32,6 +32,7 @@ if (rgba.length !== width * height * 4) throw new Error("Invalid decoded RGBA da
 const alphaThreshold = 128;
 const quadrantGlyphs = [" ", "▘", "▝", "▀", "▖", "▌", "▞", "▛", "▗", "▚", "▐", "▜", "▄", "▙", "▟", "█"];
 const quadrantErrorWeights = [2, 4, 3];
+const centerPriorWeight = .35;
 const transparentRgb = [11, 22, 19]; // Default pixel panel, only for color-error comparison.
 function createVariant(gridWidth, gridHeight) {
   const scale = Math.min(gridWidth / width, gridHeight / height);
@@ -40,12 +41,41 @@ function createVariant(gridWidth, gridHeight) {
   const palette = [null];
   const indices = new Map();
   const paletteRgb = [transparentRgb];
-  const sample = (x, y) => {
+  const sample = (x, y, footprintWidth = 0, footprintHeight = 0) => {
     const sx = Math.floor((x - left) / scale);
     const sy = Math.floor((y - top) / scale);
     if (sx < 0 || sy < 0 || sx >= width || sy >= height) return 0;
-    const offset = (sy * width + sx) * 4;
+    let offset = (sy * width + sx) * 4;
     if (rgba[offset + 3] < alphaThreshold) return 0;
+    if (footprintWidth && scale < 1) {
+      const x0 = Math.max(0, (x - footprintWidth / 2 - left) / scale);
+      const x1 = Math.min(width, (x + footprintWidth / 2 - left) / scale);
+      const y0 = Math.max(0, (y - footprintHeight / 2 - top) / scale);
+      const y1 = Math.min(height, (y + footprintHeight / 2 - top) / scale);
+      const candidates = [], mean = [0, 0, 0];
+      let area = 0;
+      for (let py = Math.floor(y0); py < Math.ceil(y1); py++) {
+        for (let px = Math.floor(x0); px < Math.ceil(x1); px++) {
+          const position = (py * width + px) * 4;
+          if (rgba[position + 3] < alphaThreshold) continue;
+          const weight = (Math.min(px + 1, x1) - Math.max(px, x0))
+            * (Math.min(py + 1, y1) - Math.max(py, y0));
+          area += weight;
+          for (let c = 0; c < 3; c++) mean[c] += rgba[position + c] * weight;
+          candidates.push(position);
+        }
+      }
+      if (area) {
+        // Retain some center contrast so thin dark contours and iris pixels
+        // survive area reduction without introducing synthetic RGB colors.
+        for (let c = 0; c < 3; c++) mean[c] = mean[c] / area * (1 - centerPriorWeight) + rgba[offset + c] * centerPriorWeight;
+        let bestError = Infinity;
+        for (const position of candidates) {
+          const error = mean.reduce((sum, channel, c) => sum + quadrantErrorWeights[c] * (rgba[position + c] - channel) ** 2, 0);
+          if (error < bestError) { bestError = error; offset = position; }
+        }
+      }
+    }
     const rgb = Array.from(rgba.subarray(offset, offset + 3));
     const color = `#${rgb.map(channel => channel.toString(16).padStart(2, "0")).join("")}`;
     if (!indices.has(color)) {
@@ -70,11 +100,25 @@ function createVariant(gridWidth, gridHeight) {
       // quadrant is half a column wide, but one half-block sample high. Fit the
       // source in physical coordinates before doubling horizontal sampling;
       // treating this 2W x H grid as square pixels would squash the figure.
-      const tile = [sample(x + .25, y + .5), sample(x + .75, y + .5),
-        sample(x + .25, y + 1.5), sample(x + .75, y + 1.5)];
+      // Choose an actual source RGB representative of each subpixel's whole
+      // footprint. A single center sample can miss a thin eyelid or finger,
+      // or turn one isolated highlight into an oversized block after scaling.
+      const tile = [sample(x + .25, y + .5, .5, 1), sample(x + .75, y + .5, .5, 1),
+        sample(x + .25, y + 1.5, .5, 1), sample(x + .75, y + 1.5, .5, 1)];
       const unique = [...new Set(tile)].sort((a, b) => a - b);
       if (unique.length === 1) {
         row += " "; fgRow.push(unique[0]); bgRow.push(unique[0]);
+        continue;
+      }
+      // Tiny gradient/noise differences should not create visibly patterned
+      // block-glyph edges in otherwise flat regions. Keep an actual tile RGB,
+      // and leave the exact original-size mode completely untouched.
+      if (scale < 1 && !unique.includes(0) && [0, 1, 2].every(c =>
+        Math.max(...unique.map(index => paletteRgb[index][c])) - Math.min(...unique.map(index => paletteRgb[index][c])) <= 3)) {
+        const representative = unique.reduce((best, index) =>
+          tile.reduce((sum, pixel) => sum + colorError(pixel, index), 0)
+          < tile.reduce((sum, pixel) => sum + colorError(pixel, best), 0) ? index : best);
+        row += " "; fgRow.push(representative); bgRow.push(representative);
         continue;
       }
       let bestError = Infinity;
@@ -105,18 +149,18 @@ function createVariant(gridWidth, gridHeight) {
     quadrants.push(row); foreground.push(fgRow); background.push(bgRow);
   }
   // Every stored RGB value is an actual source pixel. No median-cut palette,
-  // invented eye colors, blur, sharpening or repeated resizing is used. Only
+  // invented eye colors, sharpening or repeated resizing is used. Only
   // individual 2x2 cells choose two source-color medoids, since ANSI supplies
   // one foreground and one background color per character.
   return { width: gridWidth, height: gridHeight, palette, pixels, quadrants, foreground, background };
 }
 
-const sizes = [[48, 32], [56, 36], [72, 46], [88, 58], [112, 72], [144, 94], [width, height]];
+const sizes = [[16, 10], [24, 16], [32, 20], [40, 26], [48, 32], [56, 36], [64, 42], [72, 46], [80, 52], [88, 58], [96, 62], [112, 72], [144, 94], [width, height]];
 const variants = sizes.filter(([w, h], i) => w <= width && h <= height
   && sizes.findIndex(([otherW, otherH]) => w === otherW && h === otherH) === i)
   .map(([w, h]) => createVariant(w, h));
 const result = {
-  schemaVersion: 4,
+  schemaVersion: 5,
   variants,
   source: {
     filename: basename(inputPath),
@@ -126,9 +170,11 @@ const result = {
     sourceFocus: "selected-half-body-concept",
     sampling: "nearest-from-original-concept",
     colors: "exact-source-rgb",
-    quadrantSampling: "nearest-full-canvas-half-width-subpixels",
+    quadrantSampling: "area-weighted-source-rgb-medoid-with-center-prior-full-canvas-half-width-subpixels",
     quadrantColors: "two-source-rgb-medoids-per-cell",
     quadrantErrorWeights,
+    centerPriorWeight,
+    flatRegionMaxChannelSpread: 3,
     alphaThreshold,
   },
 };

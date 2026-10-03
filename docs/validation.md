@@ -2,6 +2,16 @@
 
 更新日期：2026-10-03。开发环境为 macOS ARM64、Node 22.23.1、Python 3.12.13、Pi 0.99.1；依赖由 `package-lock.json` 和 `uv.lock` 固定。
 
+## v0.6.4：缩放重绘与像素细节
+
+发布准备已完成，npm 与四平台安装器的公开状态将在发布核验后补记；已有安装仍需更新才能使用本版。
+
+- 本机 Node **101 项通过、2 项可选 OCR 跳过**；TypeScript、版本同步、Ruff/格式及 diff 检查通过。
+- 新增终端模拟器验证连续缩小、恢复、窄屏、短屏的最终字符和 RGB，并与独立逐字符着色参考比较；缩放恢复时不能残留旧行或错误颜色。监听合并突发事件，在 120 毫秒后强制重绘；移除后不会执行待处理任务。`@xterm/headless` 只用于开发测试，不是 CLI 运行时依赖。
+- 真实 PTY 检查通过启动、中文输入、模型选择、主题、新建/重载、头像模式与退出；额外覆盖八次快速缩小又恢复原尺寸后的清屏重绘。待发布 npm tarball 已在隔离临时目录实装，CLI/后端均为 **0.6.4**，四个 Pi 包、科研扩展、原生 PDF 和完整 PTY 检查通过。
+- schema 5 含十四档完整半身场景。区域统计兼顾中心轮廓，最终回取源图真实颜色；低分辨率档合并通道差异不超过 3 的低对比区域。原尺寸网格逐像素相等及可重复生成检查继续通过，源 PNG 哈希保持不变。
+- [响应式字符预览](assets/amadeus-responsive-ansi-preview.png)由实际 ANSI 输出经模拟器解析后使用 Menlo 绘制，不是终端 GUI 截图。工程检查使用本机模型 fixture，没有调用用户 API；GUI 字体视觉验收仍未完成。
+
 ## v0.6.3：概念图像素提取与字符显示
 
 [npm v0.6.3](https://www.npmjs.com/package/@lelouch_021015/amadeus/v/0.6.3) 与 [GitHub Release v0.6.3](https://github.com/zhengye123188/amadeus/releases/tag/v0.6.3) 已公开，2026-10-03 核对两者均为 latest。最终源码为 `3573549686f6d6dc3fa9758ed53f58a14f8a3b4e`，Release 标签精确对应该提交；启动命令仍只有 `research`。本次未发布 PyPI。

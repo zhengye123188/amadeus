@@ -1,6 +1,6 @@
 {
   "name": "@lelouch_021015/amadeus",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "description": "Amadeus: an evidence-aware research CLI built on Pi with Python MCP tools",
   "type": "module",
   "license": "MIT",
@@ -50,6 +50,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.19.0",
+    "@xterm/headless": "5.5.0",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0"
   },

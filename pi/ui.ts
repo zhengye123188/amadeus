@@ -4,9 +4,10 @@ import {
   type ReadonlyFooterDataProvider, type ThemeBg, type ThemeColor,
 } from "@earendil-works/pi-coding-agent";
 import {
-  parseColor, styleText, truncateToWidth, visibleWidth,
+  backgroundAnsi, foregroundAnsi, parseColor, truncateToWidth, visibleWidth,
   type Component, type EditorTheme, type TUI,
 } from "@earendil-works/pi-tui";
+import { watchTerminalResize } from "./resize.ts";
 
 const PANEL = "#0b1613";
 const BG_KEYS: ThemeBg[] = ["selectedBg", "searchMatchBg", "userMessageBg", "customMessageBg", "toolPendingBg", "toolSuccessBg", "toolErrorBg"];
@@ -59,8 +60,8 @@ function panel(text: string, theme: Theme, monochrome: boolean, color: ThemeColo
 
 function readAvatar(): PixelBitmap {
   const bitmap = JSON.parse(readFileSync(new URL("./assets/kurisu-pixel.json", import.meta.url), "utf8")) as PixelBitmap;
-  const dimensions = [[48, 32], [56, 36], [72, 46], [88, 58], [112, 72], [144, 94], [284, 184]];
-  if (bitmap.schemaVersion !== 4 || !Array.isArray(bitmap.variants) || bitmap.variants.length !== dimensions.length
+  const dimensions = [[16, 10], [24, 16], [32, 20], [40, 26], [48, 32], [56, 36], [64, 42], [72, 46], [80, 52], [88, 58], [96, 62], [112, 72], [144, 94], [284, 184]];
+  if (bitmap.schemaVersion !== 5 || !Array.isArray(bitmap.variants) || bitmap.variants.length !== dimensions.length
     || bitmap.variants.some((grid, i) => grid.width !== dimensions[i][0] || grid.height !== dimensions[i][1]
       || !Array.isArray(grid.palette) || grid.palette[0] !== null || grid.palette.length > 65537
       || grid.palette.some((color, j) => j > 0 && !/^#[a-f0-9]{6}$/i.test(color ?? ""))
@@ -81,17 +82,26 @@ function pixelPortrait(bitmap: PixelGrid, theme: Theme, renderer: "quadrant" | "
     const color = bitmap.palette[index];
     return color ? parseColor(color) : theme.name === "research-pixel" ? parseColor(PANEL) : theme.colors.customMessageBg;
   };
+  const mode = theme.getColorMode();
+  const foregroundCodes = bitmap.palette.map((_color, index) => foregroundAnsi(colorAt(index), mode));
+  const backgroundCodes = bitmap.palette.map((_color, index) => backgroundAnsi(colorAt(index), mode));
   const lines: string[] = [];
   for (let y = 0; y < bitmap.height; y += 2) {
     let line = "";
+    let previousForeground = "", previousBackground = "";
     for (let x = 0; x < bitmap.width; x++) {
       const row = y / 2;
       const glyph = renderer === "half" ? "▀" : bitmap.quadrants[row][x];
       const foreground = renderer === "half" ? bitmap.pixels[y][x] : bitmap.foreground[row][x];
       const background = renderer === "half" ? bitmap.pixels[y + 1][x] : bitmap.background[row][x];
-      line += styleText(glyph, { fg: colorAt(foreground), bg: colorAt(background) }, theme.getColorMode());
+      const fg = foregroundCodes[foreground], bg = backgroundCodes[background];
+      // Keep identical ANSI color state across adjacent pixels. Reset once per
+      // row, instead of twice per cell: smaller frames make resizing smoother.
+      if (glyph !== " " && fg !== previousForeground) { line += fg; previousForeground = fg; }
+      if (bg !== previousBackground) { line += bg; previousBackground = bg; }
+      line += glyph;
     }
-    lines.push(line);
+    lines.push(line + "\x1b[39m\x1b[49m");
   }
   return lines;
 }
@@ -103,15 +113,19 @@ export interface PixelHeaderOptions {
   bitmap?: PixelBitmap;
   renderer?: "quadrant" | "half";
   getRows?: () => number;
+  tui?: TUI;
 }
 
 export class PixelHeader implements Component {
   private bitmap?: PixelBitmap;
   private portraitCache?: { grid: PixelGrid; theme: Theme; renderer: string; lines: string[] };
+  private stopResize?: () => void;
   constructor(private ctx: ExtensionContext, private options: PixelHeaderOptions) {
     // No image decoding, native image protocols, or network access in the UI.
     if (options.avatar && !options.monochrome) this.bitmap = options.bitmap ?? readAvatar();
+    if (options.tui) this.stopResize = watchTerminalResize(options.tui);
   }
+  dispose() { this.stopResize?.(); this.stopResize = undefined; }
   invalidate() { this.portraitCache = undefined; }
   render(width: number): string[] {
     if (width < 1) return [];
@@ -119,13 +133,16 @@ export class PixelHeader implements Component {
     const theme = ctx.ui.theme;
     const mono = options.monochrome ?? false;
     const rows = options.getRows?.() ?? 40;
-    const compact = width < 60 || rows < 24;
-    // Select a complete precomputed scene, leaving at least 40 text columns
-    // and 30% of the viewport for conversation, input and live statuses.
-    // More color-table entries preserve rare details without a global 63-color
-    // approximation. The original grid remains available in a large window.
-    const grid = !compact ? this.bitmap?.variants.filter(item => item.width <= width - 46
-      && item.height / 2 + 2 <= Math.floor(rows * .7)).at(-1) : undefined;
+    const compact = width < 100 || rows < 28;
+    const budget = Math.max(1, Math.min(Math.floor(rows * .7), rows - 7));
+    const minText = width >= 100 ? 40 : width >= 60 ? 28 : 20;
+    let grid = this.bitmap?.variants.filter(item => item.width <= width - minText - 6
+      && item.height / 2 + 2 <= budget).at(-1);
+    // In narrow windows place the full scene below a one-line title, rather
+    // than dropping the avatar because it cannot share a row with metadata.
+    const stacked = !grid && Boolean(this.bitmap);
+    if (stacked) grid = this.bitmap?.variants.filter(item => item.width <= width - 4
+      && item.height / 2 + 3 <= budget).at(-1);
     const avatar = Boolean(grid);
     const renderer = options.renderer ?? "quadrant";
     if (grid && (this.portraitCache?.grid !== grid || this.portraitCache.theme !== theme || this.portraitCache.renderer !== renderer)) {
@@ -134,10 +151,11 @@ export class PixelHeader implements Component {
     const portrait = grid ? this.portraitCache!.lines : [];
     const avatarWidth = grid?.width ?? 0;
     const inside = Math.max(0, width - 4);
-    const textWidth = Math.max(0, inside - (avatar ? avatarWidth + 2 : 0));
+    const textWidth = Math.max(0, inside - (avatar && !stacked ? avatarWidth + 2 : 0));
     const model = ctx.model ? `${uiText(ctx.model.provider)} / ${uiText(ctx.model.id)}` : "未选择 · /model";
-    const content = compact ? [
-      `[A] Amadeus ${uiText(options.version)} · PIXEL LAB`,
+    let content = compact ? [
+      `[A] Amadeus ${uiText(options.version)}`,
+      "PIXEL LAB / KURISU",
       `工作区 ${uiText(ctx.cwd)}`,
       `模型 ${model}`,
     ] : [
@@ -151,7 +169,18 @@ export class PixelHeader implements Component {
       "/research-status  /agents  /memory",
       "/model  /usage  /ui avatar off",
     ];
-    if (width < 4) return [fit("Amadeus", width)];
+    if (width < 4 || budget < 3) return [fit("Amadeus", width)];
+    if (stacked && grid) content = [`[A] Amadeus ${uiText(options.version)}`];
+    if (!grid && this.bitmap && budget < 8) content = ["[A] Amadeus · 窗口过小"];
+    content = content.slice(0, Math.max(1, budget - 2));
+    if (stacked && grid) {
+      const padding = Math.floor((inside - avatarWidth) / 2);
+      return [panel(`┌${"─".repeat(width - 2)}┐`, theme, mono, "border"),
+        panel(`│ ${fit(content[0], inside)} │`, theme, mono, "accent"),
+        ...portrait.map(line => panel(`│ ${" ".repeat(padding)}`, theme, mono, "border") + line
+          + panel(`${" ".repeat(inside - padding - avatarWidth)} │`, theme, mono, "border")),
+        panel(`└${"─".repeat(width - 2)}┘`, theme, mono, "border")];
+    }
     const count = Math.max(content.length, portrait.length);
     const top = panel(`┌${"─".repeat(width - 2)}┐`, theme, mono, "border");
     const bottom = panel(`└${"─".repeat(width - 2)}┘`, theme, mono, "border");
@@ -213,8 +242,10 @@ export function registerResearchUI(pi: ExtensionAPI): void {
   let themeChoice = process.env.RESEARCH_UI_THEME === "system" ? "system" : "pixel";
   const monochrome = process.env.NO_COLOR !== undefined || process.env.TERM === "dumb";
   let originalTheme: Theme | undefined;
+  let header: PixelHeader | undefined;
   const version = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version as string;
-  const installHeader = (ctx: ExtensionContext) => ctx.ui.setHeader(tui => new PixelHeader(ctx, { version, avatar: avatarMode !== "off", renderer: avatarMode === "half" ? "half" : "quadrant", monochrome, getRows: () => tui.terminal.rows }));
+  const installHeader = (ctx: ExtensionContext) => ctx.ui.setHeader(tui => header = new PixelHeader(ctx, { version, avatar: avatarMode !== "off", renderer: avatarMode === "half" ? "half" : "quadrant", monochrome, getRows: () => tui.terminal.rows, tui }));
+  pi.on("session_shutdown", () => { header?.dispose(); });
   pi.on("session_start", (_event, ctx) => {
     if (ctx.mode !== "tui") return;
     originalTheme = ctx.ui.getTheme(process.env.RESEARCH_UI_BASE_THEME || "system") ?? ctx.ui.getTheme("system") ?? ctx.ui.theme;

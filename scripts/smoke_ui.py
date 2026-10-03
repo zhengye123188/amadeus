@@ -10,6 +10,7 @@ import re
 import shutil
 import tempfile
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -17,6 +18,17 @@ import pexpect
 
 PIXEL_GLYPHS = re.compile(r"[▀▄█▘▝▖▗▚▞▌▐▛▜▙▟]")
 QUADRANT_GLYPHS = re.compile(r"[▘▝▖▗▚▞▌▐▛▜▙▟]")
+
+
+def drain_until_quiet(terminal):
+    """Consume the settled frame, including the debounced resize repair."""
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline:
+        try:
+            terminal.read_nonblocking(65536, timeout=0.2)
+        except pexpect.TIMEOUT:
+            return
+    raise AssertionError("The idle terminal did not settle after resizing")
 
 
 def main():
@@ -238,30 +250,44 @@ def main():
             )
             avatar_terminal.logfile_read = avatar_log
             try:
-                avatar_terminal.expect_exact("PIXEL LAB / KURISU")
+                avatar_terminal.expect_exact("PIXEL LAB")
                 avatar_terminal.expect(QUADRANT_GLYPHS)
                 avatar_terminal.expect_exact("amadeus ·")
+                drain_until_quiet(avatar_terminal)
                 # Exercise every rectangular scene size in a running terminal.
                 # Waiting for the footer consumes the complete header redraw.
                 for rows, columns in ((48, 160), (26, 94), (36, 110), (41, 138), (37, 135)):
                     avatar_terminal.setwinsize(rows, columns)
-                    avatar_terminal.expect_exact("PIXEL LAB / KURISU")
+                    avatar_terminal.expect_exact("PIXEL LAB")
                     avatar_terminal.expect(QUADRANT_GLYPHS)
                     avatar_terminal.expect_exact("amadeus ·")
-                # Neither a narrow nor a short viewport should emit new avatar
-                # blocks. Verify fresh output, then restore the user's size.
+                    drain_until_quiet(avatar_terminal)
+                # Narrow and short viewports retain smaller complete scenes.
+                # Verify fresh output, then restore the user's size.
                 for rows, columns in ((36, 93), (24, 80), (25, 135), (32, 54)):
                     start = avatar_log.tell()
                     avatar_terminal.setwinsize(rows, columns)
                     avatar_terminal.expect_exact("PIXEL LAB")
                     avatar_terminal.expect_exact("amadeus ·")
-                    assert not PIXEL_GLYPHS.search(avatar_log.getvalue()[start:]), (
-                        f"The {columns}x{rows} fallback must preserve conversation space"
+                    drain_until_quiet(avatar_terminal)
+                    assert PIXEL_GLYPHS.search(avatar_log.getvalue()[start:]), (
+                        f"The {columns}x{rows} layout must retain a smaller avatar"
                     )
                 avatar_terminal.setwinsize(37, 135)
-                avatar_terminal.expect_exact("PIXEL LAB / KURISU")
+                avatar_terminal.expect_exact("PIXEL LAB")
                 avatar_terminal.expect(QUADRANT_GLYPHS)
                 avatar_terminal.expect_exact("amadeus ·")
+                drain_until_quiet(avatar_terminal)
+                start = avatar_log.tell()
+                # End at the original dimensions before the next scheduled
+                # frame: the final repair must still clear and repaint.
+                for _ in range(8):
+                    avatar_terminal.setwinsize(18, 40)
+                    avatar_terminal.setwinsize(37, 135)
+                drain_until_quiet(avatar_terminal)
+                repair = avatar_log.getvalue()[start:]
+                assert "\x1b[2J\x1b[H" in repair, "Rapid round trips must force a final repaint"
+                assert "Amadeus" in repair and PIXEL_GLYPHS.search(repair)
                 avatar_terminal.send("/ui avatar half\r")
                 avatar_terminal.expect_exact("▀")
                 avatar_terminal.send("/ui\r")
@@ -327,7 +353,8 @@ def main():
                         "half_body_scene_at_138x41": True,
                         "large_scene_at_160x48": True,
                         "small_scene_at_94x26": True,
-                        "narrow_and_short_avatar_fallback": True,
+                        "narrow_and_short_avatar_retained": True,
+                        "rapid_resize_round_trip_repaint": True,
                         "interactive_avatar_toggle": True,
                         "half_block_compatibility_toggle": True,
                         "pixel_palette_after_new_and_reload": True,

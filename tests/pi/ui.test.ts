@@ -8,9 +8,12 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { EventEmitter } from "node:events";
+import headless from "@xterm/headless";
 import { Theme, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { stripTerminalSequences, visibleWidth } from "@earendil-works/pi-tui";
+import { parseColor, styleText, stripTerminalSequences, visibleWidth, Text, TuiMainScreen, type Terminal } from "@earendil-works/pi-tui";
 import { createPixelTheme, PixelFooter, PixelHeader, uiText, type PixelBitmap } from "../../pi/ui.ts";
+import { watchTerminalResize } from "../../pi/resize.ts";
 import { mockEndpoint, ResearchProcess } from "./harness.ts";
 
 function baseTheme() {
@@ -45,6 +48,91 @@ function uiContext(monochrome = false) {
 }
 
 const terminalText = (lines: string[]) => lines.map(stripTerminalSequences).join("\n");
+
+test("resize bursts are debounced, force a final redraw, and dispose cleanly", async () => {
+  const source = new EventEmitter();
+  let invalidations = 0;
+  const forced: boolean[] = [];
+  const stop = watchTerminalResize({ invalidate: () => { invalidations++; }, requestRender: force => { forced.push(Boolean(force)); } }, source, 20);
+  for (let i = 0; i < 20; i++) source.emit("resize");
+  await new Promise(resolve => setTimeout(resolve, 45));
+  assert.deepEqual(forced, [true], "A -> B -> A must force a repaint even if dimensions end unchanged");
+  assert.equal(invalidations, 1);
+  source.emit("resize");
+  stop(); stop();
+  await new Promise(resolve => setTimeout(resolve, 45));
+  assert.equal(source.listenerCount("resize"), 0, "Reload/toggle must not accumulate resize listeners");
+  assert.deepEqual(forced, [true], "A disposed header must not repaint a stopped or replacement TUI");
+});
+
+test("terminal emulator verifies final glyphs and RGB after narrow, short and rapid round-trip resizes", async () => {
+  const screen = new headless.Terminal({ cols: 138, rows: 41, allowProposedApi: true });
+  const source = new EventEmitter();
+  let resize = () => {};
+  const writes: string[] = [];
+  const terminal = {
+    get columns() { return screen.cols; }, get rows() { return screen.rows; },
+    start(_input: unknown, callback: () => void) { resize = callback; }, stop() {},
+    write(value: string) { writes.push(value); screen.write(value); },
+    hideCursor() {}, showCursor() {}, kittyProtocolActive: false,
+  } as unknown as Terminal;
+  const ui = new TuiMainScreen(terminal, false);
+  const header = new PixelHeader(uiContext(), { version: "fixture", avatar: true, getRows: () => screen.rows });
+  ui.addChild(header);
+  ui.addChild(new Text("\ninput fixture\nstatus fixture", 0, 0));
+  const stop = watchTerminalResize(ui, source, 20);
+  const flush = () => new Promise<void>(resolve => screen.write("", resolve));
+  const snapshot = () => Array.from({ length: screen.rows }, (_, y) => {
+    const line = screen.buffer.active.getLine(screen.buffer.active.viewportY + y)!;
+    return Array.from({ length: screen.cols }, (_, x) => {
+      const cell = line.getCell(x)!;
+      const chars = cell.getChars();
+      return [chars, cell.getWidth(), chars.trim() ? cell.getFgColor() : null, cell.getBgColor()];
+    });
+  });
+  const change = (cols: number, rows: number) => { screen.resize(cols, rows); resize(); source.emit("resize"); };
+  const settle = async () => { await new Promise(resolve => setTimeout(resolve, 55)); await flush(); };
+  try {
+    ui.start(); ui.renderNow(true); await flush();
+    const initial = snapshot();
+    const grid: PixelBitmap["variants"][number] = JSON.parse(readFileSync(new URL("../../pi/assets/kurisu-pixel.json", import.meta.url), "utf8"))
+      .variants.find((item: PixelBitmap["variants"][number]) => item.width === 80);
+    const reference = new headless.Terminal({ cols: grid.width, rows: grid.height / 2, allowProposedApi: true });
+    try {
+      const naive = grid.quadrants.map((row, y) => [...row].map((glyph, x) => styleText(glyph, {
+        fg: parseColor(grid.palette[grid.foreground[y][x]] ?? "#0b1613"),
+        bg: parseColor(grid.palette[grid.background[y][x]] ?? "#0b1613"),
+      }, "truecolor")).join("")).join("\r\n");
+      await new Promise<void>(resolve => reference.write(naive, resolve));
+      for (let y = 0; y < grid.height / 2; y++) for (let x = 0; x < grid.width; x++) {
+        const expected = reference.buffer.active.getLine(y)!.getCell(x)!;
+        assert.deepEqual(initial[y + 1][138 - 2 - grid.width + x], [expected.getChars(), expected.getWidth(),
+          expected.getChars().trim() ? expected.getFgColor() : null, expected.getBgColor()], "Compressed ANSI must preserve the independent per-cell glyph and RGB reference");
+      }
+      assert(Buffer.byteLength(header.render(138).join("\r\n")) < Buffer.byteLength(naive) * .9,
+        "The complete header should need fewer bytes than the uncompressed portrait alone");
+    } finally { reference.dispose(); }
+    // Shrinking in both axes can reflow or evict old cells even when the next
+    // application frame observes the original dimensions again.
+    change(40, 18); change(138, 41); await settle();
+    assert.deepEqual(snapshot(), initial, "Round-trip resize must restore every original glyph and color");
+    assert(writes.slice(1).some(write => write.includes("\x1b[2J\x1b[H")), "Final repair must clear reflowed cells");
+    for (const [cols, rows] of [[80, 24], [40, 24], [24, 20], [135, 23], [138, 41], [160, 48]]) {
+      change(cols, rows); await settle();
+      const expected = header.render(cols).map(stripTerminalSequences);
+      for (let y = 0; y < expected.length; y++) {
+        assert.equal(screen.buffer.active.getLine(screen.buffer.active.viewportY + y)!.translateToString(false), expected[y], `${cols}x${rows}: row ${y} must match the final header`);
+      }
+      const afterResize = snapshot();
+      // A fresh full paint at the same dimensions must be exactly equivalent,
+      // including foreground/background state after compressed ANSI output.
+      ui.renderNow(true); await flush();
+      assert.deepEqual(snapshot(), afterResize, `${cols}x${rows}: no stale color or duplicate rows after resizing`);
+    }
+    change(138, 41); await settle();
+    assert.deepEqual(snapshot(), initial, "Restoring the original viewport must restore the same complete scene");
+  } finally { stop(); ui.stop({ preserveScreen: true }); header.dispose(); screen.dispose(); }
+});
 
 test("pixel header and footer fit narrow terminals, Chinese paths and avatar fallback", () => {
   const ctx = uiContext();
@@ -123,8 +211,8 @@ test("avatar can be disabled and monochrome headers remain usable without RGB or
   assert(enabled.some(line => line.includes("▀")), "The default avatar must render visible pixel blocks");
   assert(!disabled.some(line => line.includes("▀")), "Avatar-off must remove the portrait");
   const shortTerminal = new PixelHeader(colorful, { version: "0.5.0", avatar: true, getRows: () => 23 }).render(120);
-  assert(!shortTerminal.some(line => line.includes("▀")), "Short terminals preserve room for the conversation");
-  assert(shortTerminal.length < disabled.length);
+  assert(shortTerminal.some(line => /[▀▘▝▖▗▚▞]/.test(line)), "Short terminals retain a smaller full scene");
+  assert(shortTerminal.length <= Math.floor(23 * .7));
   const ctx = uiContext(true);
   const plain = new PixelHeader(ctx, { version: "0.5.0", avatar: true, monochrome: true }).render(120);
   assert(terminalText(plain).includes("[A] Amadeus"));
@@ -139,12 +227,12 @@ test("avatar grids preserve the full half-body scene and their source provenance
   assert.deepEqual(source, readFileSync(new URL("../../docs/assets/kurisu-concept-reference.png", import.meta.url)),
     "The runtime PNG must be the approved half-body scene");
   assert.equal(bitmap.source.sha256, createHash("sha256").update(source).digest("hex"));
-  assert.equal(bitmap.schemaVersion, 4);
+  assert.equal(bitmap.schemaVersion, 5);
   assert.deepEqual(bitmap.variants.map((grid: PixelBitmap["variants"][number]) => [grid.width, grid.height]),
-    [[48, 32], [56, 36], [72, 46], [88, 58], [112, 72], [144, 94], [284, 184]]);
+    [[16, 10], [24, 16], [32, 20], [40, 26], [48, 32], [56, 36], [64, 42], [72, 46], [80, 52], [88, 58], [96, 62], [112, 72], [144, 94], [284, 184]]);
   assert.deepEqual(bitmap.source.crop, { x: 0, y: 0, width: bitmap.source.width, height: bitmap.source.height },
     "Preparation must retain the full canvas, including the coat, tie and laboratory props");
-  for (const grid of bitmap.variants) {
+  for (const grid of bitmap.variants.filter((grid: PixelBitmap["variants"][number]) => grid.width >= 48)) {
     // Both eyes are on the character's left-center face; the scene's right
     // half contains lab props. Looking for one eye per image half hid cropping.
     const feature = (region: [number, number, number, number], matches: (rgb: number[]) => boolean) => {
@@ -216,7 +304,7 @@ test("concept pixel tables render full scenes at both character densities and pr
   const bitmap: PixelBitmap = JSON.parse(readFileSync(new URL("../../pi/assets/kurisu-pixel.json", import.meta.url), "utf8"));
   for (const [width, rows, gridWidth, gridHeight] of [
     [94, 26, 48, 32], [110, 30, 56, 36], [135, 37, 72, 46],
-    [138, 41, 72, 46], [160, 48, 88, 58], [180, 60, 112, 72],
+    [138, 41, 80, 52], [160, 48, 96, 62], [180, 60, 112, 72],
     [200, 72, 144, 94], [340, 135, 284, 184],
   ]) {
     const grid = bitmap.variants.find(item => item.width === gridWidth && item.height === gridHeight)!;
@@ -245,9 +333,10 @@ test("concept pixel tables render full scenes at both character densities and pr
       assert(!lines.join("").includes("\x1b]1337;File=") && !lines.join("").includes("\x1b_G"), "Pixel rendering must never transmit a PNG");
     }
   }
-  for (const [width, rows] of [[80, 36], [93, 41], [135, 23], [138, 25]]) {
+  for (const [width, rows] of [[80, 36], [93, 41], [135, 23], [138, 25], [54, 32], [40, 24], [24, 20]]) {
     const lines = new PixelHeader(ctx, { version: "fixture", avatar: true, bitmap, getRows: () => rows }).render(width);
-    assert(!/[▀▄█▘▝▖▗▚▞▌▐▛▜▙▟]/.test(lines.join("")), "Constrained terminals must preserve conversation space");
+    assert(/[▀▄█▘▝▖▗▚▞▌▐▛▜▙▟]/.test(lines.join("")), "Narrow and short terminals retain a complete smaller scene");
+    assert(lines.length <= Math.min(Math.floor(rows * .7), rows - 7), "Keep at least seven rows for input and statuses");
     for (const line of lines) assert(visibleWidth(line) <= width);
   }
 });
