@@ -2,13 +2,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { promisify } from "node:util";
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Theme, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { stripTerminalSequences, visibleWidth } from "@earendil-works/pi-tui";
-import { createPixelTheme, PixelFooter, PixelHeader, uiText } from "../../pi/ui.ts";
+import { createPixelTheme, PixelFooter, PixelHeader, uiText, type PixelBitmap } from "../../pi/ui.ts";
 import { mockEndpoint, ResearchProcess } from "./harness.ts";
 
 function baseTheme() {
@@ -129,6 +130,41 @@ test("avatar can be disabled and monochrome headers remain usable without RGB or
   assert(!plain.join("").match(/\x1b\[(?:38|48);2;/), "NO_COLOR fallback must not emit RGB color escapes");
   assert(!plain.join("").includes("\x1b]1337;File=") && !plain.join("").includes("\x1b_G"));
   for (const line of plain) assert(visibleWidth(line) <= 120);
+});
+
+test("avatar grids preserve both eye colors and their source provenance", () => {
+  const source = readFileSync(new URL("../../pi/assets/kurisu-pixel.png", import.meta.url));
+  const bitmap = JSON.parse(readFileSync(new URL("../../pi/assets/kurisu-pixel.json", import.meta.url), "utf8"));
+  assert.equal(bitmap.source.sha256, createHash("sha256").update(source).digest("hex"));
+  for (const grid of bitmap.variants) {
+    const eyes = [false, false];
+    for (let y = Math.floor(grid.height * .3); y < grid.height * .75; y++) {
+      for (let x = 0; x < grid.width; x++) {
+        const color = grid.palette[grid.pixels[y][x]];
+        if (!color) continue;
+        const [r, g, b] = color.slice(1).match(/../g)!.map((channel: string) => Number.parseInt(channel, 16));
+        if (b > r + 20 && b > g + 15) eyes[x < grid.width / 2 ? 0 : 1] = true;
+      }
+    }
+    assert.deepEqual(eyes, [true, true], `${grid.width}px portrait must retain both indigo eyes`);
+  }
+});
+
+test("native avatar detail adapts to the terminal without resampling or crowding the editor", () => {
+  const ctx = uiContext();
+  const bitmap: PixelBitmap = JSON.parse(readFileSync(new URL("../../pi/assets/kurisu-pixel.json", import.meta.url), "utf8"));
+  for (const [width, rows, size] of [[80, 24, 20], [120, 32, 20], [120, 40, 32], [120, 48, 40]]) {
+    const lines = new PixelHeader(ctx, { version: "fixture", avatar: true, bitmap, getRows: () => rows }).render(width);
+    assert(lines.length <= rows / 2, "At least half the viewport must remain for conversation and editing");
+    assert.equal(lines.join("").split("▀").length - 1, size * size / 2);
+    for (const line of lines) assert(visibleWidth(line) <= width);
+    const grid = bitmap.variants.find(item => item.width === size)!;
+    // A rare feature in the committed grid must reach the terminal unchanged.
+    const eyeColor = grid.palette.find(color => color && /^#[0-9a-f]{6}$/i.test(color)
+      && Number.parseInt(color.slice(5, 7), 16) > Number.parseInt(color.slice(1, 3), 16) + 20)!;
+    const [r, g, b] = eyeColor.slice(1).match(/../g)!.map(channel => Number.parseInt(channel, 16));
+    assert(lines.join("").includes(`;2;${r};${g};${b}m`), "Eye color must survive native terminal rendering");
+  }
 });
 
 test("real Pi: terminal personalization preserves clean RPC and JSON protocols", { timeout: 60000 }, async () => {

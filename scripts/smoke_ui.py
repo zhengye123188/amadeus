@@ -233,6 +233,17 @@ def main():
                 avatar_terminal.expect_exact("PIXEL LAB / KURISU")
                 avatar_terminal.expect_exact("▀")
                 avatar_terminal.expect_exact("research ·")
+                # Exercise both native detail levels and compact fallback in a
+                # running terminal, including restoration after a narrow resize.
+                for rows, columns in ((40, 120), (48, 120), (24, 80), (32, 120)):
+                    avatar_terminal.setwinsize(rows, columns)
+                    avatar_terminal.expect_exact("PIXEL LAB / KURISU")
+                    avatar_terminal.expect_exact("▀")
+                avatar_terminal.setwinsize(32, 54)
+                avatar_terminal.expect_exact("PIXEL LAB")
+                avatar_terminal.setwinsize(40, 120)
+                avatar_terminal.expect_exact("PIXEL LAB / KURISU")
+                avatar_terminal.expect_exact("▀")
                 avatar_terminal.send("/ui avatar off\r")
                 avatar_terminal.send("/ui\r")
                 avatar_terminal.expect_exact("avatar: off")

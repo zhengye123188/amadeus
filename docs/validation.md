@@ -2,6 +2,15 @@
 
 更新日期：2026-10-03。开发环境为 macOS ARM64、Node 22.23.1、Python 3.12.13、Pi 0.99.1；依赖由 `package-lock.json` 和 `uv.lock` 固定。
 
+## 头像清晰度修正：源码验证
+
+此修正尚未包含在已发布的 npm/Release v0.6.0 中。原 PNG 保持不变，终端数据改为从原图直接生成 20×20、32×32、40×40 头部特写；每种尺寸分别采样，避免第二次缩小时丢失眼部细节。
+
+- 类型检查、脚本语法、Ruff/格式及 diff 检查通过。生成脚本再次执行后 JSON 字节一致，来源 SHA-256 匹配原 PNG。
+- **7 项 UI 测试通过**，包括三种尺寸双眼的蓝紫色像素保留、原生网格颜色到 ANSI 输出、宽高预算、关闭头像、单色模式、RPC/JSON 协议兼容。
+- 真实 PTY 验证 80×24、120×32、120×40、120×48 和 54 列窄窗口的缩放与恢复，包含中文输入、模型/恢复选择器、主题切换、会话重载和退出。模型请求由本机模拟服务提供。
+- 人工检查[像素对比预览](assets/kurisu-clarity-preview.png)及[头部布局预览](assets/kurisu-header-preview.png)中双眼可辨。预览由终端网格及 ANSI 输出绘制，不是终端软件截图；字体与实际终端可能不同。
+
 ## v0.6.0：像素界面与发布
 
 v0.6.0 已发布到 npm 和 GitHub Release。最终发布源码 `ec63e0237b2c523777dee4dd9d8a85336365b5af` 的 [完整 CI](https://github.com/zhengye123188/research-cli/actions/runs/37107470182) 已在 macOS/Linux × Python 3.10/3.12 四组全部通过，包含原生 OCR、真实 PTY、npm tarball 与 Python wheel 实装。[四平台独立安装器构建、实装与发布](https://github.com/zhengye123188/research-cli/actions/runs/37107497113) 全部通过。

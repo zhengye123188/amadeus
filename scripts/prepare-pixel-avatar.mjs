@@ -8,8 +8,8 @@ import { fileURLToPath } from "node:url";
 
 const inputPath = resolve(process.argv[2] ?? fileURLToPath(new URL("../pi/assets/kurisu-pixel.png", import.meta.url)));
 const outputPath = resolve(process.argv[3] ?? fileURLToPath(new URL("../pi/assets/kurisu-pixel.json", import.meta.url)));
-const gridSize = 48;
-const maxColors = 31; // Palette entry 0 is transparent.
+const gridSizes = [20, 32, 40];
+const maxColors = 63; // Palette entry 0 is transparent.
 const alphaThreshold = 128;
 const bytes = readFileSync(inputPath);
 if (bytes.length > 8 * 1024 * 1024 || !bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
@@ -59,90 +59,116 @@ if (visiblePixels === 0 || transparentPixels < width * height * 0.05) {
   throw new Error("Expected a nonempty avatar with genuine transparent background.");
 }
 
-const crop = { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
-const scale = (gridSize - 2) / Math.max(crop.width, crop.height);
-const drawWidth = crop.width * scale;
-const drawHeight = crop.height * scale;
-const left = (gridSize - drawWidth) / 2;
-const top = (gridSize - drawHeight) / 2;
-const samples = Array.from({ length: gridSize }, () => Array(gridSize).fill(null));
-const colors = [];
-for (let y = 0; y < gridSize; y++) {
-  for (let x = 0; x < gridSize; x++) {
-    if (x + 0.5 < left || x + 0.5 >= left + drawWidth || y + 0.5 < top || y + 0.5 >= top + drawHeight) continue;
-    const sx = Math.min(maxX, minX + Math.floor((x + 0.5 - left) / scale));
-    const sy = Math.min(maxY, minY + Math.floor((y + 0.5 - top) / scale));
-    const offset = (sy * width + sx) * 4;
-    if (rgba[offset + 3] < alphaThreshold) continue;
-    const color = Array.from(rgba.subarray(offset, offset + 3));
-    samples[y][x] = color;
-    colors.push(color);
+const visibleBounds = { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
+// A head-and-collar close-up of the bundled portrait. The original PNG and its
+// transparent background stay intact. Relative coordinates keep preparation
+// reproducible if the same artwork is exported at another resolution.
+const crop = {
+  x: Math.floor(width * 215 / 1254),
+  y: Math.floor(height * 20 / 1254),
+  width: Math.max(1, Math.floor(width * 815 / 1254)),
+  height: Math.max(1, Math.floor(height * 815 / 1254)),
+};
+
+// Each terminal size samples the original RGBA bytes independently. In
+// particular, the small portrait never downsamples a larger terminal grid;
+// that second sampling pass used to skip isolated iris pixels.
+function createVariant(gridSize) {
+  const scale = gridSize / Math.max(crop.width, crop.height);
+  const drawWidth = crop.width * scale;
+  const drawHeight = crop.height * scale;
+  const left = (gridSize - drawWidth) / 2;
+  const top = (gridSize - drawHeight) / 2;
+  const samples = Array.from({ length: gridSize }, () => Array(gridSize).fill(null));
+  const colors = [];
+  for (let y = 0; y < gridSize; y++) {
+    for (let x = 0; x < gridSize; x++) {
+      if (x + 0.5 < left || x + 0.5 >= left + drawWidth || y + 0.5 < top || y + 0.5 >= top + drawHeight) continue;
+      const sx = Math.min(width - 1, crop.x + Math.floor((x + 0.5 - left) / scale));
+      const sy = Math.min(height - 1, crop.y + Math.floor((y + 0.5 - top) / scale));
+      const offset = (sy * width + sx) * 4;
+      if (rgba[offset + 3] < alphaThreshold) continue;
+      const color = Array.from(rgba.subarray(offset, offset + 3));
+      samples[y][x] = color;
+      colors.push(color);
+    }
   }
+  if (colors.length === 0) throw new Error("The portrait crop contains no visible pixels.");
+
+  const paletteRgb = createPalette(colors);
+  const palette = [null, ...paletteRgb.map((color) => `#${color.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`)];
+  const nearestIndex = (color) => {
+    let nearest = 0;
+    let error = Infinity;
+    for (let index = 0; index < paletteRgb.length; index++) {
+      const candidate = paletteRgb[index].reduce((sum, channel, position) => sum + (channel - color[position]) ** 2, 0);
+      if (candidate < error) {
+        nearest = index + 1;
+        error = candidate;
+      }
+    }
+    return nearest;
+  };
+  const pixels = samples.map((row) => row.map((color) => color === null ? 0 : nearestIndex(color)));
+  if (pixels.length !== gridSize || pixels.some((row) => row.length !== gridSize || row.some((index) => !Number.isInteger(index) || index < 0 || index >= palette.length))) {
+    throw new Error("Invalid palette grid.");
+  }
+  return { width: gridSize, height: gridSize, palette, pixels };
 }
 
-// Deterministic median-cut palette for the committed 48x48 rendering grid.
-// This reduces terminal escape volume and never modifies the original PNG.
+// Deterministic median-cut palettes keep the committed JSON small while
+// retaining uncommon eye colors alongside the much larger hair region.
 const ranges = (box) => [0, 1, 2].map((channel) => {
   const values = box.map((color) => color[channel]);
   return Math.max(...values) - Math.min(...values);
 });
-const boxes = [colors];
-while (boxes.length < maxColors) {
-  let splitIndex = -1;
-  let splitChannel = 0;
-  let score = -1;
-  for (let index = 0; index < boxes.length; index++) {
-    const box = boxes[index];
-    if (box.length < 2) continue;
-    const spread = ranges(box);
-    const channel = spread.indexOf(Math.max(...spread));
-    const candidate = spread[channel] * Math.sqrt(box.length);
-    if (spread[channel] > 0 && candidate > score) {
-      score = candidate;
-      splitIndex = index;
-      splitChannel = channel;
+function createPalette(colors) {
+  const boxes = [colors];
+  while (boxes.length < maxColors) {
+    let splitIndex = -1;
+    let splitChannel = 0;
+    let score = -1;
+    for (let index = 0; index < boxes.length; index++) {
+      const box = boxes[index];
+      if (box.length < 2) continue;
+      const spread = ranges(box);
+      const channel = spread.indexOf(Math.max(...spread));
+      const candidate = spread[channel] * Math.sqrt(box.length);
+      if (spread[channel] > 0 && candidate > score) {
+        score = candidate;
+        splitIndex = index;
+        splitChannel = channel;
+      }
     }
+    if (splitIndex === -1) break;
+    const box = boxes[splitIndex].sort((a, b) => a[splitChannel] - b[splitChannel] || a[0] - b[0] || a[1] - b[1] || a[2] - b[2]);
+    const middle = Math.floor(box.length / 2);
+    boxes.splice(splitIndex, 1, box.slice(0, middle), box.slice(middle));
   }
-  if (splitIndex === -1) break;
-  const box = boxes[splitIndex].sort((a, b) => a[splitChannel] - b[splitChannel] || a[0] - b[0] || a[1] - b[1] || a[2] - b[2]);
-  const middle = Math.floor(box.length / 2);
-  boxes.splice(splitIndex, 1, box.slice(0, middle), box.slice(middle));
+  return boxes.map((box) => [0, 1, 2].map((channel) => Math.round(box.reduce((sum, color) => sum + color[channel], 0) / box.length)));
 }
-const paletteRgb = boxes.map((box) => [0, 1, 2].map((channel) => Math.round(box.reduce((sum, color) => sum + color[channel], 0) / box.length)));
-const palette = [null, ...paletteRgb.map((color) => `#${color.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`)];
-const nearestIndex = (color) => {
-  let nearest = 0;
-  let error = Infinity;
-  for (let index = 0; index < paletteRgb.length; index++) {
-    const candidate = paletteRgb[index].reduce((sum, channel, position) => sum + (channel - color[position]) ** 2, 0);
-    if (candidate < error) {
-      nearest = index + 1;
-      error = candidate;
-    }
-  }
-  return nearest;
-};
-const pixels = samples.map((row) => row.map((color) => color === null ? 0 : nearestIndex(color)));
+
+const variants = gridSizes.map(createVariant);
 const result = {
-  schemaVersion: 1,
-  width: gridSize,
-  height: gridSize,
-  palette,
-  pixels,
+  schemaVersion: 2,
+  variants,
   source: {
     filename: basename(inputPath),
     sha256: createHash("sha256").update(bytes).digest("hex"),
     width,
     height,
     crop,
-    sampling: "nearest",
+    visibleBounds,
+    sourceFocus: "portrait",
+    sampling: "nearest-from-source",
     alphaThreshold,
     transparentPixels,
     visiblePixels,
   },
 };
-if (pixels.length !== gridSize || pixels.some((row) => row.length !== gridSize || row.some((index) => !Number.isInteger(index) || index < 0 || index >= palette.length))) {
-  throw new Error("Invalid palette grid.");
-}
 writeFileSync(outputPath, `${JSON.stringify(result, null, 2)}\n`);
-console.log(JSON.stringify({ output: outputPath, source: result.source, grid: `${gridSize}x${gridSize}`, paletteColors: palette.length - 1 }));
+console.log(JSON.stringify({
+  output: outputPath,
+  source: result.source,
+  grids: variants.map(({ width, height, palette }) => ({ grid: `${width}x${height}`, paletteColors: palette.length - 1 })),
+}));
