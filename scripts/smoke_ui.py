@@ -18,13 +18,21 @@ import pexpect
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--launcher", type=Path, help="Run an installed research shell launcher")
     parser.add_argument("--node", default=shutil.which("node"))
     parser.add_argument("--cli", type=Path, default=Path("bin/research.mjs"))
     parser.add_argument("--python", type=Path, default=Path(".venv/bin/python"))
     args = parser.parse_args()
-    if not args.node:
+    if not args.node and not args.launcher:
         parser.error("Node must be available or passed through --node")
-    cli = args.cli.resolve(strict=True)
+    if args.launcher:
+        executable = str(args.launcher.absolute())
+        if not args.launcher.is_file():
+            parser.error("The installed research launcher does not exist")
+        launch_args = []
+    else:
+        executable = args.node
+        launch_args = [str(args.cli.resolve(strict=True))]
     # Preserve the venv executable path: resolving its symlink selects base Python.
     backend = args.python.absolute()
     if not backend.is_file():
@@ -113,8 +121,15 @@ def main():
             )
             transcript = io.StringIO()
             terminal = pexpect.spawn(
-                args.node,
-                [str(cli), "--offline", "--permission", "workspace-write", "--name", "ui-fixture"],
+                executable,
+                [
+                    *launch_args,
+                    "--offline",
+                    "--permission",
+                    "workspace-write",
+                    "--name",
+                    "ui-fixture",
+                ],
                 cwd=str(workspace),
                 env=env,
                 encoding="utf8",
@@ -205,8 +220,8 @@ def main():
             # The default portrait uses ordinary colored text rather than image protocols.
             avatar_log = io.StringIO()
             avatar_terminal = pexpect.spawn(
-                args.node,
-                [str(cli), "--offline", "--permission", "workspace-write"],
+                executable,
+                [*launch_args, "--offline", "--permission", "workspace-write"],
                 cwd=str(workspace),
                 env={**env, "RESEARCH_UI_AVATAR": "pixel"},
                 encoding="utf8",
@@ -236,8 +251,8 @@ def main():
             assert len(requests) == 1, "UI commands must not request model generation"
 
             resume = pexpect.spawn(
-                args.node,
-                [str(cli), "--offline", "--resume"],
+                executable,
+                [*launch_args, "--offline", "--resume"],
                 cwd=str(workspace),
                 env=env,
                 encoding="utf8",

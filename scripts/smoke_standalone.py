@@ -411,10 +411,8 @@ asyncio.run(main())
         ui_result = run(
             sys.executable,
             str(Path(__file__).resolve().with_name("smoke_ui.py")),
-            "--node",
-            bundled_node,
-            "--cli",
-            str(bundle / "app/bin/research.mjs"),
+            "--launcher",
+            research,
             "--python",
             doctor["python"],
         )
