@@ -1,6 +1,6 @@
 {
   "name": "@lelouch_021015/research-cli",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "An evidence-aware research CLI built on Pi with Python MCP tools",
   "type": "module",
   "license": "MIT",

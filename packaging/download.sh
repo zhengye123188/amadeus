@@ -2,7 +2,7 @@
 # Public download entry point; the downloaded installer includes its runtimes.
 set -eu
 
-VERSION=0.6.0
+VERSION=0.6.1
 repository=zhengye123188/research-cli
 
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then

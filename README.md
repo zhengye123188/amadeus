@@ -2,11 +2,11 @@
 
 基于 [Pi](https://github.com/earendil-works/pi) 的交互式科研 Agent。在项目目录打开终端，直接讨论论文、检查代码、整理证据和验证改进，由 Agent 根据当前问题选择工具。用户可以从任意问题开始、继续已有记录或随时转向。
 
-**v0.6.0 · macOS / Linux · MIT**
+**v0.6.1 · macOS / Linux · MIT**
 
-本版新增墨绿像素终端、牧濑红莉栖像素头像和可切换配色，显示实际工作区、模型、上下文与协作状态。科研工具、按职责分工的多 Agent 和英文/中文本地 OCR 继续使用原有机制。[界面与定制](docs/ui.md) · [协作与 OCR](docs/collaboration.md)
+本版改善牧濑红莉栖像素头像的清晰度：直接从原图生成三种尺寸的头部特写，按终端窗口选择，保留眼部细节。墨绿像素终端显示实际工作区、模型、上下文与协作状态。科研工具、按职责分工的多 Agent 和英文/中文本地 OCR 继续使用原有机制。[界面与定制](docs/ui.md) · [协作与 OCR](docs/collaboration.md)
 
-[npm 包](https://www.npmjs.com/package/@lelouch_021015/research-cli) · [独立安装包](https://github.com/zhengye123188/research-cli/releases/latest) · [版本说明与发布状态](docs/releases/v0.6.0.md) · [架构](docs/architecture.md)
+[npm 包](https://www.npmjs.com/package/@lelouch_021015/research-cli) · [独立安装包](https://github.com/zhengye123188/research-cli/releases/latest) · [版本说明与发布状态](docs/releases/v0.6.1.md) · [架构](docs/architecture.md)
 
 安装后用 `research --version` 核对实际版本。各平台构建及公开下载检查见 [验证记录](docs/validation.md)。
 
